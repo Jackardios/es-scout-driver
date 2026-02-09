@@ -247,7 +247,8 @@ static-analysis: ## Run PHPStan static analysis
 
 ##@ CI
 
-ci: style-check static-analysis unit-test ## Run all CI checks (no Docker required)
+ci: style-check static-analysis ## Run all CI checks
+	@$(MAKE) up wait test; status=$$?; $(MAKE) down; exit $$status
 	@printf "$(GREEN)════════════════════════════════════════$(RESET)\n"
 	@printf "$(GREEN)  All CI checks passed!$(RESET)\n"
 	@printf "$(GREEN)════════════════════════════════════════$(RESET)\n"
