@@ -11,6 +11,20 @@ jobs:
     name: PHP ${{ matrix.php }} / Laravel ${{ matrix.laravel }} / ES ${{ matrix.elasticsearch }}
     runs-on: ubuntu-latest
 
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: testing
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
     strategy:
       fail-fast: false
       matrix:
@@ -60,8 +74,10 @@ jobs:
 
       - name: Install dependencies
         run: |
-          composer require "laravel/scout:^${{ matrix.laravel }}.0" "orchestra/testbench:^${{ matrix.testbench }}.0" "elasticsearch/elasticsearch:^${{ matrix.es_client }}.0" --no-interaction --no-update
-          composer update --prefer-dist --no-interaction --no-progress
+          composer update \
+            --with="orchestra/testbench:^${{ matrix.testbench }}.0" \
+            --with="elasticsearch/elasticsearch:^${{ matrix.es_client }}.0" \
+            --prefer-dist --no-interaction --no-progress
 
       - name: Start Elasticsearch
         run: |
@@ -80,16 +96,24 @@ jobs:
             if curl -s http://localhost:9200 > /dev/null; then
               echo "Elasticsearch is ready!"
               curl -s http://localhost:9200
-              break
+              exit 0
             fi
             echo "Attempt $i/30..."
             sleep 2
           done
+          echo "Elasticsearch failed to start"
+          exit 1
 
       - name: Run tests
         run: vendor/bin/phpunit --colors=always
         env:
           ELASTICSEARCH_HOST: localhost:9200
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: testing
+          DB_USERNAME: root
+          DB_PASSWORD: root
 
   static-analysis:
     name: Static Analysis (PHPStan)
