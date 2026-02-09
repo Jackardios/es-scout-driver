@@ -36,7 +36,7 @@ final class RescoreTest extends TestCase
     public function test_rescore_boosts_matching_documents(): void
     {
         $book1 = Book::factory()->create([
-            'title' => 'Elasticsearch Basics',
+            'title' => 'Search Engine Basics',
             'description' => 'Introduction to search engines',
         ]);
         $book2 = Book::factory()->create([
