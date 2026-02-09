@@ -111,11 +111,11 @@ final class TermsAggregation implements AggregationInterface
         }
 
         if ($this->include !== null) {
-            $params['include'] = count($this->include) === 1 ? $this->include[0] : $this->include;
+            $params['include'] = count($this->include) === 1 ? reset($this->include) : $this->include;
         }
 
         if ($this->exclude !== null) {
-            $params['exclude'] = count($this->exclude) === 1 ? $this->exclude[0] : $this->exclude;
+            $params['exclude'] = count($this->exclude) === 1 ? reset($this->exclude) : $this->exclude;
         }
 
         $result = ['terms' => $params];

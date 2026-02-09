@@ -62,4 +62,11 @@ final class HasChildQuery implements QueryInterface
 
         return ['has_child' => $params];
     }
+
+    public function __clone(): void
+    {
+        if ($this->query instanceof QueryInterface) {
+            $this->query = clone $this->query;
+        }
+    }
 }

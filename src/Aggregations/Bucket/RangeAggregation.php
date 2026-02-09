@@ -26,7 +26,7 @@ final class RangeAggregation implements AggregationInterface
         return $this;
     }
 
-    public function range(?int $from = null, ?int $to = null, ?string $key = null): self
+    public function range(int|float|null $from = null, int|float|null $to = null, ?string $key = null): self
     {
         $range = [];
         if ($from !== null) {

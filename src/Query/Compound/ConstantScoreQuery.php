@@ -30,4 +30,11 @@ final class ConstantScoreQuery implements QueryInterface
 
         return ['constant_score' => $params];
     }
+
+    public function __clone(): void
+    {
+        if ($this->filter instanceof QueryInterface) {
+            $this->filter = clone $this->filter;
+        }
+    }
 }
