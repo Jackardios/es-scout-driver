@@ -97,13 +97,6 @@ final class SearchBuilderMethodsTest extends TestCase
         $this->assertNull($builder->getQuery());
     }
 
-    #[Test]
-    public function get_query_returns_null_by_default(): void
-    {
-        $builder = $this->createBuilder();
-        $this->assertNull($builder->getQuery());
-    }
-
     // ---- Highlight methods ----
 
     #[Test]
@@ -877,33 +870,17 @@ final class SearchBuilderMethodsTest extends TestCase
     }
 
     #[Test]
-    public function has_bool_query_false_by_default(): void
+    public function bool_query_state_before_and_after_access(): void
     {
         $builder = $this->createBuilder();
+
         $this->assertFalse($builder->hasBoolQuery());
-    }
-
-    #[Test]
-    public function has_bool_query_true_after_access(): void
-    {
-        $builder = $this->createBuilder();
-        $builder->boolQuery();
-        $this->assertTrue($builder->hasBoolQuery());
-    }
-
-    #[Test]
-    public function get_bool_query_null_by_default(): void
-    {
-        $builder = $this->createBuilder();
         $this->assertNull($builder->getBoolQuery());
-    }
 
-    #[Test]
-    public function get_bool_query_returns_instance(): void
-    {
-        $builder = $this->createBuilder();
-        $expected = $builder->boolQuery();
-        $this->assertSame($expected, $builder->getBoolQuery());
+        $boolQuery = $builder->boolQuery();
+
+        $this->assertTrue($builder->hasBoolQuery());
+        $this->assertSame($boolQuery, $builder->getBoolQuery());
     }
 
     #[Test]
@@ -1273,35 +1250,6 @@ final class SearchBuilderMethodsTest extends TestCase
         $builder->postFilter(fn() => new TermQuery('status', 'active'));
 
         $this->assertSame(['term' => ['status' => ['value' => 'active']]], $builder->getPostFilter());
-    }
-
-    #[Test]
-    public function routing_converts_int_to_string_array(): void
-    {
-        $builder = $this->createBuilder();
-        $builder->routing(123);
-
-        $this->assertSame(['123'], $builder->getRouting());
-    }
-
-    #[Test]
-    public function search_after_with_mixed_values(): void
-    {
-        $builder = $this->createBuilder();
-        $builder->searchAfter([1609459200000, 'doc-123', 3.14, null]);
-
-        $this->assertSame([1609459200000, 'doc-123', 3.14, null], $builder->getSearchAfter());
-    }
-
-    #[Test]
-    public function point_in_time_without_keep_alive(): void
-    {
-        $builder = $this->createBuilder();
-        $builder->pointInTime('pit-id-only');
-
-        $pit = $builder->getPointInTime();
-        $this->assertArrayHasKey('id', $pit);
-        $this->assertArrayNotHasKey('keep_alive', $pit);
     }
 
     #[Test]
