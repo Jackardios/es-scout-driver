@@ -75,13 +75,25 @@ class Book extends Model
 }
 ```
 
-### 2. Index your data
+### 2. Create your index (optional but recommended)
+
+For index management, we recommend [babenkoivan/elastic-migrations](https://github.com/babenkoivan/elastic-migrations):
+
+```bash
+composer require babenkoivan/elastic-migrations
+php artisan elastic:make:migration create_books_index
+php artisan elastic:migrate
+```
+
+> **Note:** The `config/elastic.client.php` is compatible with elastic-migrations.
+
+### 3. Index your data
 
 ```bash
 php artisan scout:import "App\Models\Book"
 ```
 
-### 3. Search
+### 4. Search
 
 ```php
 use Jackardios\EsScoutDriver\Support\Query;

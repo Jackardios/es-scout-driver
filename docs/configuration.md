@@ -48,6 +48,8 @@ ELASTIC_REFRESH_DOCUMENTS=false
 
 `config/elastic.client.php`:
 
+> **Compatibility Note:** This configuration format is fully compatible with [babenkoivan/elastic-client](https://github.com/babenkoivan/elastic-client) and [babenkoivan/elastic-migrations](https://github.com/babenkoivan/elastic-migrations). You can use these packages alongside es-scout-driver without any configuration conflicts.
+
 ```php
 return [
     'default' => env('ELASTIC_CONNECTION', 'default'),
@@ -297,41 +299,49 @@ public function shouldBeSearchable(): bool
 
 ### Creating Index
 
-Create the index before importing data:
+Create your Elasticsearch index before importing data. We recommend using [babenkoivan/elastic-migrations](https://github.com/babenkoivan/elastic-migrations) for managing indices:
 
 ```bash
-php artisan make:elastic-index books
+composer require babenkoivan/elastic-migrations
+php artisan vendor:publish --provider="Elastic\Migrations\ServiceProvider"
 ```
 
-Or use migration-style index creation:
+Create a migration:
+
+```bash
+php artisan elastic:make:migration create_books_index
+```
 
 ```php
-use Elastic\Elasticsearch\Client;
+use Elastic\Migrations\Facades\Index;
+use Elastic\Migrations\MigrationInterface;
 
-class CreateBooksIndex
+final class CreateBooksIndex implements MigrationInterface
 {
-    public function up(Client $client): void
+    public function up(): void
     {
-        $client->indices()->create([
-            'index' => 'books',
-            'body' => [
-                'settings' => [
-                    'number_of_shards' => 1,
-                    'number_of_replicas' => 1,
-                ],
-                'mappings' => [
-                    'properties' => [
-                        'title' => ['type' => 'text'],
-                        'author' => ['type' => 'keyword'],
-                        'price' => ['type' => 'float'],
-                        'published_at' => ['type' => 'date'],
-                    ],
-                ],
-            ],
-        ]);
+        Index::create('books', function ($mapping, $settings) {
+            $mapping->text('title');
+            $mapping->keyword('author');
+            $mapping->float('price');
+            $mapping->date('published_at');
+        });
+    }
+
+    public function down(): void
+    {
+        Index::dropIfExists('books');
     }
 }
 ```
+
+Run migrations:
+
+```bash
+php artisan elastic:migrate
+```
+
+> **Note:** The `config/elastic.client.php` configuration is fully compatible with [babenkoivan/elastic-client](https://github.com/babenkoivan/elastic-client) and [babenkoivan/elastic-migrations](https://github.com/babenkoivan/elastic-migrations). You can use these packages together without any configuration conflicts.
 
 ### Importing Data
 
