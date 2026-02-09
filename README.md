@@ -1,5 +1,10 @@
 # ES Scout Driver
 
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/jackardios/es-scout-driver.svg)](https://packagist.org/packages/jackardios/es-scout-driver)                                                  
+[![PHP Version](https://img.shields.io/packagist/php-v/jackardios/es-scout-driver.svg)](https://packagist.org/packages/jackardios/es-scout-driver)                                                             
+[![CI](https://github.com/jackardios/es-scout-driver/actions/workflows/ci.yml/badge.svg)](https://github.com/jackardios/es-scout-driver/actions)
+[![License](https://img.shields.io/packagist/l/jackardios/es-scout-driver.svg)](LICENSE)
+
 Advanced Elasticsearch driver for Laravel Scout with full Query DSL support.
 
 ## Features
