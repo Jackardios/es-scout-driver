@@ -1,4 +1,4 @@
-.PHONY: up down wait test unit-test integration-test coverage style-check style-fix static-analysis ci test-matrix clean help
+.PHONY: up up-mysql up-es down down-es wait wait-mysql wait-es test unit-test integration-test coverage style-check style-fix static-analysis ci test-matrix test-full-matrix clean help
 
 .DEFAULT_GOAL := help
 
@@ -26,33 +26,46 @@ ES_IMAGE := elasticsearch
 # Supported versions for matrix testing
 ES_VERSIONS := 8.19.11 9.3.0
 PHP_VERSIONS := 8.1 8.2 8.3 8.4
+LARAVEL_VERSIONS := 10 11 12
 
 # Extra arguments for phpunit (use: make test ARGS="--filter=testName")
 ARGS ?=
 
 ##@ Docker
 
-up: ## Start MySQL and Elasticsearch containers
-	@printf "$(YELLOW)→ Starting $(MYSQL_CONTAINER_NAME) container$(RESET)\n"
-	@docker run --rm -d \
-		--name $(MYSQL_CONTAINER_NAME) \
-		-p $(MYSQL_HOST_PORT):3306 \
-		-e MYSQL_RANDOM_ROOT_PASSWORD=yes \
-		-e MYSQL_DATABASE=$(MYSQL_DATABASE) \
-		-e MYSQL_USER=$(MYSQL_USER) \
-		-e MYSQL_PASSWORD=$(MYSQL_PASSWORD) \
-		mysql:$(MYSQL_VERSION) \
-		--default-authentication-plugin=mysql_native_password
-	@printf "$(GREEN)✔ $(MYSQL_CONTAINER_NAME) started$(RESET)\n"
-	@printf "$(YELLOW)→ Starting $(ES_CONTAINER_NAME) container (ES $(ES_VERSION))$(RESET)\n"
-	@docker run --rm -d \
-		--name $(ES_CONTAINER_NAME) \
-		-p $(ES_HOST_PORT):9200 \
-		-e discovery.type=single-node \
-		-e xpack.security.enabled=false \
-		-e ES_JAVA_OPTS="-Xms512m -Xmx512m" \
-		$(ES_IMAGE):$(ES_VERSION)
-	@printf "$(GREEN)✔ $(ES_CONTAINER_NAME) started$(RESET)\n"
+up: up-mysql up-es ## Start MySQL and Elasticsearch containers
+
+up-mysql: ## Start MySQL container
+	@if docker ps --format '{{.Names}}' | grep -q "^$(MYSQL_CONTAINER_NAME)$$"; then \
+		printf "$(GREEN)✔ $(MYSQL_CONTAINER_NAME) already running$(RESET)\n"; \
+	else \
+		printf "$(YELLOW)→ Starting $(MYSQL_CONTAINER_NAME) container$(RESET)\n"; \
+		docker run --rm -d \
+			--name $(MYSQL_CONTAINER_NAME) \
+			-p $(MYSQL_HOST_PORT):3306 \
+			-e MYSQL_RANDOM_ROOT_PASSWORD=yes \
+			-e MYSQL_DATABASE=$(MYSQL_DATABASE) \
+			-e MYSQL_USER=$(MYSQL_USER) \
+			-e MYSQL_PASSWORD=$(MYSQL_PASSWORD) \
+			mysql:$(MYSQL_VERSION) \
+			--default-authentication-plugin=mysql_native_password; \
+		printf "$(GREEN)✔ $(MYSQL_CONTAINER_NAME) started$(RESET)\n"; \
+	fi
+
+up-es: ## Start Elasticsearch container
+	@if docker ps --format '{{.Names}}' | grep -q "^$(ES_CONTAINER_NAME)$$"; then \
+		printf "$(GREEN)✔ $(ES_CONTAINER_NAME) already running$(RESET)\n"; \
+	else \
+		printf "$(YELLOW)→ Starting $(ES_CONTAINER_NAME) container (ES $(ES_VERSION))$(RESET)\n"; \
+		docker run --rm -d \
+			--name $(ES_CONTAINER_NAME) \
+			-p $(ES_HOST_PORT):9200 \
+			-e discovery.type=single-node \
+			-e xpack.security.enabled=false \
+			-e ES_JAVA_OPTS="-Xms512m -Xmx512m" \
+			$(ES_IMAGE):$(ES_VERSION); \
+		printf "$(GREEN)✔ $(ES_CONTAINER_NAME) started$(RESET)\n"; \
+	fi
 
 down: ## Stop all containers
 	@printf "$(YELLOW)→ Stopping containers$(RESET)\n"
@@ -60,13 +73,20 @@ down: ## Stop all containers
 	@-docker stop $(ES_CONTAINER_NAME) 2>/dev/null || true
 	@printf "$(GREEN)✔ Containers stopped$(RESET)\n"
 
-wait: ## Wait until containers are ready
+down-es: ## Stop Elasticsearch container only
+	@-docker stop $(ES_CONTAINER_NAME) 2>/dev/null || true
+
+wait: wait-mysql wait-es ## Wait until containers are ready
+
+wait-mysql: ## Wait until MySQL is ready
 	@printf "$(YELLOW)→ Waiting for $(MYSQL_CONTAINER_NAME)$(RESET)\n"
 	@until docker exec $(MYSQL_CONTAINER_NAME) mysqladmin -u $(MYSQL_USER) -p$(MYSQL_PASSWORD) -h 127.0.0.1 ping 2>/dev/null; do \
 		printf "$(RED)✘ $(MYSQL_CONTAINER_NAME) not ready, waiting...$(RESET)\n"; \
 		sleep 3; \
 	done
 	@printf "$(GREEN)✔ $(MYSQL_CONTAINER_NAME) ready$(RESET)\n"
+
+wait-es: ## Wait until Elasticsearch is ready
 	@printf "$(YELLOW)→ Waiting for $(ES_CONTAINER_NAME)$(RESET)\n"
 	@until curl -fsS "127.0.0.1:$(ES_HOST_PORT)/_cluster/health?wait_for_status=yellow&timeout=60s" >/dev/null 2>&1; do \
 		printf "$(RED)✘ $(ES_CONTAINER_NAME) not ready, waiting...$(RESET)\n"; \
@@ -106,28 +126,93 @@ coverage: ## Run tests with coverage (ARGS="--filter=testName")
 
 test-es8: ## Run tests with Elasticsearch 8.x
 	@$(MAKE) down
+	@composer update --with="elasticsearch/elasticsearch:^8.0" --no-interaction --no-progress
 	@ES_VERSION=8.19.11 $(MAKE) up wait test
 	@$(MAKE) down
 
 test-es9: ## Run tests with Elasticsearch 9.x
 	@$(MAKE) down
+	@composer update --with="elasticsearch/elasticsearch:^9.0" --no-interaction --no-progress
 	@ES_VERSION=9.3.0 $(MAKE) up wait test
 	@$(MAKE) down
 
-test-matrix: ## Run tests on all Elasticsearch versions
+test-matrix: ## Run tests on all Elasticsearch versions (current PHP)
 	@printf "$(CYAN)════════════════════════════════════════$(RESET)\n"
-	@printf "$(CYAN)  Running test matrix$(RESET)\n"
+	@printf "$(CYAN)  Running ES matrix$(RESET)\n"
 	@printf "$(CYAN)════════════════════════════════════════$(RESET)\n"
 	@for es_version in $(ES_VERSIONS); do \
 		printf "\n$(YELLOW)▶ Testing with Elasticsearch $$es_version$(RESET)\n"; \
+		es_major=$$(echo $$es_version | cut -d. -f1); \
+		composer update --with="elasticsearch/elasticsearch:^$$es_major.0" --no-interaction --no-progress; \
 		$(MAKE) down 2>/dev/null || true; \
 		ES_VERSION=$$es_version $(MAKE) up wait test || exit 1; \
 		$(MAKE) down; \
 		printf "$(GREEN)✔ ES $$es_version passed$(RESET)\n"; \
 	done
 	@printf "\n$(GREEN)════════════════════════════════════════$(RESET)\n"
-	@printf "$(GREEN)  All matrix tests passed!$(RESET)\n"
+	@printf "$(GREEN)  All ES matrix tests passed!$(RESET)\n"
 	@printf "$(GREEN)════════════════════════════════════════$(RESET)\n"
+
+test-full-matrix: ## Run full test matrix (PHP × Laravel × ES) via Docker
+	@printf "$(CYAN)════════════════════════════════════════════════════════════$(RESET)\n"
+	@printf "$(CYAN)  Running full test matrix (PHP × Laravel × Elasticsearch)$(RESET)\n"
+	@printf "$(CYAN)════════════════════════════════════════════════════════════$(RESET)\n"
+	@$(MAKE) down 2>/dev/null || true
+	@$(MAKE) up-mysql wait-mysql
+	@passed=0; failed=0; skipped=0; \
+	for es_version in $(ES_VERSIONS); do \
+		es_major=$$(echo $$es_version | cut -d. -f1); \
+		printf "\n$(CYAN)━━━ Starting Elasticsearch $$es_version ━━━$(RESET)\n"; \
+		ES_VERSION=$$es_version $(MAKE) up-es wait-es; \
+		for php_version in $(PHP_VERSIONS); do \
+			for laravel_version in $(LARAVEL_VERSIONS); do \
+				if [ "$$php_version" = "8.1" ] && [ "$$laravel_version" != "10" ]; then \
+					printf "$(YELLOW)⊘ PHP $$php_version / Laravel $$laravel_version / ES $$es_version - skipped (Laravel $$laravel_version requires PHP 8.2+)$(RESET)\n"; \
+					skipped=$$((skipped + 1)); \
+					continue; \
+				fi; \
+				printf "\n$(CYAN)▶ PHP $$php_version / Laravel $$laravel_version / ES $$es_version$(RESET)\n"; \
+				case $$laravel_version in \
+					10) testbench_version=8 ;; \
+					11) testbench_version=9 ;; \
+					12) testbench_version=10 ;; \
+				esac; \
+				if docker run --rm \
+					--network host \
+					-v "$$(pwd):/app" \
+					-w /app \
+					-e ELASTIC_HOST=127.0.0.1:$(ES_HOST_PORT) \
+					-e DB_HOST=127.0.0.1 \
+					-e DB_PORT=$(MYSQL_HOST_PORT) \
+					-e DB_DATABASE=$(MYSQL_DATABASE) \
+					-e DB_USERNAME=$(MYSQL_USER) \
+					-e DB_PASSWORD=$(MYSQL_PASSWORD) \
+					php:$$php_version-cli sh -c "\
+						apt-get update -qq && apt-get install -y -qq git unzip libzip-dev > /dev/null 2>&1 && \
+						docker-php-ext-install zip pdo pdo_mysql > /dev/null 2>&1 && \
+						curl -sS https://getcomposer.org/installer | php -- --quiet && \
+						php composer.phar update \
+							--with='orchestra/testbench:^$$testbench_version.0' \
+							--with='elasticsearch/elasticsearch:^$$es_major.0' \
+							--prefer-dist --no-interaction --no-progress && \
+						vendor/bin/phpunit --colors=always \
+					"; then \
+					printf "$(GREEN)✔ PHP $$php_version / Laravel $$laravel_version / ES $$es_version passed$(RESET)\n"; \
+					passed=$$((passed + 1)); \
+				else \
+					printf "$(RED)✘ PHP $$php_version / Laravel $$laravel_version / ES $$es_version failed$(RESET)\n"; \
+					failed=$$((failed + 1)); \
+				fi; \
+			done; \
+		done; \
+		printf "$(CYAN)━━━ Stopping Elasticsearch $$es_version ━━━$(RESET)\n"; \
+		$(MAKE) down-es; \
+	done; \
+	$(MAKE) down; \
+	printf "\n$(CYAN)════════════════════════════════════════════════════════════$(RESET)\n"; \
+	printf "$(CYAN)  Results: $(GREEN)$$passed passed$(CYAN), $(RED)$$failed failed$(CYAN), $(YELLOW)$$skipped skipped$(RESET)\n"; \
+	printf "$(CYAN)════════════════════════════════════════════════════════════$(RESET)\n"; \
+	[ $$failed -eq 0 ]
 
 ##@ Code Quality
 
@@ -153,7 +238,7 @@ ci: style-check static-analysis unit-test ## Run all CI checks (no Docker requir
 	@printf "$(GREEN)  All CI checks passed!$(RESET)\n"
 	@printf "$(GREEN)════════════════════════════════════════$(RESET)\n"
 
-ci-full: style-check static-analysis test-matrix ## Run full CI with all ES versions
+ci-full: style-check static-analysis test-full-matrix ## Run full CI with complete matrix (PHP × Laravel × ES)
 	@printf "$(GREEN)════════════════════════════════════════$(RESET)\n"
 	@printf "$(GREEN)  Full CI passed!$(RESET)\n"
 	@printf "$(GREEN)════════════════════════════════════════$(RESET)\n"
