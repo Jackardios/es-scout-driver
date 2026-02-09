@@ -81,8 +81,7 @@ jobs:
 
       - name: Start Elasticsearch
         run: |
-          docker network create elastic
-          docker run -d --name elasticsearch --net elastic \
+          docker run -d --name elasticsearch \
             -p 9200:9200 \
             -e "discovery.type=single-node" \
             -e "xpack.security.enabled=false" \
@@ -92,16 +91,17 @@ jobs:
       - name: Wait for Elasticsearch
         run: |
           echo "Waiting for Elasticsearch..."
-          for i in {1..30}; do
-            if curl -s http://localhost:9200 > /dev/null; then
+          for i in {1..60}; do
+            if curl -s "http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=1s" > /dev/null 2>&1; then
               echo "Elasticsearch is ready!"
               curl -s http://localhost:9200
               exit 0
             fi
-            echo "Attempt $i/30..."
+            echo "Attempt $i/60..."
             sleep 2
           done
           echo "Elasticsearch failed to start"
+          docker logs elasticsearch
           exit 1
 
       - name: Run tests
