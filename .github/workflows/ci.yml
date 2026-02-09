@@ -1,0 +1,137 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, '*.x']
+  pull_request:
+    branches: [main, master, '*.x']
+
+jobs:
+  tests:
+    name: PHP ${{ matrix.php }} / Laravel ${{ matrix.laravel }} / ES ${{ matrix.elasticsearch }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.1', '8.2', '8.3', '8.4']
+        laravel: ['10', '11', '12']
+        elasticsearch: ['8.19.11', '9.3.0']
+        exclude:
+          # Laravel 11+ requires PHP 8.2+
+          - php: '8.1'
+            laravel: '11'
+          - php: '8.1'
+            laravel: '12'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: dom, curl, libxml, mbstring, zip, json
+          coverage: none
+          tools: composer:v2
+
+      - name: Get composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-php-${{ matrix.php }}-laravel-${{ matrix.laravel }}-composer-${{ hashFiles('**/composer.json') }}
+          restore-keys: ${{ runner.os }}-php-${{ matrix.php }}-laravel-${{ matrix.laravel }}-composer-
+
+      - name: Install dependencies
+        run: |
+          composer require "laravel/scout:^${{ matrix.laravel }}.0" "orchestra/testbench:^${{ matrix.laravel }}.0" --no-interaction --no-update
+          composer update --prefer-dist --no-interaction --no-progress
+
+      - name: Start Elasticsearch
+        run: |
+          docker network create elastic
+          docker run -d --name elasticsearch --net elastic \
+            -p 9200:9200 \
+            -e "discovery.type=single-node" \
+            -e "xpack.security.enabled=false" \
+            -e "ES_JAVA_OPTS=-Xms512m -Xmx512m" \
+            elasticsearch:${{ matrix.elasticsearch }}
+
+      - name: Wait for Elasticsearch
+        run: |
+          echo "Waiting for Elasticsearch..."
+          for i in {1..30}; do
+            if curl -s http://localhost:9200 > /dev/null; then
+              echo "Elasticsearch is ready!"
+              curl -s http://localhost:9200
+              break
+            fi
+            echo "Attempt $i/30..."
+            sleep 2
+          done
+
+      - name: Run tests
+        run: vendor/bin/phpunit --colors=always
+        env:
+          ELASTICSEARCH_HOST: localhost:9200
+
+  static-analysis:
+    name: Static Analysis (PHPStan)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: ${{ runner.os }}-phpstan-composer-${{ hashFiles('**/composer.json') }}
+          restore-keys: ${{ runner.os }}-phpstan-composer-
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress
+
+      - name: Run PHPStan
+        run: vendor/bin/phpstan analyse --memory-limit=512M
+
+  code-style:
+    name: Code Style (PHP-CS-Fixer)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: ${{ runner.os }}-style-composer-${{ hashFiles('**/composer.json') }}
+          restore-keys: ${{ runner.os }}-style-composer-
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress
+
+      - name: Check code style
+        run: vendor/bin/php-cs-fixer fix --dry-run --diff

@@ -1,0 +1,10 @@
+parameters:
+  level: 6
+  paths:
+    - src
+  ignoreErrors:
+    - identifier: missingType.iterableValue
+    - identifier: missingType.generics
+    - identifier: argument.templateType
+    - identifier: trait.unused
+    - '#Call to an undefined method Illuminate\\Database\\Eloquent\\Model::(getScoutKey|getScoutKeyName|getScoutModelsByIds|queryScoutModelsByIds|searchableAs|searchableUsing|scoutMetadata|pushSoftDeleteMetadata|toSearchableArray|withTrashed|searchableRouting|searchableWith|trashed|searchableConnection)\(\)#'
