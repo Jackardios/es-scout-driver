@@ -339,15 +339,19 @@ $builder->modifyQuery(function ($query, $rawResult) {
 });
 ```
 
+> **Warning:** Do not use `modifyQuery()` to filter results (e.g., `->where('active', true)`). This will break pagination because Elasticsearch returns a fixed number of hits, and filtering them in PHP will result in fewer items than expected on the page. Always filter in Elasticsearch using `filter()` or `must()`.
+
 ### modifyModels()
 
 Modify the loaded model collection:
 
 ```php
 $builder->modifyModels(function ($models) {
-    return $models->filter(fn($m) => $m->isActive());
+    return $models->each(fn($m) => $m->computed_field = $m->calculateSomething());
 });
 ```
+
+> **Warning:** Do not use `modifyModels()` to filter results. This will break pagination and cause `total` count to be incorrect. Use Elasticsearch queries for filtering instead.
 
 ## Soft Deletes
 
