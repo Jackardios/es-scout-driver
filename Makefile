@@ -1,4 +1,4 @@
-.PHONY: up up-mysql up-es down down-es wait wait-mysql wait-es test unit-test integration-test coverage style-check style-fix static-analysis ci test-matrix test-full-matrix clean help
+.PHONY: up up-mysql up-es down down-es wait wait-mysql wait-es test unit-test integration-test coverage style-check style-fix static-analysis ci test-matrix test-full-matrix clean help build-images
 
 .DEFAULT_GOAL := help
 
@@ -27,6 +27,10 @@ ES_IMAGE := elasticsearch
 ES_VERSIONS := 8.19.11 9.3.0
 PHP_VERSIONS := 8.1 8.2 8.3 8.4
 LARAVEL_VERSIONS := 10 11 12
+
+# Docker image for matrix testing
+DOCKER_IMAGE_PREFIX := es-scout-driver-php
+COMPOSER_CACHE_VOLUME := es-scout-driver-composer-cache
 
 # Extra arguments for phpunit (use: make test ARGS="--filter=testName")
 ARGS ?=
@@ -102,6 +106,17 @@ clean: ## Remove all containers and volumes
 	@-docker rm -f $(ES_CONTAINER_NAME) 2>/dev/null || true
 	@printf "$(GREEN)✔ Cleanup complete$(RESET)\n"
 
+build-images: ## Build Docker images for matrix testing
+	@printf "$(YELLOW)→ Building Docker images for matrix testing$(RESET)\n"
+	@for php_version in $(PHP_VERSIONS); do \
+		printf "$(CYAN)▶ Building $(DOCKER_IMAGE_PREFIX):$$php_version$(RESET)\n"; \
+		docker build -q -t $(DOCKER_IMAGE_PREFIX):$$php_version \
+			--build-arg PHP_VERSION=$$php_version \
+			docker/; \
+	done
+	@docker volume create $(COMPOSER_CACHE_VOLUME) >/dev/null 2>&1 || true
+	@printf "$(GREEN)✔ Images built$(RESET)\n"
+
 ##@ Testing
 
 test: ## Run all tests (ARGS="--filter=testName")
@@ -153,7 +168,7 @@ test-matrix: ## Run tests on all Elasticsearch versions (current PHP)
 	@printf "$(GREEN)  All ES matrix tests passed!$(RESET)\n"
 	@printf "$(GREEN)════════════════════════════════════════$(RESET)\n"
 
-test-full-matrix: ## Run full test matrix (PHP × Laravel × ES) via Docker
+test-full-matrix: build-images ## Run full test matrix (PHP × Laravel × ES) via Docker
 	@printf "$(CYAN)════════════════════════════════════════════════════════════$(RESET)\n"
 	@printf "$(CYAN)  Running full test matrix (PHP × Laravel × Elasticsearch)$(RESET)\n"
 	@printf "$(CYAN)════════════════════════════════════════════════════════════$(RESET)\n"
@@ -179,7 +194,8 @@ test-full-matrix: ## Run full test matrix (PHP × Laravel × ES) via Docker
 				esac; \
 				if docker run --rm \
 					--network host \
-					-v "$$(pwd):/app" \
+					-v "$$(pwd):/src:ro" \
+					-v $(COMPOSER_CACHE_VOLUME):/root/.composer/cache \
 					-w /app \
 					-e ELASTIC_HOST=127.0.0.1:$(ES_HOST_PORT) \
 					-e DB_HOST=127.0.0.1 \
@@ -187,11 +203,9 @@ test-full-matrix: ## Run full test matrix (PHP × Laravel × ES) via Docker
 					-e DB_DATABASE=$(MYSQL_DATABASE) \
 					-e DB_USERNAME=$(MYSQL_USER) \
 					-e DB_PASSWORD=$(MYSQL_PASSWORD) \
-					php:$$php_version-cli sh -c "\
-						apt-get update -qq && apt-get install -y -qq git unzip libzip-dev > /dev/null 2>&1 && \
-						docker-php-ext-install zip pdo pdo_mysql > /dev/null 2>&1 && \
-						curl -sS https://getcomposer.org/installer | php -- --quiet && \
-						php composer.phar update \
+					$(DOCKER_IMAGE_PREFIX):$$php_version sh -c "\
+						cp -r /src/. /app/ && \
+						composer update \
 							--with='orchestra/testbench:^$$testbench_version.0' \
 							--with='elasticsearch/elasticsearch:^$$es_major.0' \
 							--prefer-dist --no-interaction --no-progress && \
