@@ -68,4 +68,33 @@ final class ConstantScoreQueryTest extends TestCase
 
         $this->assertSame($query, $query->boost(1.0));
     }
+
+    #[Test]
+    public function it_deep_clones_filter_query_interface(): void
+    {
+        $innerQuery = new TermQuery('status', 'active');
+        $query = new ConstantScoreQuery($innerQuery);
+        $cloned = clone $query;
+
+        $this->assertEquals($query->toArray(), $cloned->toArray());
+        $this->assertNotSame($query, $cloned);
+
+        $reflection = new \ReflectionClass($query);
+        $prop = $reflection->getProperty('filter');
+        $prop->setAccessible(true);
+
+        $originalInner = $prop->getValue($query);
+        $clonedInner = $prop->getValue($cloned);
+
+        $this->assertNotSame($originalInner, $clonedInner);
+    }
+
+    #[Test]
+    public function it_does_not_clone_array_filter(): void
+    {
+        $query = new ConstantScoreQuery(['term' => ['status' => 'published']]);
+        $cloned = clone $query;
+
+        $this->assertEquals($query->toArray(), $cloned->toArray());
+    }
 }

@@ -150,4 +150,33 @@ final class HasParentQueryTest extends TestCase
         $this->assertSame($query, $query->ignoreUnmapped(true));
         $this->assertSame($query, $query->innerHits());
     }
+
+    #[Test]
+    public function it_deep_clones_query_interface(): void
+    {
+        $innerQuery = new TermQuery('status', 'published');
+        $query = new HasParentQuery('post', $innerQuery);
+        $cloned = clone $query;
+
+        $this->assertEquals($query->toArray(), $cloned->toArray());
+        $this->assertNotSame($query, $cloned);
+
+        $reflection = new \ReflectionClass($query);
+        $prop = $reflection->getProperty('query');
+        $prop->setAccessible(true);
+
+        $originalInner = $prop->getValue($query);
+        $clonedInner = $prop->getValue($cloned);
+
+        $this->assertNotSame($originalInner, $clonedInner);
+    }
+
+    #[Test]
+    public function it_does_not_clone_array_query(): void
+    {
+        $query = new HasParentQuery('post', ['match' => ['title' => 'test']]);
+        $cloned = clone $query;
+
+        $this->assertEquals($query->toArray(), $cloned->toArray());
+    }
 }

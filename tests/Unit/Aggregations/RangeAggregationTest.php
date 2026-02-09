@@ -77,4 +77,44 @@ final class RangeAggregationTest extends TestCase
         $this->assertSame($agg, $agg->range(from: 0));
         $this->assertSame($agg, $agg->keyed());
     }
+
+    #[Test]
+    public function it_builds_range_aggregation_with_float_values(): void
+    {
+        $agg = (new RangeAggregation('rating'))
+            ->range(to: 2.5, key: 'low')
+            ->range(from: 2.5, to: 4.0, key: 'medium')
+            ->range(from: 4.0, key: 'high');
+
+        $this->assertSame([
+            'range' => [
+                'field' => 'rating',
+                'ranges' => [
+                    ['to' => 2.5, 'key' => 'low'],
+                    ['from' => 2.5, 'to' => 4.0, 'key' => 'medium'],
+                    ['from' => 4.0, 'key' => 'high'],
+                ],
+            ],
+        ], $agg->toArray());
+    }
+
+    #[Test]
+    public function it_builds_range_aggregation_with_mixed_int_and_float_values(): void
+    {
+        $agg = (new RangeAggregation('score'))
+            ->range(to: 50)
+            ->range(from: 50, to: 75.5)
+            ->range(from: 75.5);
+
+        $this->assertSame([
+            'range' => [
+                'field' => 'score',
+                'ranges' => [
+                    ['to' => 50],
+                    ['from' => 50, 'to' => 75.5],
+                    ['from' => 75.5],
+                ],
+            ],
+        ], $agg->toArray());
+    }
 }
