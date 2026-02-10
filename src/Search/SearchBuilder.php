@@ -9,19 +9,22 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Traits\Conditionable;
 use Jackardios\EsScoutDriver\Engine\AliasRegistry;
-use Jackardios\EsScoutDriver\Engine\Engine;
+use Jackardios\EsScoutDriver\Engine\EngineInterface;
 use Jackardios\EsScoutDriver\Engine\ModelResolver;
 use Jackardios\EsScoutDriver\Enums\SoftDeleteMode;
 use Jackardios\EsScoutDriver\Enums\SortOrder;
+use Jackardios\EsScoutDriver\Exceptions\InvalidQueryException;
 use Jackardios\EsScoutDriver\Exceptions\ModelNotJoinedException;
 use Jackardios\EsScoutDriver\Exceptions\NotSearchableModelException;
 use Jackardios\EsScoutDriver\Aggregations\AggregationInterface;
 use Jackardios\EsScoutDriver\Query\Compound\BoolQuery;
 use Jackardios\EsScoutDriver\Query\Concerns\ResolvesQueries;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
+use Jackardios\EsScoutDriver\Query\Specialized\KnnQuery;
 use Jackardios\EsScoutDriver\Query\Term\TermQuery;
 use Jackardios\EsScoutDriver\Sort\SortInterface;
 use stdClass;
+use Throwable;
 
 class SearchBuilder
 {
@@ -30,7 +33,7 @@ class SearchBuilder
 
     public const DEFAULT_PAGE_SIZE = 10;
 
-    private Engine $engine;
+    private EngineInterface $engine;
     private AliasRegistry $aliasRegistry;
 
     /** @var array<string, string> model class => index name */
@@ -81,9 +84,7 @@ class SearchBuilder
     public function __construct(Model $model, $query = null)
     {
         $this->engine = $model->searchableUsing();
-        /** @phpstan-ignore function.alreadyNarrowedType */
-        $client = method_exists($this->engine, 'getClient') ? $this->engine->getClient() : null;
-        $this->aliasRegistry = new AliasRegistry($client);
+        $this->aliasRegistry = new AliasRegistry($this->engine->getClient());
 
         $this->join(get_class($model));
 
@@ -97,7 +98,13 @@ class SearchBuilder
     /** @param QueryInterface|Closure|array $query */
     public function query($query): self
     {
-        $this->query = $this->resolveQueryToArray($query);
+        $resolved = $this->resolveQueryToArray($query);
+
+        if ($resolved === []) {
+            throw new InvalidQueryException('Search query cannot be empty');
+        }
+
+        $this->query = $resolved;
         return $this;
     }
 
@@ -251,7 +258,7 @@ class SearchBuilder
     public function sort(
         string|SortInterface $field,
         SortOrder|string $direction = 'asc',
-        ?string $missing = null,
+        string|int|float|bool|null $missing = null,
         ?string $mode = null,
         ?string $unmappedType = null,
     ): self {
@@ -587,22 +594,21 @@ class SearchBuilder
         ?float $similarity = null,
         QueryInterface|array|null $filter = null,
     ): self {
-        $this->knn = [
-            'field' => $field,
-            'query_vector' => $queryVector,
-            'k' => $k,
-            'num_candidates' => $numCandidates ?? max($k * 2, 100),
-        ];
+        $knn = new KnnQuery($field, $queryVector, $k);
+
+        if ($numCandidates !== null) {
+            $knn->numCandidates($numCandidates);
+        }
 
         if ($similarity !== null) {
-            $this->knn['similarity'] = $similarity;
+            $knn->similarity($similarity);
         }
 
         if ($filter !== null) {
-            $this->knn['filter'] = $filter instanceof QueryInterface
-                ? $filter->toArray()
-                : $filter;
+            $knn->filter($filter);
         }
+
+        $this->knn = $knn->toArray()['knn'];
 
         return $this;
     }
@@ -849,10 +855,15 @@ class SearchBuilder
         $this->trackTotalHits = null;
         $this->trackScores = null;
         $this->minScore = null;
+        $this->indicesBoost = [];
+        $this->searchType = null;
+        $this->preference = null;
         $this->pointInTime = null;
         $this->searchAfter = null;
         $this->routing = null;
         $this->explain = null;
+        $this->terminateAfter = null;
+        $this->requestCache = null;
         $this->scriptFields = null;
         $this->runtimeMappings = null;
         $this->timeout = null;
@@ -923,6 +934,7 @@ class SearchBuilder
         $builder = clone $this;
         $builder->from(($page - 1) * $perPage);
         $builder->size($perPage);
+        $builder->trackTotalHits(true);
         $searchResult = $builder->execute();
 
         return new Paginator(
@@ -959,28 +971,26 @@ class SearchBuilder
 
     public function count(): int
     {
-        // If using Point-in-Time, use search with size=0 for consistency
-        if ($this->pointInTime !== null) {
-            $result = (clone $this)->size(0)->trackTotalHits(true)->execute();
-            return $result->total;
-        }
+        $params = (clone $this)
+            ->size(0)
+            ->trackTotalHits(true)
+            ->clearSearchAfter()
+            ->buildParams();
 
-        $params = ['index' => implode(',', array_values($this->indexNames))];
+        $rawResult = $this->engine->searchRaw($params);
 
-        if ($this->routing !== null) {
-            $params['routing'] = implode(',', $this->routing);
-        }
-
-        $query = $this->buildFinalQuery();
-        if ($query !== null) {
-            $params['body']['query'] = $query;
-        }
-
-        return $this->engine->countRaw($params);
+        return $rawResult['hits']['total']['value'] ?? 0;
     }
 
     public function deleteByQuery(): array
     {
+        if (!$this->hasWriteQuery()) {
+            throw new InvalidQueryException(
+                'deleteByQuery requires an explicit query. Use Query::matchAll() to target all visible documents. '
+                . 'When scout.soft_delete=true, call boolQuery()->withTrashed() to include soft-deleted documents.',
+            );
+        }
+
         $params = ['index' => implode(',', array_values($this->indexNames))];
 
         if ($this->routing !== null) {
@@ -997,6 +1007,13 @@ class SearchBuilder
 
     public function updateByQuery(array $script): array
     {
+        if (!$this->hasWriteQuery()) {
+            throw new InvalidQueryException(
+                'updateByQuery requires an explicit query. Use Query::matchAll() to target all visible documents. '
+                . 'When scout.soft_delete=true, call boolQuery()->withTrashed() to include soft-deleted documents.',
+            );
+        }
+
         $params = ['index' => implode(',', array_values($this->indexNames))];
 
         if ($this->routing !== null) {
@@ -1013,7 +1030,7 @@ class SearchBuilder
         return $this->engine->updateByQueryRaw($params);
     }
 
-    public function getEngine(): Engine
+    public function getEngine(): EngineInterface
     {
         return $this->engine;
     }
@@ -1251,9 +1268,9 @@ class SearchBuilder
         return $this->query;
     }
 
-    private function buildSoftDeleteFilter(): ?TermQuery
+    private function buildSoftDeleteFilter(): QueryInterface|array|null
     {
-        if (!config('scout.soft_delete', false)) {
+        if (!$this->isSoftDeleteEnabled()) {
             return null;
         }
 
@@ -1262,8 +1279,32 @@ class SearchBuilder
         return match ($softDeleteMode) {
             SoftDeleteMode::WithTrashed => null,
             SoftDeleteMode::OnlyTrashed => new TermQuery('__soft_deleted', 1),
-            SoftDeleteMode::ExcludeTrashed => new TermQuery('__soft_deleted', 0),
+            SoftDeleteMode::ExcludeTrashed => [
+                'bool' => [
+                    'should' => [
+                        ['term' => ['__soft_deleted' => ['value' => 0]]],
+                        ['bool' => ['must_not' => [['exists' => ['field' => '__soft_deleted']]]]],
+                    ],
+                    'minimum_should_match' => 1,
+                ],
+            ],
         };
+    }
+
+    private function isSoftDeleteEnabled(): bool
+    {
+        try {
+            return (bool) config('scout.soft_delete', false);
+        } catch (Throwable) {
+            // Allow using SearchBuilder in unit contexts where Laravel config container is unavailable.
+            return false;
+        }
+    }
+
+    private function hasWriteQuery(): bool
+    {
+        return ($this->query !== null && $this->query !== [])
+            || ($this->boolQuery !== null && $this->boolQuery->hasClauses());
     }
 
     private function resolveJoinedIndexName(?string $modelClass): string
