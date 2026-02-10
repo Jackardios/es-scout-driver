@@ -13,6 +13,8 @@ use Jackardios\EsScoutDriver\Engine\EngineInterface;
 use Jackardios\EsScoutDriver\Engine\ModelResolver;
 use Jackardios\EsScoutDriver\Enums\SoftDeleteMode;
 use Jackardios\EsScoutDriver\Enums\SortOrder;
+use Jackardios\EsScoutDriver\Exceptions\AmbiguousJoinedIndexException;
+use Jackardios\EsScoutDriver\Exceptions\IncompatibleSearchConnectionException;
 use Jackardios\EsScoutDriver\Exceptions\InvalidQueryException;
 use Jackardios\EsScoutDriver\Exceptions\ModelNotJoinedException;
 use Jackardios\EsScoutDriver\Exceptions\NotSearchableModelException;
@@ -35,6 +37,8 @@ class SearchBuilder
 
     private EngineInterface $engine;
     private AliasRegistry $aliasRegistry;
+    private ?string $joinedConnectionName = null;
+    private ?string $baseModelClass = null;
 
     /** @var array<string, string> model class => index name */
     private array $indexNames = [];
@@ -644,6 +648,24 @@ class SearchBuilder
         /** @var Model $model */
         $model = new $modelClass();
         $indexName = $model->searchableAs();
+        $connectionName = $this->resolveEffectiveConnectionName($model->searchableConnection());
+
+        if ($this->joinedConnectionName === null) {
+            $this->joinedConnectionName = $connectionName;
+            $this->baseModelClass = $modelClass;
+        } elseif ($this->joinedConnectionName !== $connectionName) {
+            throw new IncompatibleSearchConnectionException(
+                $this->baseModelClass ?? 'unknown',
+                $this->joinedConnectionName,
+                $modelClass,
+                $connectionName,
+            );
+        }
+
+        $registeredModelClass = array_search($indexName, $this->indexNames, true);
+        if (is_string($registeredModelClass) && $registeredModelClass !== $modelClass) {
+            throw new AmbiguousJoinedIndexException($indexName, $registeredModelClass, $modelClass);
+        }
 
         $this->indexNames[$modelClass] = $indexName;
 
@@ -1344,5 +1366,18 @@ class SearchBuilder
         }
 
         return $resolver;
+    }
+
+    private function resolveEffectiveConnectionName(?string $connection): string
+    {
+        if ($connection !== null && $connection !== '') {
+            return $connection;
+        }
+
+        try {
+            return (string) config('elastic.client.default', 'default');
+        } catch (Throwable) {
+            return 'default';
+        }
     }
 }

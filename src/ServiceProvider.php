@@ -29,6 +29,7 @@ final class ServiceProvider extends AbstractServiceProvider
             return new Engine(
                 $this->app->make("elastic.client.connection.$defaultConnection"),
                 (bool) $this->app['config']->get('elastic.scout.refresh_documents', false),
+                $defaultConnection,
             );
         });
     }

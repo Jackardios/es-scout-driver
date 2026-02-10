@@ -6,6 +6,8 @@ namespace Jackardios\EsScoutDriver\Tests\Unit\Exceptions;
 
 use Jackardios\EsScoutDriver\Exceptions\BulkOperationException;
 use Jackardios\EsScoutDriver\Exceptions\DuplicateKeyedClauseException;
+use Jackardios\EsScoutDriver\Exceptions\AmbiguousJoinedIndexException;
+use Jackardios\EsScoutDriver\Exceptions\IncompatibleSearchConnectionException;
 use Jackardios\EsScoutDriver\Exceptions\InvalidQueryException;
 use Jackardios\EsScoutDriver\Exceptions\InvalidSearchResultException;
 use Jackardios\EsScoutDriver\Exceptions\ModelNotJoinedException;
@@ -129,5 +131,35 @@ final class ExceptionsTest extends TestCase
 
         $this->assertStringContainsString('filter', $e->getMessage());
         $this->assertStringContainsString('status-filter', $e->getMessage());
+    }
+
+    #[Test]
+    public function incompatible_search_connection_exception_extends_invalid_argument(): void
+    {
+        $e = new IncompatibleSearchConnectionException(
+            'App\\Models\\Book',
+            'default',
+            'App\\Models\\Author',
+            'analytics',
+        );
+
+        $this->assertInstanceOf(\InvalidArgumentException::class, $e);
+        $this->assertStringContainsString('App\\Models\\Book', $e->getMessage());
+        $this->assertStringContainsString('App\\Models\\Author', $e->getMessage());
+    }
+
+    #[Test]
+    public function ambiguous_joined_index_exception_extends_invalid_argument(): void
+    {
+        $e = new AmbiguousJoinedIndexException(
+            'books',
+            'App\\Models\\Book',
+            'App\\Models\\LegacyBook',
+        );
+
+        $this->assertInstanceOf(\InvalidArgumentException::class, $e);
+        $this->assertStringContainsString('books', $e->getMessage());
+        $this->assertStringContainsString('App\\Models\\Book', $e->getMessage());
+        $this->assertStringContainsString('App\\Models\\LegacyBook', $e->getMessage());
     }
 }

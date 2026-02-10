@@ -18,10 +18,12 @@ use Laravel\Scout\Engines\Engine as ScoutEngine;
 class Engine extends ScoutEngine implements EngineInterface
 {
     use HandlesBulkResponse;
+    private const ENGINE_CONNECTION_FALLBACK = '__engine_default__';
 
     public function __construct(
         protected Client $client,
         protected bool $refreshDocuments = false,
+        protected ?string $connectionName = null,
     ) {}
 
     public function update($models): void
@@ -30,42 +32,41 @@ class Engine extends ScoutEngine implements EngineInterface
             return;
         }
 
-        $models->first()->searchableWith()
-            ? $models->loadMissing($models->first()->searchableWith())
-            : null;
+        foreach ($this->groupModelsByConnection($models) as $connection => $connectionModels) {
+            $this->loadSearchableRelations($connectionModels);
 
-        $body = [];
+            $body = [];
 
-        foreach ($models as $model) {
-            $searchableData = $model->toSearchableArray();
+            foreach ($connectionModels as $model) {
+                $searchableData = $model->toSearchableArray();
 
-            if (empty($searchableData)) {
+                if (empty($searchableData)) {
+                    continue;
+                }
+
+                $metadata = $this->buildDocumentMetadata($model);
+                $body[] = ['index' => $metadata];
+
+                if ($this->usesSoftDelete($model) && config('scout.soft_delete', false)) {
+                    $searchableData['__soft_deleted'] = $model->trashed() ? 1 : 0;
+                }
+
+                $body[] = $searchableData;
+            }
+
+            if ($body === []) {
                 continue;
             }
 
-            $metadata = $this->buildDocumentMetadata($model);
-            $body[] = ['index' => $metadata];
+            $params = ['body' => $body];
 
-            if ($this->usesSoftDelete($model) && config('scout.soft_delete', false)) {
-                $searchableData['__soft_deleted'] = $model->trashed() ? 1 : 0;
+            if ($this->refreshDocuments) {
+                $params['refresh'] = 'true';
             }
 
-            $body[] = $searchableData;
+            $response = $this->resolveClientForConnection($connection)->bulk($params);
+            $this->handleBulkResponse($response->asArray());
         }
-
-        if ($body === []) {
-            return;
-        }
-
-        $params = ['body' => $body];
-
-        if ($this->refreshDocuments) {
-            $params['refresh'] = 'true';
-        }
-
-        /** @var ElasticsearchResponse $response */
-        $response = $this->client->bulk($params);
-        $this->handleBulkResponse($response->asArray());
     }
 
     public function delete($models): void
@@ -74,22 +75,27 @@ class Engine extends ScoutEngine implements EngineInterface
             return;
         }
 
-        $body = [];
+        foreach ($this->groupModelsByConnection($models) as $connection => $connectionModels) {
+            $body = [];
 
-        foreach ($models as $model) {
-            $metadata = $this->buildDocumentMetadata($model);
-            $body[] = ['delete' => $metadata];
+            foreach ($connectionModels as $model) {
+                $metadata = $this->buildDocumentMetadata($model);
+                $body[] = ['delete' => $metadata];
+            }
+
+            if ($body === []) {
+                continue;
+            }
+
+            $params = ['body' => $body];
+
+            if ($this->refreshDocuments) {
+                $params['refresh'] = 'true';
+            }
+
+            $response = $this->resolveClientForConnection($connection)->bulk($params);
+            $this->handleBulkResponse($response->asArray());
         }
-
-        $params = ['body' => $body];
-
-        if ($this->refreshDocuments) {
-            $params['refresh'] = 'true';
-        }
-
-        /** @var ElasticsearchResponse $response */
-        $response = $this->client->bulk($params);
-        $this->handleBulkResponse($response->asArray());
     }
 
     public function search(Builder $builder): array
@@ -195,6 +201,7 @@ class Engine extends ScoutEngine implements EngineInterface
     {
         $clone = clone $this;
         $clone->client = app("elastic.client.connection.$connection");
+        $clone->connectionName = $connection;
         return $clone;
     }
 
@@ -403,6 +410,88 @@ class Engine extends ScoutEngine implements EngineInterface
         }
 
         return $base;
+    }
+
+    /**
+     * @param iterable<int, mixed> $models
+     * @return array<string, array<int, Model>>
+     */
+    private function groupModelsByConnection(iterable $models): array
+    {
+        $grouped = [];
+
+        foreach ($models as $model) {
+            if (!$model instanceof Model) {
+                throw new InvalidArgumentException('Bulk operations expect an iterable of Eloquent models.');
+            }
+
+            $connection = $this->resolveConnectionNameForModel($model);
+            $grouped[$connection][] = $model;
+        }
+
+        return $grouped;
+    }
+
+    /**
+     * @param array<int, Model> $models
+     */
+    private function loadSearchableRelations(array $models): void
+    {
+        $groups = [];
+
+        foreach ($models as $model) {
+            $searchableWith = $model->searchableWith();
+            if ($searchableWith === null) {
+                continue;
+            }
+
+            $relations = is_array($searchableWith) ? $searchableWith : [$searchableWith];
+            $relations = array_values(array_filter(
+                $relations,
+                static fn($relation) => is_string($relation) && $relation !== '',
+            ));
+
+            if ($relations === []) {
+                continue;
+            }
+
+            sort($relations);
+
+            $groupKey = get_class($model) . '|' . implode(',', $relations);
+            $groups[$groupKey]['relations'] = $relations;
+            $groups[$groupKey]['models'][] = $model;
+        }
+
+        foreach ($groups as $group) {
+            (new EloquentCollection($group['models']))->loadMissing($group['relations']);
+        }
+    }
+
+    private function resolveConnectionNameForModel(Model $model): string
+    {
+        $connection = $model->searchableConnection();
+        if ($connection !== null && $connection !== '') {
+            return $connection;
+        }
+
+        if ($this->connectionName !== null && $this->connectionName !== '') {
+            return $this->connectionName;
+        }
+
+        return self::ENGINE_CONNECTION_FALLBACK;
+    }
+
+    private function resolveClientForConnection(string $connection): mixed
+    {
+        if ($connection === self::ENGINE_CONNECTION_FALLBACK) {
+            return $this->client;
+        }
+
+        if ($this->connectionName !== null && $connection === $this->connectionName) {
+            return $this->client;
+        }
+
+        return app("elastic.client.connection.$connection");
     }
 
     protected function usesSoftDelete(Model $model): bool
