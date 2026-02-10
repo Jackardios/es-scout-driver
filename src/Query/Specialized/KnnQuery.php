@@ -35,6 +35,14 @@ final class KnnQuery implements QueryInterface
 
     public function numCandidates(int $numCandidates): self
     {
+        if ($numCandidates <= 0) {
+            throw new InvalidQueryException('KnnQuery requires numCandidates to be greater than 0');
+        }
+
+        if ($numCandidates < $this->k) {
+            throw new InvalidQueryException('KnnQuery requires numCandidates to be greater than or equal to k');
+        }
+
         $this->numCandidates = $numCandidates;
         return $this;
     }
