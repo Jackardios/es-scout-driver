@@ -48,7 +48,7 @@ final class Suggestion
         if ($this->cachedTexts === null) {
             $this->cachedTexts = Collection::make($this->options)
                 ->pluck('text')
-                ->filter()
+                ->filter(static fn($text) => $text !== null)
                 ->values();
         }
 
