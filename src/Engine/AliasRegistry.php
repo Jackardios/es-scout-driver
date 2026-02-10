@@ -31,6 +31,12 @@ class AliasRegistry
 
     public function registerIndex(string $indexName): void
     {
+        if (!isset($this->registeredIndices[$indexName])) {
+            $this->fetched = false;
+            $this->lastFetchTime = null;
+            $this->aliasMap = [];
+        }
+
         $this->registeredIndices[$indexName] = true;
     }
 
