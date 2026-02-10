@@ -25,6 +25,16 @@ final class RemoveFromSearch implements ShouldQueue
     /** @var array<int, string> */
     public array $documentIds;
 
+    /**
+     * @var array<int, array{
+     *     connection: string|null,
+     *     index: string,
+     *     id: string,
+     *     routing: string|null
+     * }>
+     */
+    public array $operations;
+
     public function __construct(Collection $models)
     {
         if ($models->isEmpty()) {
@@ -32,6 +42,7 @@ final class RemoveFromSearch implements ShouldQueue
         }
 
         $this->indexName = $models->first()->searchableAs();
+        $this->operations = [];
 
         $this->documentIds = $models->map(
             static fn(Model $model) => (string) $model->getScoutKey()
@@ -40,38 +51,78 @@ final class RemoveFromSearch implements ShouldQueue
         $this->routing = [];
         /** @var Model $model */
         foreach ($models as $model) {
-            if (method_exists($model, 'searchableRouting') && $model->searchableRouting() !== null) {
-                $this->routing[(string) $model->getScoutKey()] = (string) $model->searchableRouting();
+            $documentId = (string) $model->getScoutKey();
+            $routing = null;
+
+            if (method_exists($model, 'searchableRouting')) {
+                $resolvedRouting = $model->searchableRouting();
+
+                if ($resolvedRouting !== null) {
+                    $routing = (string) $resolvedRouting;
+                    $this->routing[$documentId] = $routing;
+                }
             }
+
+            $connection = method_exists($model, 'searchableConnection')
+                ? $model->searchableConnection()
+                : null;
+
+            $this->operations[] = [
+                'connection' => $connection !== null ? (string) $connection : null,
+                'index' => $model->searchableAs(),
+                'id' => $documentId,
+                'routing' => $routing,
+            ];
         }
     }
 
     public function handle(Client $client): void
     {
         $refreshDocuments = (bool) config('elastic.scout.refresh_documents', false);
+        $operations = $this->operations !== []
+            ? $this->operations
+            : array_map(
+                fn(string $documentId) => [
+                    'connection' => null,
+                    'index' => $this->indexName,
+                    'id' => $documentId,
+                    'routing' => $this->routing[$documentId] ?? null,
+                ],
+                $this->documentIds,
+            );
 
-        $body = [];
+        $operationsByConnection = [];
+        foreach ($operations as $operation) {
+            $key = $operation['connection'] ?? '__default__';
+            $operationsByConnection[$key][] = $operation;
+        }
 
-        foreach ($this->documentIds as $documentId) {
-            $metadata = [
-                '_index' => $this->indexName,
-                '_id' => $documentId,
-            ];
+        foreach ($operationsByConnection as $connection => $connectionOperations) {
+            $resolvedClient = $connection === '__default__'
+                ? $client
+                : app("elastic.client.connection.$connection");
 
-            if (isset($this->routing[$documentId])) {
-                $metadata['routing'] = $this->routing[$documentId];
+            $body = [];
+            foreach ($connectionOperations as $operation) {
+                $metadata = [
+                    '_index' => $operation['index'],
+                    '_id' => $operation['id'],
+                ];
+
+                if ($operation['routing'] !== null) {
+                    $metadata['routing'] = $operation['routing'];
+                }
+
+                $body[] = ['delete' => $metadata];
             }
 
-            $body[] = ['delete' => $metadata];
+            $params = ['body' => $body];
+            if ($refreshDocuments) {
+                $params['refresh'] = 'true';
+            }
+
+            $response = $resolvedClient->bulk($params);
+            $this->handleBulkResponse($response->asArray());
         }
-
-        $params = ['body' => $body];
-
-        if ($refreshDocuments) {
-            $params['refresh'] = 'true';
-        }
-
-        $response = $client->bulk($params);
-        $this->handleBulkResponse($response->asArray());
     }
 }
