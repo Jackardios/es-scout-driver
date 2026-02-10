@@ -56,7 +56,7 @@ final class Query
     use Macroable;
 
     /** @param array<string, mixed> $query */
-    public static function raw(array $query = []): RawQuery
+    public static function raw(array $query): RawQuery
     {
         return new RawQuery($query);
     }

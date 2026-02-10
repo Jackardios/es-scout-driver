@@ -9,7 +9,7 @@ use Jackardios\EsScoutDriver\Enums\SortOrder;
 final class FieldSort implements SortInterface
 {
     private string $order = 'asc';
-    private ?string $missing = null;
+    private string|int|float|bool|null $missing = null;
     private ?string $mode = null;
     private ?string $unmappedType = null;
     private ?array $nested = null;
@@ -36,7 +36,7 @@ final class FieldSort implements SortInterface
         return $this;
     }
 
-    public function missing(string $value): self
+    public function missing(string|int|float|bool $value): self
     {
         $this->missing = $value;
         return $this;
