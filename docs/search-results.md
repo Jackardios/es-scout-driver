@@ -16,6 +16,9 @@ This document covers working with search results.
 The `execute()` method returns a `SearchResult` object:
 
 ```php
+use Jackardios\EsScoutDriver\Aggregations\Agg;
+use Jackardios\EsScoutDriver\Support\Query;
+
 $result = Book::searchQuery(Query::match('title', 'laravel'))->execute();
 ```
 
@@ -291,7 +294,7 @@ For efficient iteration over large result sets:
 
 ```php
 $cursor = Book::searchQuery(Query::matchAll())
-    ->sort('_id')  // Sort is required for cursor
+    ->sort('_id')  // Optional: explicit deterministic order
     ->cursor(chunkSize: 1000, keepAlive: '5m');
 
 foreach ($cursor as $hit) {
@@ -312,8 +315,8 @@ The cursor uses Point-in-Time (PIT) and `search_after` for efficient pagination:
 
 ### Requirements
 
-- **Sort is required** - You must specify at least one sort field
-- **Unique sort** - For consistent ordering, include `_id` in your sort
+- **Sort is optional** - If not provided, the driver adds `_shard_doc` automatically for PIT pagination
+- **Stable custom order** - If you need deterministic business ordering, specify explicit sort fields and include `_id`
 
 ### Memory efficient processing
 

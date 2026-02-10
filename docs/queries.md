@@ -225,8 +225,8 @@ Query::queryString('(quick OR brown) AND fox')
     ->defaultOperator('AND')
     ->analyzer('english')
     ->fuzziness('AUTO')
-    ->fuzzyMaxExpansions(50)
-    ->fuzzyPrefixLength(0)
+    ->maxExpansions(50)
+    ->prefixLength(0)
     ->fuzzyTranspositions(true)
     ->allowLeadingWildcard(true)
     ->analyzeWildcard(true)
@@ -237,7 +237,6 @@ Query::queryString('(quick OR brown) AND fox')
     ->quoteFieldSuffix('.exact')
     ->phraseSlop(3)
     ->rewrite('constant_score')
-    ->timeZone('+03:00')
 ```
 
 ### simpleQueryString
@@ -335,8 +334,10 @@ Modify scores using functions:
 
 ```php
 Query::functionScore(Query::match('title', 'elasticsearch'))
-    ->addScriptScore([
-        'source' => "_score * doc['popularity'].value",
+    ->addFunction([
+        'script_score' => [
+            'script' => ['source' => "_score * doc['popularity'].value"],
+        ],
     ])
     ->scoreMode('multiply')     // multiply, sum, avg, first, max, min
     ->boostMode('multiply')     // multiply, replace, sum, avg, max, min
@@ -345,28 +346,35 @@ Query::functionScore(Query::match('title', 'elasticsearch'))
 
 // With weight function
 Query::functionScore(Query::matchAll())
-    ->addWeight(2.0, Query::term('featured', true))
-    ->addWeight(1.5, Query::term('premium', true))
+    ->addFunction(['weight' => 2.0, 'filter' => Query::term('featured', true)->toArray()])
+    ->addFunction(['weight' => 1.5, 'filter' => Query::term('premium', true)->toArray()])
 
 // With field value factor
 Query::functionScore(Query::matchAll())
-    ->addFieldValueFactor('popularity', [
-        'modifier' => 'log1p',
-        'factor' => 2,
-        'missing' => 1,
+    ->addFunction([
+        'field_value_factor' => [
+            'field' => 'popularity',
+            'modifier' => 'log1p',
+            'factor' => 2,
+            'missing' => 1,
+        ],
     ])
 
 // With decay function
 Query::functionScore(Query::matchAll())
-    ->addDecay('linear', 'date', [
-        'origin' => 'now',
-        'scale' => '10d',
-        'decay' => 0.5,
+    ->addFunction([
+        'linear' => [
+            'date' => [
+                'origin' => 'now',
+                'scale' => '10d',
+                'decay' => 0.5,
+            ],
+        ],
     ])
 
 // With random score
 Query::functionScore(Query::matchAll())
-    ->addRandomScore(seed: 12345, field: '_seq_no')
+    ->addFunction(['random_score' => ['seed' => 12345, 'field' => '_seq_no']])
 ```
 
 ### disMax
@@ -622,10 +630,10 @@ Query::sparseVector('ml.tokens')
     ->inferenceId('my-model')
     ->query('search text')
     ->prune(true)
-    ->pruningConfig([
-        'tokens_freq_ratio_threshold' => 5,
-        'tokens_weight_threshold' => 0.4,
-    ])
+    ->pruningConfig(
+        tokensFreqRatioThreshold: 5,
+        tokensWeightThreshold: 0.4,
+    )
 ```
 
 ### textExpansion
@@ -635,7 +643,10 @@ Text expansion query (deprecated in favor of sparseVector):
 ```php
 Query::textExpansion('ml.tokens', 'my-elser-model')
     ->modelText('What is Elasticsearch?')
-    ->pruningConfig([...])
+    ->pruningConfig(
+        tokensFreqRatioThreshold: 5,
+        tokensWeightThreshold: 0.4,
+    )
 ```
 
 ---
@@ -645,10 +656,6 @@ Query::textExpansion('ml.tokens', 'my-elser-model')
 For any query not covered by the API or for complex scenarios:
 
 ```php
-// Empty raw query
-Query::raw()
-
-// With array
 Query::raw([
     'match' => [
         'title' => [
@@ -657,11 +664,6 @@ Query::raw([
         ],
     ],
 ])
-
-// Add parameters
-Query::raw()
-    ->set('match.title.query', 'elasticsearch')
-    ->set('match.title.fuzziness', 'AUTO')
 ```
 
 ---

@@ -370,17 +370,17 @@ This adds a `__soft_deleted` field to indexed documents. Soft-deleted models are
 Query soft-deleted documents:
 
 ```php
+use Jackardios\EsScoutDriver\Support\Query;
+
 // Include soft-deleted
-Book::searchQuery()
-    ->boolQuery()->withTrashed()
-    ->must(Query::matchAll())
-    ->execute();
+$builder = Book::searchQuery(Query::matchAll());
+$builder->boolQuery()->withTrashed();
+$builder->execute();
 
 // Only soft-deleted
-Book::searchQuery()
-    ->boolQuery()->onlyTrashed()
-    ->must(Query::matchAll())
-    ->execute();
+$builder = Book::searchQuery(Query::matchAll());
+$builder->boolQuery()->onlyTrashed();
+$builder->execute();
 ```
 
 ---

@@ -3,8 +3,9 @@
 This document covers sorting options for search results.
 
 ```php
-use Jackardios\EsScoutDriver\Sort\Sort;
 use Jackardios\EsScoutDriver\Enums\SortOrder;
+use Jackardios\EsScoutDriver\Sort\Sort;
+use Jackardios\EsScoutDriver\Support\Query;
 ```
 
 ## Table of Contents

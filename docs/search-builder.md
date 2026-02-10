@@ -226,13 +226,13 @@ use Jackardios\EsScoutDriver\Aggregations\Agg;
 $result = Book::searchQuery(Query::matchAll())
     ->aggregate('avg_price', Agg::avg('price'))
     ->aggregate('price_ranges', Agg::range('price')
-        ->addRange(to: 20)
-        ->addRange(from: 20, to: 50)
-        ->addRange(from: 50)
+        ->range(to: 20)
+        ->range(from: 20, to: 50)
+        ->range(from: 50)
     )
     ->aggregate('by_author', Agg::terms('author')
         ->size(10)
-        ->subAggregation('total_sales', Agg::sum('sales'))
+        ->agg('total_sales', Agg::sum('sales'))
     )
     ->size(0) // Only get aggregations, no hits
     ->execute();
@@ -244,9 +244,9 @@ $authorBuckets = $result->buckets('by_author');
 ## Suggestions
 
 ```php
-$result = Book::searchQuery(Query::match('title', 'larave'))
+$result = Book::searchQuery(Query::match('title', 'laravel'))
     ->suggest('title_suggest', [
-        'text' => 'larave',
+        'text' => 'laravel',
         'term' => ['field' => 'title'],
     ])
     ->execute();
@@ -362,16 +362,14 @@ When `scout.soft_delete` is enabled:
 Book::searchQuery(Query::matchAll())->execute();
 
 // Include trashed
-Book::searchQuery()
-    ->boolQuery()->withTrashed()
-    ->must(Query::matchAll())
-    ->execute();
+$builder = Book::searchQuery(Query::matchAll());
+$builder->boolQuery()->withTrashed();
+$builder->execute();
 
 // Only trashed
-Book::searchQuery()
-    ->boolQuery()->onlyTrashed()
-    ->must(Query::matchAll())
-    ->execute();
+$builder = Book::searchQuery(Query::matchAll());
+$builder->boolQuery()->onlyTrashed();
+$builder->execute();
 ```
 
 ## Execution Methods
@@ -429,6 +427,9 @@ Book::searchQuery(Query::term('status', 'draft'))
     ->deleteByQuery();
 ```
 
+> `deleteByQuery()` requires an explicit query. Use `Query::matchAll()` to target all visible documents.
+> When `scout.soft_delete=true`, set mode before execution: `$builder->boolQuery()->withTrashed();`.
+
 ### updateByQuery()
 
 Update documents matching the query:
@@ -440,6 +441,9 @@ Book::searchQuery(Query::term('status', 'draft'))
         'lang' => 'painless',
     ]);
 ```
+
+> `updateByQuery()` requires an explicit query. Use `Query::matchAll()` to target all visible documents.
+> When `scout.soft_delete=true`, set mode before execution: `$builder->boolQuery()->withTrashed();`.
 
 ## Debugging
 

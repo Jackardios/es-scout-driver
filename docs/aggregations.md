@@ -4,6 +4,7 @@ Aggregations allow you to group and extract statistics from your data. They are 
 
 ```php
 use Jackardios\EsScoutDriver\Aggregations\Agg;
+use Jackardios\EsScoutDriver\Support\Query;
 ```
 
 ## Table of Contents
@@ -192,16 +193,16 @@ Group by custom ranges:
 ```php
 // Basic
 Agg::range('price')
-    ->addRange(to: 20)
-    ->addRange(from: 20, to: 50)
-    ->addRange(from: 50, to: 100)
-    ->addRange(from: 100)
+    ->range(to: 20)
+    ->range(from: 20, to: 50)
+    ->range(from: 50, to: 100)
+    ->range(from: 100)
 
 // With keys
 Agg::range('price')
-    ->addRange(to: 20, key: 'cheap')
-    ->addRange(from: 20, to: 50, key: 'medium')
-    ->addRange(from: 50, key: 'expensive')
+    ->range(to: 20, key: 'cheap')
+    ->range(from: 20, to: 50, key: 'medium')
+    ->range(from: 50, key: 'expensive')
 ```
 
 ---
@@ -214,20 +215,20 @@ Nest aggregations within bucket aggregations:
 // Single level
 Agg::terms('category')
     ->size(10)
-    ->subAggregation('avg_price', Agg::avg('price'))
-    ->subAggregation('max_price', Agg::max('price'))
+    ->agg('avg_price', Agg::avg('price'))
+    ->agg('max_price', Agg::max('price'))
 
 // Multiple levels
 Agg::terms('category')
-    ->subAggregation('by_author', Agg::terms('author')
+    ->agg('by_author', Agg::terms('author')
         ->size(5)
-        ->subAggregation('total_sales', Agg::sum('sales'))
+        ->agg('total_sales', Agg::sum('sales'))
     )
 
 // Date histogram with stats
 Agg::dateHistogram('created_at', '1M')
-    ->subAggregation('price_stats', Agg::stats('price'))
-    ->subAggregation('by_status', Agg::terms('status'))
+    ->agg('price_stats', Agg::stats('price'))
+    ->agg('by_status', Agg::terms('status'))
 ```
 
 ---
@@ -279,8 +280,8 @@ foreach ($buckets as $bucket) {
 ```php
 $result = Book::searchQuery(Query::matchAll())
     ->aggregate('by_category', Agg::terms('category')
-        ->subAggregation('avg_price', Agg::avg('price'))
-        ->subAggregation('by_status', Agg::terms('status'))
+        ->agg('avg_price', Agg::avg('price'))
+        ->agg('by_status', Agg::terms('status'))
     )
     ->execute();
 
@@ -349,9 +350,9 @@ use Jackardios\EsScoutDriver\Aggregations\Agg;
 // In a service provider
 Agg::macro('priceRanges', function () {
     return Agg::range('price')
-        ->addRange(to: 25, key: 'budget')
-        ->addRange(from: 25, to: 100, key: 'mid-range')
-        ->addRange(from: 100, key: 'premium');
+        ->range(to: 25, key: 'budget')
+        ->range(from: 25, to: 100, key: 'mid-range')
+        ->range(from: 100, key: 'premium');
 });
 
 // Usage
