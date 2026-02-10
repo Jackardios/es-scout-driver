@@ -49,6 +49,8 @@ ELASTIC_REFRESH_DOCUMENTS=false
 `config/elastic.client.php`:
 
 > **Compatibility Note:** This configuration format is fully compatible with [babenkoivan/elastic-client](https://github.com/babenkoivan/elastic-client) and [babenkoivan/elastic-migrations](https://github.com/babenkoivan/elastic-migrations). You can use these packages alongside es-scout-driver without any configuration conflicts.
+>
+> **Key Format Note:** Connection options are passed directly to `Elastic\Elasticsearch\ClientBuilder::fromConfig()`. Use option names matching its `set...` methods (for example, `basicAuthentication`, `apiKey`, `elasticCloudId`, `caBundle`). Options mapped to multi-argument setters (for example, `apiKey`, `sslCert`, `sslKey`, `basicAuthentication`) must be provided as arrays.
 
 ```php
 return [
@@ -85,15 +87,8 @@ return [
 ```php
 'connections' => [
     'default' => [
-        'hosts' => [
-            [
-                'host' => 'localhost',
-                'port' => 9200,
-                'scheme' => 'https',
-                'user' => env('ELASTIC_USER'),
-                'pass' => env('ELASTIC_PASSWORD'),
-            ],
-        ],
+        'hosts' => ['https://localhost:9200'],
+        'basicAuthentication' => [env('ELASTIC_USER'), env('ELASTIC_PASSWORD')],
     ],
 ],
 ```
@@ -104,7 +99,9 @@ return [
 'connections' => [
     'default' => [
         'hosts' => ['https://localhost:9200'],
-        'apiKey' => env('ELASTIC_API_KEY'),
+        'apiKey' => [env('ELASTIC_API_KEY')],
+        // Or with explicit key id:
+        // 'apiKey' => [env('ELASTIC_API_KEY'), env('ELASTIC_API_KEY_ID')],
     ],
 ],
 ```
@@ -114,8 +111,8 @@ return [
 ```php
 'connections' => [
     'cloud' => [
-        'cloudId' => env('ELASTIC_CLOUD_ID'),
-        'apiKey' => env('ELASTIC_API_KEY'),
+        'elasticCloudId' => env('ELASTIC_CLOUD_ID'),
+        'apiKey' => [env('ELASTIC_API_KEY')],
     ],
 ],
 ```
@@ -127,9 +124,9 @@ return [
     'default' => [
         'hosts' => ['https://localhost:9200'],
         'sslVerification' => true,
-        'sslCert' => '/path/to/cert.pem',
-        'sslKey' => '/path/to/key.pem',
-        'sslCA' => '/path/to/ca.pem',
+        'sslCert' => ['/path/to/cert.pem'],
+        'sslKey' => ['/path/to/key.pem'],
+        'caBundle' => '/path/to/ca.pem',
     ],
 ],
 ```
@@ -142,11 +139,11 @@ return [
 'connections' => [
     'production' => [
         'hosts' => ['https://prod-es.example.com:9200'],
-        'apiKey' => env('ELASTIC_PROD_API_KEY'),
+        'apiKey' => [env('ELASTIC_PROD_API_KEY')],
     ],
     'analytics' => [
         'hosts' => ['https://analytics-es.example.com:9200'],
-        'apiKey' => env('ELASTIC_ANALYTICS_API_KEY'),
+        'apiKey' => [env('ELASTIC_ANALYTICS_API_KEY')],
     ],
 ],
 ```
@@ -164,6 +161,10 @@ class AnalyticsEvent extends Model
     }
 }
 ```
+
+When using multiple connections:
+- `searchQuery()->join(...)` supports only models that share the same `searchableConnection()`.
+- Indexing and delete bulk operations are grouped per model connection automatically.
 
 ---
 
@@ -425,10 +426,8 @@ For tests that don't need Elasticsearch:
 SCOUT_DRIVER=null
 ```
 
-Or use the package's NullEngine:
+Or set it at runtime in tests:
 
 ```php
-use Jackardios\EsScoutDriver\Engine\NullEngine;
-
-$this->app->bind(EngineInterface::class, NullEngine::class);
+config()->set('scout.driver', 'null');
 ```

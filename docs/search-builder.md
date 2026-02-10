@@ -299,7 +299,7 @@ $builder->rescore(
 ```php
 $builder->knn(
     field: 'embedding',
-    queryVector: [0.1, 0.2, 0.3, ...],
+    queryVector: [0.12, -0.34, 0.56, 0.78],
     k: 10,
     numCandidates: 100,
     filter: Query::term('status', 'published')
@@ -314,6 +314,12 @@ Book::searchQuery(Query::match('title', 'laravel'))
     ->join(Post::class, boost: 1.5) // Boost this index
     ->execute();
 ```
+
+> **Important:** All joined models must use the same `searchableConnection()`.  
+> Cross-connection joins are not supported because a single Elasticsearch request cannot span multiple client connections.
+>
+> **Important:** A joined index must map to exactly one model class.  
+> Joining two different model classes that return the same `searchableAs()` value is rejected to avoid ambiguous model resolution.
 
 ## Eager Loading
 

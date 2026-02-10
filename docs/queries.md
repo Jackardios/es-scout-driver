@@ -601,7 +601,7 @@ Query::pinned(Query::matchAll())
 K-nearest neighbors vector search:
 
 ```php
-Query::knn('embedding', [0.1, 0.2, 0.3, ...], k: 10)
+Query::knn('embedding', [0.12, -0.34, 0.56, 0.78], k: 10)
     ->numCandidates(100)
     ->similarity(0.8)
     ->filter(Query::term('status', 'published'))

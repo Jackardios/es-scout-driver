@@ -403,4 +403,4 @@ $count = Book::searchQuery(
 )->count();
 ```
 
-This uses the Count API which is more efficient than fetching results.
+This runs a search request with `size(0)` and `track_total_hits(true)` to keep counting semantics consistent with the builder options.
