@@ -41,7 +41,7 @@ final class SearchCursor implements IteratorAggregate
         $pitId = $engine->openPointInTime($index, $this->keepAlive);
 
         try {
-            $searchAfter = null;
+            $searchAfter = $this->builder->getSearchAfter();
             $hitIndex = 0;
 
             do {
@@ -49,11 +49,14 @@ final class SearchCursor implements IteratorAggregate
                 $searchBuilder->pointInTime($pitId, $this->keepAlive);
                 $searchBuilder->size($this->chunkSize);
 
-                if ($searchBuilder->getSort() === []) {
+                if ($searchBuilder->getSort() === [] || !$this->hasShardDocSort($searchBuilder->getSort())) {
+                    // Ensure deterministic pagination for PIT + search_after
                     $searchBuilder->sort('_shard_doc', 'asc');
                 }
 
                 if ($searchAfter !== null) {
+                    // Elasticsearch requires from=0 whenever search_after is used.
+                    $searchBuilder->from(0);
                     $searchBuilder->searchAfter($searchAfter);
                 }
 
@@ -76,5 +79,16 @@ final class SearchCursor implements IteratorAggregate
         } finally {
             $engine->closePointInTime($pitId);
         }
+    }
+
+    private function hasShardDocSort(array $sort): bool
+    {
+        foreach ($sort as $sortItem) {
+            if (is_array($sortItem) && array_key_exists('_shard_doc', $sortItem)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
