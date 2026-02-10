@@ -17,14 +17,6 @@ final class RemoveFromSearch implements ShouldQueue
     use Queueable;
     use HandlesBulkResponse;
 
-    public string $indexName;
-
-    /** @var array<string, string> document ID => routing value */
-    public array $routing;
-
-    /** @var array<int, string> */
-    public array $documentIds;
-
     /**
      * @var array<int, array{
      *     connection: string|null,
@@ -41,14 +33,8 @@ final class RemoveFromSearch implements ShouldQueue
             throw new InvalidArgumentException('Cannot create RemoveFromSearch job with empty collection');
         }
 
-        $this->indexName = $models->first()->searchableAs();
         $this->operations = [];
 
-        $this->documentIds = $models->map(
-            static fn(Model $model) => (string) $model->getScoutKey()
-        )->all();
-
-        $this->routing = [];
         /** @var Model $model */
         foreach ($models as $model) {
             $documentId = (string) $model->getScoutKey();
@@ -59,7 +45,6 @@ final class RemoveFromSearch implements ShouldQueue
 
                 if ($resolvedRouting !== null) {
                     $routing = (string) $resolvedRouting;
-                    $this->routing[$documentId] = $routing;
                 }
             }
 
@@ -79,20 +64,12 @@ final class RemoveFromSearch implements ShouldQueue
     public function handle(Client $client): void
     {
         $refreshDocuments = (bool) config('elastic.scout.refresh_documents', false);
-        $operations = $this->operations !== []
-            ? $this->operations
-            : array_map(
-                fn(string $documentId) => [
-                    'connection' => null,
-                    'index' => $this->indexName,
-                    'id' => $documentId,
-                    'routing' => $this->routing[$documentId] ?? null,
-                ],
-                $this->documentIds,
-            );
+        if ($this->operations === []) {
+            throw new InvalidArgumentException('RemoveFromSearch job payload must contain operations.');
+        }
 
         $operationsByConnection = [];
-        foreach ($operations as $operation) {
+        foreach ($this->operations as $operation) {
             $key = $operation['connection'] ?? '__default__';
             $operationsByConnection[$key][] = $operation;
         }
