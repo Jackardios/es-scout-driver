@@ -239,7 +239,7 @@ final class PaginatorTest extends TestCase
         ]);
     }
 
-    private function createSearchResultWithHits(int $count, int $total = null): SearchResult
+    private function createSearchResultWithHits(int $count, ?int $total = null): SearchResult
     {
         $hits = [];
         for ($i = 1; $i <= $count; $i++) {

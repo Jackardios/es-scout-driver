@@ -7,6 +7,7 @@ namespace Jackardios\EsScoutDriver\Tests\Unit\Engine;
 use Jackardios\EsScoutDriver\Engine\AliasRegistry;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use ReflectionProperty;
 
 final class AliasRegistryTest extends TestCase
 {
@@ -117,5 +118,52 @@ final class AliasRegistryTest extends TestCase
         $registry->invalidate();
 
         $this->assertSame('books', $registry->resolve('books'));
+    }
+
+    #[Test]
+    public function register_index_invalidates_alias_cache_for_new_indices(): void
+    {
+        $registry = new AliasRegistry();
+        $registry->registerIndex('books');
+
+        $this->setPrivateProperty($registry, 'fetched', true);
+        $this->setPrivateProperty($registry, 'lastFetchTime', time());
+        $this->setPrivateProperty($registry, 'aliasMap', ['books_v1' => 'books']);
+
+        $registry->registerIndex('authors');
+
+        $this->assertFalse($this->getPrivateProperty($registry, 'fetched'));
+        $this->assertNull($this->getPrivateProperty($registry, 'lastFetchTime'));
+        $this->assertSame([], $this->getPrivateProperty($registry, 'aliasMap'));
+    }
+
+    #[Test]
+    public function register_index_does_not_invalidate_cache_for_existing_index(): void
+    {
+        $registry = new AliasRegistry();
+        $registry->registerIndex('books');
+
+        $timestamp = time();
+        $this->setPrivateProperty($registry, 'fetched', true);
+        $this->setPrivateProperty($registry, 'lastFetchTime', $timestamp);
+        $this->setPrivateProperty($registry, 'aliasMap', ['books_v1' => 'books']);
+
+        $registry->registerIndex('books');
+
+        $this->assertTrue($this->getPrivateProperty($registry, 'fetched'));
+        $this->assertSame($timestamp, $this->getPrivateProperty($registry, 'lastFetchTime'));
+        $this->assertSame(['books_v1' => 'books'], $this->getPrivateProperty($registry, 'aliasMap'));
+    }
+
+    private function setPrivateProperty(AliasRegistry $registry, string $property, mixed $value): void
+    {
+        $reflection = new ReflectionProperty($registry, $property);
+        $reflection->setValue($registry, $value);
+    }
+
+    private function getPrivateProperty(AliasRegistry $registry, string $property): mixed
+    {
+        $reflection = new ReflectionProperty($registry, $property);
+        return $reflection->getValue($registry);
     }
 }

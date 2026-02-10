@@ -106,7 +106,9 @@ final class NullEngineTest extends TestCase
         $this->engine->deleteIndex('test');
         $this->engine->closePointInTime('pit-id');
 
-        $this->assertTrue(true); // just verifying no exceptions
+        $this->assertNull($this->engine->getClient());
+        $this->assertSame(0, $this->engine->countRaw(['index' => 'test']));
+        $this->assertSame(0, $this->engine->searchRaw(['index' => 'test'])['hits']['total']['value']);
     }
 
     #[Test]

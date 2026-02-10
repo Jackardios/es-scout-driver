@@ -6,7 +6,9 @@ namespace Jackardios\EsScoutDriver\Tests\Unit\Search;
 
 use Closure;
 use Jackardios\EsScoutDriver\Aggregations\AggregationInterface;
+use Jackardios\EsScoutDriver\Engine\EngineInterface;
 use Jackardios\EsScoutDriver\Enums\SortOrder;
+use Jackardios\EsScoutDriver\Exceptions\InvalidQueryException;
 use Jackardios\EsScoutDriver\Query\Compound\BoolQuery;
 use Jackardios\EsScoutDriver\Query\FullText\MatchQuery;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
@@ -64,6 +66,17 @@ final class SearchBuilderMethodsTest extends TestCase
 
         $this->assertSame($builder, $result);
         $this->assertEquals(['match_all' => new \stdClass()], $builder->getQuery());
+    }
+
+    #[Test]
+    public function query_with_empty_array_throws_exception(): void
+    {
+        $builder = $this->createBuilder();
+
+        $this->expectException(InvalidQueryException::class);
+        $this->expectExceptionMessage('Search query cannot be empty');
+
+        $builder->query([]);
     }
 
     #[Test]
@@ -206,6 +219,21 @@ final class SearchBuilderMethodsTest extends TestCase
                 'missing' => '_last',
                 'mode' => 'avg',
                 'unmapped_type' => 'long',
+            ],
+        ]], $builder->getSort());
+    }
+
+    #[Test]
+    public function sort_with_numeric_missing(): void
+    {
+        $builder = $this->createBuilder();
+        $builder->sort('price', 'asc', missing: 0, mode: 'avg');
+
+        $this->assertSame([[
+            'price' => [
+                'order' => 'asc',
+                'missing' => 0,
+                'mode' => 'avg',
             ],
         ]], $builder->getSort());
     }
@@ -535,6 +563,17 @@ final class SearchBuilderMethodsTest extends TestCase
         $this->assertSame(0.8, $knn['similarity']);
         $this->assertArrayHasKey('filter', $knn);
         $this->assertSame(['term' => ['status' => ['value' => 'active']]], $knn['filter']);
+    }
+
+    #[Test]
+    public function knn_throws_when_num_candidates_less_than_k(): void
+    {
+        $builder = $this->createBuilder();
+
+        $this->expectException(InvalidQueryException::class);
+        $this->expectExceptionMessage('numCandidates to be greater than or equal to k');
+
+        $builder->knn('embedding', [0.1, 0.2], k: 10, numCandidates: 5);
     }
 
     #[Test]
@@ -958,10 +997,15 @@ final class SearchBuilderMethodsTest extends TestCase
         $builder->trackTotalHits(true);
         $builder->trackScores(true);
         $builder->minScore(1.0);
+        $this->setPrivateProperty($builder, 'indicesBoost', [['test_index' => 1.5]]);
+        $builder->searchType('dfs_query_then_fetch');
+        $builder->preference('_local');
         $builder->pointInTime('pit-id');
         $builder->searchAfter([1]);
         $builder->routing('r1');
         $builder->explain(true);
+        $builder->terminateAfter(100);
+        $builder->requestCache(true);
         $builder->timeout('10s');
         $builder->knn('embedding', [0.1], k: 5);
 
@@ -983,10 +1027,15 @@ final class SearchBuilderMethodsTest extends TestCase
         $this->assertNull($builder->getTrackTotalHits());
         $this->assertNull($builder->getTrackScores());
         $this->assertNull($builder->getMinScore());
+        $this->assertSame([], $this->getPrivateProperty($builder, 'indicesBoost'));
+        $this->assertNull($builder->getSearchType());
+        $this->assertNull($builder->getPreference());
         $this->assertNull($builder->getPointInTime());
         $this->assertNull($builder->getSearchAfter());
         $this->assertNull($builder->getRouting());
         $this->assertNull($builder->getExplain());
+        $this->assertNull($this->getPrivateProperty($builder, 'terminateAfter'));
+        $this->assertNull($this->getPrivateProperty($builder, 'requestCache'));
         $this->assertNull($builder->getTimeout());
         $this->assertNull($builder->getKnn());
     }
@@ -1365,6 +1414,58 @@ final class SearchBuilderMethodsTest extends TestCase
         $builder->minScore(0.0);
 
         $this->assertSame(0.0, $builder->getMinScore());
+    }
+
+    #[Test]
+    public function delete_by_query_requires_explicit_query(): void
+    {
+        $builder = $this->createBuilder();
+
+        $this->expectException(InvalidQueryException::class);
+        $this->expectExceptionMessage('deleteByQuery requires an explicit query');
+
+        $builder->deleteByQuery();
+    }
+
+    #[Test]
+    public function update_by_query_requires_explicit_query(): void
+    {
+        $builder = $this->createBuilder();
+
+        $this->expectException(InvalidQueryException::class);
+        $this->expectExceptionMessage('updateByQuery requires an explicit query');
+
+        $builder->updateByQuery(['source' => 'ctx._source.count++']);
+    }
+
+    #[Test]
+    public function count_uses_search_raw_with_track_total_hits_and_clears_search_after(): void
+    {
+        $engine = $this->createMock(EngineInterface::class);
+        $engine->expects($this->never())->method('countRaw');
+        $engine->expects($this->once())
+            ->method('searchRaw')
+            ->with($this->callback(function (array $params): bool {
+                $this->assertSame('test_index', $params['index']);
+                $this->assertSame(0, $params['body']['size']);
+                $this->assertTrue($params['body']['track_total_hits']);
+                $this->assertArrayNotHasKey('search_after', $params['body']);
+
+                return true;
+            }))
+            ->willReturn([
+                'hits' => [
+                    'total' => ['value' => 42],
+                ],
+            ]);
+
+        $builder = $this->createBuilder();
+        $this->setPrivateProperty($builder, 'engine', $engine);
+
+        $builder->query(['match_all' => new \stdClass()]);
+        $builder->searchAfter(['cursor-token']);
+
+        $this->assertSame(42, $builder->count());
     }
 
     #[Test]

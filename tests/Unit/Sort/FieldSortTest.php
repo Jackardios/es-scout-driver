@@ -38,6 +38,16 @@ final class FieldSortTest extends TestCase
     }
 
     #[Test]
+    public function it_builds_field_sort_with_numeric_missing(): void
+    {
+        $sort = (new FieldSort('price'))->desc()->missing(0);
+
+        $this->assertSame([
+            'price' => ['order' => 'desc', 'missing' => 0],
+        ], $sort->toArray());
+    }
+
+    #[Test]
     public function it_builds_field_sort_with_all_options(): void
     {
         $sort = (new FieldSort('price'))

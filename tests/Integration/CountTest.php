@@ -103,4 +103,24 @@ final class CountTest extends TestCase
 
         $this->assertSame(1, $count);
     }
+
+    #[Test]
+    public function count_respects_post_filter(): void
+    {
+        $book1 = Book::factory()->create(['author' => 'John Doe', 'price' => 10.0]);
+        $book2 = Book::factory()->create(['author' => 'John Doe', 'price' => 50.0]);
+        $book3 = Book::factory()->create(['author' => 'Jane Smith', 'price' => 20.0]);
+
+        $book1->searchable();
+        $book2->searchable();
+        $book3->searchable();
+
+        $this->refreshIndex('books');
+
+        $count = Book::searchQuery(Query::matchAll())
+            ->postFilter(Query::term('author', 'John Doe'))
+            ->count();
+
+        $this->assertSame(2, $count);
+    }
 }

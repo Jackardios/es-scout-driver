@@ -117,4 +117,5 @@ final class RangeAggregationTest extends TestCase
             ],
         ], $agg->toArray());
     }
+
 }

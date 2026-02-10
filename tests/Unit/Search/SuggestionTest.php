@@ -63,6 +63,25 @@ final class SuggestionTest extends TestCase
     }
 
     #[Test]
+    public function it_keeps_zero_like_text_values(): void
+    {
+        $suggestion = Suggestion::fromRaw([
+            'text' => '0',
+            'offset' => 0,
+            'length' => 1,
+            'options' => [
+                ['text' => '0', '_score' => 1.0],
+                ['text' => null, '_score' => 0.5],
+            ],
+        ]);
+
+        $texts = $suggestion->texts();
+
+        $this->assertCount(1, $texts);
+        $this->assertSame('0', $texts[0]);
+    }
+
+    #[Test]
     public function it_returns_scores(): void
     {
         $suggestion = Suggestion::fromRaw([

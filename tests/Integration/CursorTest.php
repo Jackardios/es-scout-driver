@@ -140,6 +140,34 @@ final class CursorTest extends TestCase
     }
 
     #[Test]
+    public function cursor_with_from_offset_handles_search_after_pagination(): void
+    {
+        $books = Book::factory()->count(5)->create();
+
+        $price = 1.0;
+        foreach ($books as $book) {
+            $book->price = $price;
+            $book->save();
+            $book->searchable();
+            $price += 1.0;
+        }
+
+        $this->refreshIndex('books');
+
+        $cursor = Book::searchQuery(Query::matchAll())
+            ->sort('price', 'asc')
+            ->from(1)
+            ->cursor(2);
+
+        $prices = [];
+        foreach ($cursor as $hit) {
+            $prices[] = (float) $hit->source['price'];
+        }
+
+        $this->assertSame([2.0, 3.0, 4.0, 5.0], $prices);
+    }
+
+    #[Test]
     public function cursor_returns_empty_for_no_matches(): void
     {
         $book = Book::factory()->create(['author' => 'John Doe']);

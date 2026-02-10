@@ -7,11 +7,15 @@ namespace Jackardios\EsScoutDriver\Tests\Unit;
 use Elastic\Elasticsearch\Client;
 use Jackardios\EsScoutDriver\Engine\Engine;
 use Jackardios\EsScoutDriver\Engine\NullEngine;
+use Jackardios\EsScoutDriver\Jobs\RemoveFromSearch as ElasticRemoveFromSearch;
 use Jackardios\EsScoutDriver\ServiceProvider;
 use Laravel\Scout\EngineManager;
+use Laravel\Scout\Jobs\RemoveFromSearch as DefaultRemoveFromSearch;
+use Laravel\Scout\Scout;
 use Laravel\Scout\ScoutServiceProvider;
 use Orchestra\Testbench\TestCase;
 use PHPUnit\Framework\Attributes\Test;
+use ReflectionProperty;
 
 final class ServiceProviderTest extends TestCase
 {
@@ -28,6 +32,14 @@ final class ServiceProviderTest extends TestCase
         $app['config']->set('elastic.client.default', 'default');
         $app['config']->set('elastic.client.connections.default.hosts', ['localhost:9200']);
         $app['config']->set('elastic.scout.refresh_documents', false);
+        $app['config']->set('scout.driver', 'elastic');
+    }
+
+    protected function tearDown(): void
+    {
+        Scout::removeFromSearchUsing(DefaultRemoveFromSearch::class);
+
+        parent::tearDown();
     }
 
     #[Test]
@@ -94,14 +106,14 @@ final class ServiceProviderTest extends TestCase
     {
         $this->artisan('vendor:publish', [
             '--tag' => 'elastic-client-config',
-        ]);
+        ])->assertSuccessful();
 
         $this->artisan('vendor:publish', [
             '--tag' => 'elastic-scout-config',
-        ]);
+        ])->assertSuccessful();
 
-        // Just verify no exception is thrown
-        $this->assertTrue(true);
+        $this->assertFileExists($this->app->configPath('elastic.client.php'));
+        $this->assertFileExists($this->app->configPath('elastic.scout.php'));
     }
 
     #[Test]
@@ -117,6 +129,42 @@ final class ServiceProviderTest extends TestCase
 
         $engine = $this->app->make(Engine::class);
 
-        $this->assertInstanceOf(Engine::class, $engine);
+        $refreshDocuments = new ReflectionProperty($engine, 'refreshDocuments');
+
+        $this->assertTrue((bool) $refreshDocuments->getValue($engine));
+    }
+
+    #[Test]
+    public function it_replaces_default_remove_from_search_job_for_elastic_driver(): void
+    {
+        Scout::removeFromSearchUsing(DefaultRemoveFromSearch::class);
+
+        $provider = new ServiceProvider($this->app);
+        $provider->boot();
+
+        $this->assertSame(ElasticRemoveFromSearch::class, Scout::$removeFromSearchJob);
+    }
+
+    #[Test]
+    public function it_does_not_replace_custom_remove_from_search_job(): void
+    {
+        Scout::removeFromSearchUsing(self::class);
+
+        $provider = new ServiceProvider($this->app);
+        $provider->boot();
+
+        $this->assertSame(self::class, Scout::$removeFromSearchJob);
+    }
+
+    #[Test]
+    public function it_does_not_replace_job_when_driver_is_not_elastic(): void
+    {
+        $this->app['config']->set('scout.driver', 'algolia');
+        Scout::removeFromSearchUsing(DefaultRemoveFromSearch::class);
+
+        $provider = new ServiceProvider($this->app);
+        $provider->boot();
+
+        $this->assertSame(DefaultRemoveFromSearch::class, Scout::$removeFromSearchJob);
     }
 }

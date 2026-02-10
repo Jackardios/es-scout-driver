@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Tests\Unit\Engine;
 
-use Closure;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Jackardios\EsScoutDriver\Engine\AliasRegistry;
 use Jackardios\EsScoutDriver\Engine\ModelResolver;
 use PHPUnit\Framework\Attributes\Test;
@@ -12,234 +14,375 @@ use PHPUnit\Framework\TestCase;
 
 final class ModelResolverTest extends TestCase
 {
-    #[Test]
-    public function it_can_be_constructed_with_alias_registry(): void
+    protected function setUp(): void
     {
-        $registry = new AliasRegistry();
-        $resolver = new ModelResolver($registry);
-
-        $this->assertInstanceOf(ModelResolver::class, $resolver);
+        FakeBookModel::resetFakeState();
+        FakeAuthorModel::resetFakeState();
+        FakeSoftDeleteBookModel::resetFakeState();
     }
 
     #[Test]
-    public function it_can_be_constructed_with_raw_hits(): void
+    public function resolve_loads_pending_models_once_and_uses_cache(): void
     {
-        $registry = new AliasRegistry();
-        $rawHits = [
-            ['_index' => 'books', '_id' => '1', '_source' => ['title' => 'Test']],
-        ];
+        FakeBookModel::seedRecords(['1', '2']);
 
-        $resolver = new ModelResolver($registry, $rawHits);
-
-        $this->assertInstanceOf(ModelResolver::class, $resolver);
-    }
-
-    #[Test]
-    public function it_can_be_constructed_with_raw_suggestions(): void
-    {
-        $registry = new AliasRegistry();
-        $rawSuggestions = [
-            'title-suggest' => [
-                ['text' => 'test', 'options' => []],
-            ],
-        ];
-
-        $resolver = new ModelResolver($registry, [], $rawSuggestions);
-
-        $this->assertInstanceOf(ModelResolver::class, $resolver);
-    }
-
-    #[Test]
-    public function it_registers_index_and_returns_self(): void
-    {
-        $registry = new AliasRegistry();
-        $resolver = new ModelResolver($registry);
-
-        $result = $resolver->registerIndex(
+        $resolver = new ModelResolver(new AliasRegistry(), [
+            ['_index' => 'books', '_id' => '1'],
+            ['_index' => 'books', '_id' => '2'],
+            ['_index' => 'books', '_id' => '1'],
+        ]);
+        $resolver->registerIndex(
             indexName: 'books',
-            modelClass: 'App\Models\Book',
+            modelClass: FakeBookModel::class,
             relations: ['author'],
-            queryCallbacks: [],
-            collectionCallbacks: [],
-            withTrashed: false,
         );
 
-        $this->assertSame($resolver, $result);
+        $resolve = $resolver->createResolver();
+        $resolvedFirst = $resolve('books', '1');
+        $resolvedSecond = $resolve('books', '2');
+        $resolvedMissing = $resolve('books', '404');
+
+        $this->assertInstanceOf(FakeBookModel::class, $resolvedFirst);
+        $this->assertInstanceOf(FakeBookModel::class, $resolvedSecond);
+        $this->assertNull($resolvedMissing);
+        $this->assertSame('1', (string) $resolvedFirst?->getScoutKey());
+        $this->assertSame('2', (string) $resolvedSecond?->getScoutKey());
+
+        $this->assertSame(1, FakeBookModel::$newQueryCalls);
+        $this->assertSame(1, FakeBookModel::$getCalls);
+        $this->assertSame([
+            ['field' => 'id', 'ids' => ['1', '2']],
+        ], FakeBookModel::$whereInCalls);
+        $this->assertSame([['author']], FakeBookModel::$withCalls);
+
+        $cachedModels = $resolver->getCachedModels('books');
+        $this->assertArrayHasKey('1', $cachedModels);
+        $this->assertArrayHasKey('2', $cachedModels);
     }
 
     #[Test]
-    public function it_returns_null_for_unknown_index(): void
+    public function resolve_applies_query_and_collection_callbacks_with_raw_result(): void
     {
-        $registry = new AliasRegistry();
-        $resolver = new ModelResolver($registry);
-        $resolverClosure = $resolver->createResolver();
+        FakeBookModel::seedRecords(['1', '2']);
 
-        $result = $resolverClosure('unknown-index', 'doc-1');
+        $seenRawResult = null;
+        $queryCallbackCalls = 0;
+        $rawResult = ['took' => 5];
 
-        $this->assertNull($result);
+        $resolver = new ModelResolver(
+            aliasRegistry: new AliasRegistry(),
+            rawHits: [
+                ['_index' => 'books', '_id' => '1'],
+                ['_index' => 'books', '_id' => '2'],
+            ],
+            rawResult: $rawResult,
+        );
+        $resolver->registerIndex(
+            indexName: 'books',
+            modelClass: FakeBookModel::class,
+            queryCallbacks: [
+                function (object $query, array $receivedRawResult) use (&$queryCallbackCalls, &$seenRawResult): void {
+                    $queryCallbackCalls++;
+                    $seenRawResult = $receivedRawResult;
+                },
+            ],
+            collectionCallbacks: [
+                fn(EloquentCollection $models): EloquentCollection => $models
+                    ->filter(static fn(Model $model): bool => (string) $model->getScoutKey() === '2')
+                    ->values(),
+            ],
+        );
+
+        $resolve = $resolver->createResolver();
+        $this->assertNull($resolve('books', '1'));
+        $resolved = $resolve('books', '2');
+
+        $this->assertInstanceOf(FakeBookModel::class, $resolved);
+        $this->assertSame('2', (string) $resolved?->getScoutKey());
+        $this->assertSame(1, $queryCallbackCalls);
+        $this->assertSame($rawResult, $seenRawResult);
     }
 
     #[Test]
-    public function create_resolver_returns_closure(): void
+    public function resolve_uses_with_trashed_only_for_soft_delete_models_when_requested(): void
     {
-        $registry = new AliasRegistry();
-        $resolver = new ModelResolver($registry);
+        FakeSoftDeleteBookModel::seedRecords(['1']);
 
-        $closure = $resolver->createResolver();
+        $resolver = new ModelResolver(new AliasRegistry(), [['_index' => 'books', '_id' => '1']]);
+        $resolver->registerIndex('books', FakeSoftDeleteBookModel::class, withTrashed: true);
 
-        $this->assertInstanceOf(Closure::class, $closure);
+        $resolvedSoftDeleteModel = $resolver->createResolver()('books', '1');
+
+        $this->assertInstanceOf(FakeSoftDeleteBookModel::class, $resolvedSoftDeleteModel);
+        $this->assertSame(1, FakeSoftDeleteBookModel::$withTrashedCalls);
+        $this->assertSame(0, FakeSoftDeleteBookModel::$newQueryCalls);
+
+        FakeBookModel::seedRecords(['1']);
+
+        $resolver = new ModelResolver(new AliasRegistry(), [['_index' => 'books', '_id' => '1']]);
+        $resolver->registerIndex('books', FakeBookModel::class, withTrashed: true);
+
+        $resolvedRegularModel = $resolver->createResolver()('books', '1');
+
+        $this->assertInstanceOf(FakeBookModel::class, $resolvedRegularModel);
+        $this->assertSame(0, FakeBookModel::$withTrashedCalls);
+        $this->assertSame(1, FakeBookModel::$newQueryCalls);
     }
 
     #[Test]
-    public function with_raw_data_creates_new_resolver(): void
+    public function preload_all_collects_ids_from_hits_and_suggestions(): void
     {
-        $registry = new AliasRegistry();
-        $resolver = new ModelResolver($registry);
-        $resolver->registerIndex('books', 'App\Models\Book');
+        FakeBookModel::seedRecords(['1', '2', '3']);
+        FakeAuthorModel::seedRecords(['10']);
 
-        $rawHits = [
-            ['_index' => 'books', '_id' => '1', '_source' => []],
-        ];
+        $resolver = new ModelResolver(
+            aliasRegistry: new AliasRegistry(),
+            rawHits: [
+                ['_index' => 'books', '_id' => '1'],
+                ['_index' => 'authors', '_id' => '10'],
+            ],
+            rawSuggestions: [
+                'title-suggest' => [
+                    [
+                        'options' => [
+                            ['_index' => 'books', '_id' => '2'],
+                            ['_index' => 'books', '_id' => '2'],
+                        ],
+                    ],
+                ],
+            ],
+        );
+        $resolver->registerIndex('books', FakeBookModel::class);
+        $resolver->registerIndex('authors', FakeAuthorModel::class);
 
-        $newResolver = $resolver->withRawData($rawHits);
+        $resolver->preloadAll();
 
-        $this->assertInstanceOf(ModelResolver::class, $newResolver);
-        $this->assertNotSame($resolver, $newResolver);
+        $cachedBooks = $resolver->getCachedModels('books');
+        $cachedAuthors = $resolver->getCachedModels('authors');
+
+        $this->assertArrayHasKey('1', $cachedBooks);
+        $this->assertArrayHasKey('2', $cachedBooks);
+        $this->assertArrayNotHasKey('3', $cachedBooks);
+        $this->assertArrayHasKey('10', $cachedAuthors);
+
+        $this->assertSame(1, FakeBookModel::$newQueryCalls);
+        $this->assertSame(1, FakeAuthorModel::$newQueryCalls);
+        $this->assertSame([
+            ['field' => 'id', 'ids' => ['1', '2']],
+        ], FakeBookModel::$whereInCalls);
+        $this->assertSame([
+            ['field' => 'id', 'ids' => ['10']],
+        ], FakeAuthorModel::$whereInCalls);
     }
 
     #[Test]
     public function with_raw_data_preserves_registered_indices(): void
     {
-        $registry = new AliasRegistry();
-        $resolver = new ModelResolver($registry);
-        $resolver->registerIndex('books', 'App\Models\Book');
+        FakeBookModel::seedRecords(['42']);
 
-        $newResolver = $resolver->withRawData([]);
+        $resolver = new ModelResolver(new AliasRegistry());
+        $resolver->registerIndex('books', FakeBookModel::class);
 
-        // The new resolver should return null for unregistered index
-        // but for registered index it should work (though no models loaded)
-        $closure = $newResolver->createResolver();
-        $result = $closure('unknown-index', 'doc-1');
+        $newResolver = $resolver->withRawData([['_index' => 'books', '_id' => '42']]);
+        $resolved = $newResolver->createResolver()('books', '42');
 
-        $this->assertNull($result);
+        $this->assertInstanceOf(FakeBookModel::class, $resolved);
+        $this->assertSame('42', (string) $resolved?->getScoutKey());
     }
 
     #[Test]
-    public function get_cached_models_returns_empty_array_for_unknown_index(): void
+    public function resolve_returns_null_for_unknown_index_without_querying_models(): void
     {
-        $registry = new AliasRegistry();
-        $resolver = new ModelResolver($registry);
+        FakeBookModel::seedRecords(['1']);
 
-        $result = $resolver->getCachedModels('unknown-index');
+        $resolver = new ModelResolver(new AliasRegistry(), [['_index' => 'unknown', '_id' => '1']]);
+        $resolver->registerIndex('books', FakeBookModel::class);
 
-        $this->assertSame([], $result);
+        $resolved = $resolver->createResolver()('unknown', '1');
+
+        $this->assertNull($resolved);
+        $this->assertSame(0, FakeBookModel::$newQueryCalls);
     }
+}
 
-    #[Test]
-    public function preload_all_does_not_throw_with_no_indices(): void
+final class FakeModelQuery
+{
+    /** @var list<string> */
+    private array $whereInIds = [];
+
+    /**
+     * @param class-string<FakeResolverModel> $modelClass
+     */
+    public function __construct(private readonly string $modelClass) {}
+
+    /**
+     * @param array<int, string> $ids
+     */
+    public function whereIn(string $field, array $ids): self
     {
-        $registry = new AliasRegistry();
-        $resolver = new ModelResolver($registry);
+        $normalizedIds = array_values(array_map('strval', $ids));
+        $this->whereInIds = $normalizedIds;
 
-        $resolver->preloadAll();
-
-        $this->assertInstanceOf(ModelResolver::class, $resolver);
-    }
-
-    #[Test]
-    public function suggestions_are_passed_to_constructor(): void
-    {
-        $registry = new AliasRegistry();
-        $rawSuggestions = [
-            'title-suggest' => [
-                [
-                    'text' => 'test',
-                    'offset' => 0,
-                    'length' => 4,
-                    'options' => [
-                        [
-                            '_index' => 'books',
-                            '_id' => '1',
-                            'text' => 'testing',
-                            '_score' => 1.0,
-                        ],
-                    ],
-                ],
-            ],
+        $modelClass = $this->modelClass;
+        $modelClass::$whereInCalls[] = [
+            'field' => $field,
+            'ids' => $normalizedIds,
         ];
 
-        $resolver = new ModelResolver($registry, [], $rawSuggestions);
-        $resolver->registerIndex('books', 'App\Models\Book');
-
-        // Should not throw
-        $this->assertInstanceOf(ModelResolver::class, $resolver);
+        return $this;
     }
 
-    #[Test]
-    public function inner_hits_are_collected_from_raw_hits(): void
+    /**
+     * @param array<int, string> $relations
+     */
+    public function with(array $relations): self
     {
-        $registry = new AliasRegistry();
-        $rawHits = [
-            [
-                '_index' => 'books',
-                '_id' => '1',
-                '_source' => [],
-                'inner_hits' => [
-                    'chapters' => [
-                        'hits' => [
-                            'hits' => [
-                                ['_index' => 'books', '_id' => '2', '_source' => []],
-                            ],
-                        ],
-                    ],
-                ],
-            ],
-        ];
+        $modelClass = $this->modelClass;
+        $modelClass::$withCalls[] = array_values($relations);
 
-        $resolver = new ModelResolver($registry, $rawHits);
-
-        // Should not throw when collecting IDs from inner_hits
-        $this->assertInstanceOf(ModelResolver::class, $resolver);
+        return $this;
     }
 
-    #[Test]
-    public function it_can_be_constructed_with_raw_result(): void
+    public function get(): EloquentCollection
     {
-        $registry = new AliasRegistry();
-        $rawResult = [
-            'hits' => [
-                'total' => ['value' => 1],
-                'hits' => [
-                    ['_index' => 'books', '_id' => '1', '_source' => ['title' => 'Test']],
-                ],
-            ],
-            'aggregations' => ['category_count' => ['buckets' => []]],
-        ];
+        $modelClass = $this->modelClass;
+        $modelClass::$getCalls++;
 
-        $resolver = new ModelResolver(
-            $registry,
-            $rawResult['hits']['hits'],
-            [],
-            $rawResult,
-        );
+        $idsLookup = array_flip($this->whereInIds);
+        $models = array_values(array_filter(
+            $modelClass::$records,
+            static fn(Model $model): bool => isset($idsLookup[(string) $model->getScoutKey()]),
+        ));
 
-        $this->assertInstanceOf(ModelResolver::class, $resolver);
+        return new EloquentCollection($models);
     }
+}
 
-    #[Test]
-    public function with_raw_data_includes_raw_result(): void
+abstract class FakeResolverModel extends Model
+{
+    /** @var array<int, self> */
+    public static array $records = [];
+
+    public static int $newQueryCalls = 0;
+    public static int $withTrashedCalls = 0;
+    public static int $getCalls = 0;
+
+    /** @var array<int, array{field: string, ids: array<int, string>}> */
+    public static array $whereInCalls = [];
+
+    /** @var array<int, array<int, string>> */
+    public static array $withCalls = [];
+
+    protected $guarded = [];
+    public $timestamps = false;
+
+    public static function resetFakeState(): void
     {
-        $registry = new AliasRegistry();
-        $resolver = new ModelResolver($registry);
-        $resolver->registerIndex('books', 'App\Models\Book');
-
-        $rawResult = [
-            'hits' => ['total' => ['value' => 1], 'hits' => []],
-        ];
-
-        $newResolver = $resolver->withRawData([], [], $rawResult);
-
-        $this->assertInstanceOf(ModelResolver::class, $newResolver);
-        $this->assertNotSame($resolver, $newResolver);
+        static::$records = [];
+        static::$newQueryCalls = 0;
+        static::$withTrashedCalls = 0;
+        static::$getCalls = 0;
+        static::$whereInCalls = [];
+        static::$withCalls = [];
     }
+
+    /**
+     * @param array<int, string> $ids
+     */
+    public static function seedRecords(array $ids): void
+    {
+        static::$records = array_map(static function (string $id) {
+            $model = new static();
+            $model->id = $id;
+
+            return $model;
+        }, $ids);
+    }
+
+    public function searchableAs(): string
+    {
+        return 'fake-index';
+    }
+
+    public function getScoutKeyName(): string
+    {
+        return 'id';
+    }
+
+    public function getScoutKey(): string
+    {
+        return (string) $this->id;
+    }
+
+    public function newQuery(): FakeModelQuery
+    {
+        static::$newQueryCalls++;
+
+        return $this->newFakeQuery();
+    }
+
+    public function withTrashed(): FakeModelQuery
+    {
+        static::$withTrashedCalls++;
+
+        return $this->newFakeQuery();
+    }
+
+    private function newFakeQuery(): FakeModelQuery
+    {
+        /** @var class-string<FakeResolverModel> $class */
+        $class = static::class;
+
+        return new FakeModelQuery($class);
+    }
+}
+
+final class FakeBookModel extends FakeResolverModel
+{
+    /** @var array<int, self> */
+    public static array $records = [];
+
+    public static int $newQueryCalls = 0;
+    public static int $withTrashedCalls = 0;
+    public static int $getCalls = 0;
+
+    /** @var array<int, array{field: string, ids: array<int, string>}> */
+    public static array $whereInCalls = [];
+
+    /** @var array<int, array<int, string>> */
+    public static array $withCalls = [];
+}
+
+final class FakeAuthorModel extends FakeResolverModel
+{
+    /** @var array<int, self> */
+    public static array $records = [];
+
+    public static int $newQueryCalls = 0;
+    public static int $withTrashedCalls = 0;
+    public static int $getCalls = 0;
+
+    /** @var array<int, array{field: string, ids: array<int, string>}> */
+    public static array $whereInCalls = [];
+
+    /** @var array<int, array<int, string>> */
+    public static array $withCalls = [];
+}
+
+final class FakeSoftDeleteBookModel extends FakeResolverModel
+{
+    use SoftDeletes;
+
+    /** @var array<int, self> */
+    public static array $records = [];
+
+    public static int $newQueryCalls = 0;
+    public static int $withTrashedCalls = 0;
+    public static int $getCalls = 0;
+
+    /** @var array<int, array{field: string, ids: array<int, string>}> */
+    public static array $whereInCalls = [];
+
+    /** @var array<int, array<int, string>> */
+    public static array $withCalls = [];
 }
