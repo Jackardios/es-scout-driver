@@ -51,7 +51,6 @@ final class ServiceProvider extends AbstractServiceProvider
 
         if (
             $this->app['config']->get('scout.driver') === 'elastic'
-            && property_exists(Scout::class, 'removeFromSearchJob')
             && Scout::$removeFromSearchJob === DefaultRemoveFromSearch::class
         ) {
             Scout::removeFromSearchUsing(RemoveFromSearch::class);

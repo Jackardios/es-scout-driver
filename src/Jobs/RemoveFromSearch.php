@@ -38,19 +38,10 @@ final class RemoveFromSearch implements ShouldQueue
         /** @var Model $model */
         foreach ($models as $model) {
             $documentId = (string) $model->getScoutKey();
-            $routing = null;
+            $resolvedRouting = $model->searchableRouting();
+            $routing = $resolvedRouting !== null ? (string) $resolvedRouting : null;
 
-            if (method_exists($model, 'searchableRouting')) {
-                $resolvedRouting = $model->searchableRouting();
-
-                if ($resolvedRouting !== null) {
-                    $routing = (string) $resolvedRouting;
-                }
-            }
-
-            $connection = method_exists($model, 'searchableConnection')
-                ? $model->searchableConnection()
-                : null;
+            $connection = $model->searchableConnection();
 
             $this->operations[] = [
                 'connection' => $connection !== null ? (string) $connection : null,

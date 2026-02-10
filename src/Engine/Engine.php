@@ -422,8 +422,9 @@ class Engine extends ScoutEngine implements EngineInterface
             '_id' => $model->getScoutKey(),
         ];
 
-        if (method_exists($model, 'searchableRouting') && $model->searchableRouting() !== null) {
-            $metadata['routing'] = $model->searchableRouting();
+        $routing = $model->searchableRouting();
+        if ($routing !== null) {
+            $metadata['routing'] = $routing;
         }
 
         return $metadata;

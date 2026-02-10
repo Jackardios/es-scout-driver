@@ -94,6 +94,16 @@ final class RemoveFromSearchJobTest extends TestCase
             {
                 return $this->scoutIndex;
             }
+
+            public function searchableRouting(): ?string
+            {
+                return null;
+            }
+
+            public function searchableConnection(): ?string
+            {
+                return null;
+            }
         };
     }
 
@@ -124,6 +134,11 @@ final class RemoveFromSearchJobTest extends TestCase
             public function searchableRouting(): string
             {
                 return $this->scoutRouting;
+            }
+
+            public function searchableConnection(): ?string
+            {
+                return null;
             }
         };
     }

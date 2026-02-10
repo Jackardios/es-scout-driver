@@ -379,6 +379,16 @@ final class RemoveFromSearchTest extends TestCase
             {
                 return $this->scoutIndex;
             }
+
+            public function searchableRouting(): ?string
+            {
+                return null;
+            }
+
+            public function searchableConnection(): ?string
+            {
+                return null;
+            }
         };
     }
 
@@ -409,6 +419,11 @@ final class RemoveFromSearchTest extends TestCase
             public function searchableRouting(): ?string
             {
                 return $this->scoutRouting;
+            }
+
+            public function searchableConnection(): ?string
+            {
+                return null;
             }
         };
     }
@@ -441,6 +456,11 @@ final class RemoveFromSearchTest extends TestCase
             {
                 return $this->scoutRouting;
             }
+
+            public function searchableConnection(): ?string
+            {
+                return null;
+            }
         };
     }
 
@@ -466,6 +486,11 @@ final class RemoveFromSearchTest extends TestCase
             public function searchableAs(): string
             {
                 return $this->scoutIndex;
+            }
+
+            public function searchableRouting(): ?string
+            {
+                return null;
             }
 
             public function searchableConnection(): string
