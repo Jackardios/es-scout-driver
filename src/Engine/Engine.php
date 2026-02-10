@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
 use Illuminate\Support\LazyCollection;
+use InvalidArgumentException;
 use Laravel\Scout\Builder;
 use Laravel\Scout\Engines\Engine as ScoutEngine;
 
@@ -254,7 +255,7 @@ class Engine extends ScoutEngine implements EngineInterface
     protected function performSearch(Builder $builder, array $options = []): array
     {
         $params = [
-            'index' => $builder->model->searchableAs(),
+            'index' => $builder->index ?? $builder->model->searchableAs(),
             'body' => [],
         ];
 
@@ -264,13 +265,8 @@ class Engine extends ScoutEngine implements EngineInterface
             ];
         }
 
-        if (!empty($builder->wheres)) {
-            $filters = [];
-
-            foreach ($builder->wheres as $field => $value) {
-                $filters[] = ['term' => [$field => ['value' => $value]]];
-            }
-
+        $filters = $this->buildFiltersFromBuilder($builder);
+        if ($filters !== []) {
             if (isset($params['body']['query'])) {
                 $params['body']['query'] = [
                     'bool' => [
@@ -304,6 +300,8 @@ class Engine extends ScoutEngine implements EngineInterface
             $params['body']['size'] = $options['size'];
         }
 
+        $params = $this->mergeScoutOptions($params, $builder->options);
+
         // Fallback to match_all if no query was specified
         if (!isset($params['body']['query'])) {
             $params['body']['query'] = ['match_all' => new \stdClass()];
@@ -316,6 +314,95 @@ class Engine extends ScoutEngine implements EngineInterface
         /** @var ElasticsearchResponse $response */
         $response = $this->client->search($params);
         return $response->asArray();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildFiltersFromBuilder(Builder $builder): array
+    {
+        $filters = [];
+
+        foreach ($builder->wheres as $field => $value) {
+            $filters[] = ['term' => [$field => ['value' => $value]]];
+        }
+
+        foreach ($builder->whereIns as $field => $values) {
+            if ($values === []) {
+                continue;
+            }
+
+            $filters[] = ['terms' => [$field => array_values($values)]];
+        }
+
+        foreach ($builder->whereNotIns as $field => $values) {
+            if ($values === []) {
+                continue;
+            }
+
+            $filters[] = [
+                'bool' => [
+                    'must_not' => [
+                        ['terms' => [$field => array_values($values)]],
+                    ],
+                ],
+            ];
+        }
+
+        return $filters;
+    }
+
+    /**
+     * @param array<string, mixed> $params
+     * @param array<string, mixed> $scoutOptions
+     * @return array<string, mixed>
+     */
+    private function mergeScoutOptions(array $params, array $scoutOptions): array
+    {
+        if ($scoutOptions === []) {
+            return $params;
+        }
+
+        if (array_key_exists('body', $scoutOptions)) {
+            if (!is_array($scoutOptions['body'])) {
+                throw new InvalidArgumentException('Scout options [body] must be an array.');
+            }
+
+            $params['body'] = $this->mergeRequestBody($params['body'], $scoutOptions['body']);
+            unset($scoutOptions['body']);
+        }
+
+        return array_replace($params, $scoutOptions);
+    }
+
+    /**
+     * Merge Elasticsearch request body safely.
+     *
+     * Arrays with list semantics are replaced to avoid invalid structures.
+     *
+     * @param array<string, mixed> $base
+     * @param array<string, mixed> $override
+     * @return array<string, mixed>
+     */
+    private function mergeRequestBody(array $base, array $override): array
+    {
+        foreach ($override as $key => $value) {
+            if (
+                !array_key_exists($key, $base)
+                || !is_array($base[$key])
+                || !is_array($value)
+                || $key === 'query'
+                || array_is_list($base[$key])
+                || array_is_list($value)
+            ) {
+                $base[$key] = $value;
+                continue;
+            }
+
+            $base[$key] = $this->mergeRequestBody($base[$key], $value);
+        }
+
+        return $base;
     }
 
     protected function usesSoftDelete(Model $model): bool
