@@ -44,7 +44,7 @@ up-mysql: ## Start MySQL container
 		printf "$(GREEN)✔ $(MYSQL_CONTAINER_NAME) already running$(RESET)\n"; \
 	else \
 		printf "$(YELLOW)→ Starting $(MYSQL_CONTAINER_NAME) container$(RESET)\n"; \
-		docker run --rm -d \
+		if docker run --rm -d \
 			--name $(MYSQL_CONTAINER_NAME) \
 			-p $(MYSQL_HOST_PORT):3306 \
 			-e MYSQL_RANDOM_ROOT_PASSWORD=yes \
@@ -52,8 +52,12 @@ up-mysql: ## Start MySQL container
 			-e MYSQL_USER=$(MYSQL_USER) \
 			-e MYSQL_PASSWORD=$(MYSQL_PASSWORD) \
 			mysql:$(MYSQL_VERSION) \
-			--default-authentication-plugin=mysql_native_password; \
-		printf "$(GREEN)✔ $(MYSQL_CONTAINER_NAME) started$(RESET)\n"; \
+			--default-authentication-plugin=mysql_native_password; then \
+			printf "$(GREEN)✔ $(MYSQL_CONTAINER_NAME) started$(RESET)\n"; \
+		else \
+			printf "$(RED)✘ Failed to start $(MYSQL_CONTAINER_NAME)$(RESET)\n"; \
+			exit 1; \
+		fi; \
 	fi
 
 up-es: ## Start Elasticsearch container
@@ -61,14 +65,18 @@ up-es: ## Start Elasticsearch container
 		printf "$(GREEN)✔ $(ES_CONTAINER_NAME) already running$(RESET)\n"; \
 	else \
 		printf "$(YELLOW)→ Starting $(ES_CONTAINER_NAME) container (ES $(ES_VERSION))$(RESET)\n"; \
-		docker run --rm -d \
+		if docker run --rm -d \
 			--name $(ES_CONTAINER_NAME) \
 			-p $(ES_HOST_PORT):9200 \
 			-e discovery.type=single-node \
 			-e xpack.security.enabled=false \
 			-e ES_JAVA_OPTS="-Xms512m -Xmx512m" \
-			$(ES_IMAGE):$(ES_VERSION); \
-		printf "$(GREEN)✔ $(ES_CONTAINER_NAME) started$(RESET)\n"; \
+			$(ES_IMAGE):$(ES_VERSION); then \
+			printf "$(GREEN)✔ $(ES_CONTAINER_NAME) started$(RESET)\n"; \
+		else \
+			printf "$(RED)✘ Failed to start $(ES_CONTAINER_NAME)$(RESET)\n"; \
+			exit 1; \
+		fi; \
 	fi
 
 down: ## Stop all containers
