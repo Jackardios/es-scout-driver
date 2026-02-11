@@ -185,4 +185,21 @@ final class SourceFilteringTest extends TestCase
         $this->assertArrayNotHasKey('price', $document);
         $this->assertArrayNotHasKey('description', $document);
     }
+
+    #[Test]
+    public function it_disables_source_with_without_source_method(): void
+    {
+        Book::factory()->count(2)->create()->each(fn(Book $book) => $book->searchable());
+
+        $this->refreshIndex('books');
+
+        $result = Book::searchQuery(Query::matchAll())->withoutSource()->execute();
+
+        $this->assertCount(2, $result->hits());
+        $this->assertEmpty($result->hits()->first()->source);
+
+        $models = $result->models();
+        $this->assertCount(2, $models);
+        $this->assertInstanceOf(Book::class, $models->first());
+    }
 }

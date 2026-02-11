@@ -222,7 +222,25 @@ $builder->source(['title', 'author.*'], excludes: ['author.email']);
 ### Disable source
 
 ```php
+$builder->withoutSource();
+// or
 $builder->sourceRaw(false);
+```
+
+> **Tip:** Use `withoutSource()` when you only need models from the database and don't need document data. This reduces Elasticsearch response size since `_source` contents are not transferred.
+
+```php
+// Optimized: only IDs are fetched from ES, models loaded from DB
+$models = Book::searchQuery(Query::match('title', 'laravel'))
+    ->withoutSource()
+    ->execute()
+    ->models();
+
+// Optimized pagination
+$paginator = Book::searchQuery(Query::matchAll())
+    ->withoutSource()
+    ->paginate()
+    ->withModels();
 ```
 
 ## Aggregations

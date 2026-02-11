@@ -56,6 +56,11 @@ foreach ($models as $book) {
 
 Note: Models are lazy-loaded from the database when first accessed.
 
+> **Tip:** If you only need models and don't need document data, use `withoutSource()` to disable `_source` fetching and reduce network traffic:
+> ```php
+> $models = Book::searchQuery(...)->withoutSource()->execute()->models();
+> ```
+
 ### Getting Documents
 
 ```php

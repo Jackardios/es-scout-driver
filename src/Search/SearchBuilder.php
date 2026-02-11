@@ -374,6 +374,12 @@ class SearchBuilder
         return $this;
     }
 
+    public function withoutSource(): self
+    {
+        $this->source = false;
+        return $this;
+    }
+
     public function source(array $includes, ?array $excludes = null): self
     {
         if ($excludes !== null) {
