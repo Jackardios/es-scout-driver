@@ -190,4 +190,29 @@ final class PaginationTest extends TestCase
         $this->assertSame($books[2]->id, $items[1]->id);
         $this->assertSame($books[3]->id, $items[2]->id);
     }
+
+    #[Test]
+    public function test_paginate_ignores_existing_search_after_cursor_state(): void
+    {
+        for ($i = 1; $i <= 5; $i++) {
+            $book = Book::factory()->create([
+                'title' => "Book {$i}",
+                'price' => $i * 10.0,
+            ]);
+            $book->searchable();
+        }
+
+        $this->refreshIndex('books');
+
+        // Leftover cursor state from previous deep-pagination flow should not break paginate().
+        $paginator = Book::searchQuery(Query::matchAll())
+            ->sort('price', 'asc')
+            ->searchAfter(['stale-cursor-token'])
+            ->paginate(perPage: 2, pageName: 'page', page: 2)
+            ->withModels();
+
+        $this->assertSame(5, $paginator->total());
+        $this->assertCount(2, $paginator->items());
+        $this->assertSame(2, $paginator->currentPage());
+    }
 }

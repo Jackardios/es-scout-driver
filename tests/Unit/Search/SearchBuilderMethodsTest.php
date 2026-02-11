@@ -909,7 +909,7 @@ final class SearchBuilderMethodsTest extends TestCase
     }
 
     #[Test]
-    public function bool_query_state_before_and_after_access(): void
+    public function bool_query_getter_before_and_after_access(): void
     {
         $builder = $this->createBuilder();
 
@@ -1484,5 +1484,148 @@ final class SearchBuilderMethodsTest extends TestCase
         $builder->size(0);
 
         $this->assertSame(0, $builder->getSize());
+    }
+
+    #[Test]
+    public function paginate_throws_for_non_positive_per_page(): void
+    {
+        $builder = $this->createBuilder();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('perPage must be greater than 0.');
+
+        $builder->paginate(perPage: 0, page: 1);
+    }
+
+    #[Test]
+    public function paginate_throws_for_invalid_page(): void
+    {
+        $builder = $this->createBuilder();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('page must be greater than or equal to 1.');
+
+        $builder->paginate(perPage: 10, page: 0);
+    }
+
+    #[Test]
+    public function get_query_returns_defensive_copy(): void
+    {
+        $builder = $this->createBuilder();
+        $builder->query(['match_all' => new \stdClass()]);
+
+        $query = $builder->getQuery();
+        $query['match_all']->fromGetter = true;
+
+        $internal = $this->getPrivateProperty($builder, 'query');
+
+        $this->assertFalse(property_exists($internal['match_all'], 'fromGetter'));
+    }
+
+    #[Test]
+    public function clone_deep_clones_query(): void
+    {
+        $builder = $this->createBuilder();
+        $builder->query(['match_all' => new \stdClass()]);
+
+        $clone = clone $builder;
+        $cloneQuery = $this->getPrivateProperty($clone, 'query');
+        $cloneQuery['match_all']->fromClone = true;
+
+        $originalQuery = $this->getPrivateProperty($builder, 'query');
+
+        $this->assertFalse(property_exists($originalQuery['match_all'], 'fromClone'));
+        $this->assertTrue(property_exists($cloneQuery['match_all'], 'fromClone'));
+    }
+
+    #[Test]
+    public function with_requires_model_class_when_multiple_indices_joined(): void
+    {
+        $builder = $this->createBuilder();
+        $this->setPrivateProperty($builder, 'indexNames', [
+            'BookModel' => 'books',
+            'AuthorModel' => 'authors',
+        ]);
+
+        $this->expectException(InvalidQueryException::class);
+        $this->expectExceptionMessage('Model class is required when multiple indices are joined');
+
+        $builder->with(['author']);
+    }
+
+    #[Test]
+    public function modify_query_requires_model_class_when_multiple_indices_joined(): void
+    {
+        $builder = $this->createBuilder();
+        $this->setPrivateProperty($builder, 'indexNames', [
+            'BookModel' => 'books',
+            'AuthorModel' => 'authors',
+        ]);
+
+        $this->expectException(InvalidQueryException::class);
+        $this->expectExceptionMessage('Model class is required when multiple indices are joined');
+
+        $builder->modifyQuery(static function (): void {});
+    }
+
+    #[Test]
+    public function modify_models_requires_model_class_when_multiple_indices_joined(): void
+    {
+        $builder = $this->createBuilder();
+        $this->setPrivateProperty($builder, 'indexNames', [
+            'BookModel' => 'books',
+            'AuthorModel' => 'authors',
+        ]);
+
+        $this->expectException(InvalidQueryException::class);
+        $this->expectExceptionMessage('Model class is required when multiple indices are joined');
+
+        $builder->modifyModels(static fn($models) => $models);
+    }
+
+    #[Test]
+    public function build_params_throws_when_search_after_is_used_with_positive_from(): void
+    {
+        $builder = $this->createBuilder();
+        $builder->from(10)->searchAfter(['cursor-token']);
+
+        $this->expectException(InvalidQueryException::class);
+        $this->expectExceptionMessage('searchAfter cannot be used with from > 0');
+
+        $builder->buildParams();
+    }
+
+    #[Test]
+    public function build_params_allows_search_after_with_from_zero(): void
+    {
+        $builder = $this->createBuilder();
+        $builder->from(0)->searchAfter(['cursor-token']);
+
+        $params = $builder->buildParams();
+
+        $this->assertSame(0, $params['body']['from']);
+        $this->assertSame(['cursor-token'], $params['body']['search_after']);
+    }
+
+    #[Test]
+    public function cursor_throws_for_non_positive_chunk_size(): void
+    {
+        $builder = $this->createBuilder();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('chunkSize must be greater than 0.');
+
+        $builder->cursor(0);
+    }
+
+    #[Test]
+    public function chunk_throws_for_non_positive_chunk_size(): void
+    {
+        $builder = $this->createBuilder();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('chunkSize must be greater than 0.');
+
+        $builder->chunk(0, static function (): void {});
     }
 }

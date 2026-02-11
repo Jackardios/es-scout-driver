@@ -60,8 +60,12 @@ final class Suggestion
     {
         if ($this->cachedScores === null) {
             $this->cachedScores = Collection::make($this->options)
-                ->pluck('_score')
-                ->filter(fn($score) => $score !== null)
+                ->map(static function (array $option): ?float {
+                    $score = $option['_score'] ?? $option['score'] ?? null;
+
+                    return $score === null ? null : (float) $score;
+                })
+                ->filter(static fn(?float $score): bool => $score !== null)
                 ->values();
         }
 

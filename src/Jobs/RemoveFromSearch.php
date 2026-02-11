@@ -10,6 +10,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use InvalidArgumentException;
+use Jackardios\EsScoutDriver\Engine\ConnectionOperationRouter;
 use Jackardios\EsScoutDriver\Engine\HandlesBulkResponse;
 
 final class RemoveFromSearch implements ShouldQueue
@@ -59,16 +60,16 @@ final class RemoveFromSearch implements ShouldQueue
             throw new InvalidArgumentException('RemoveFromSearch job payload must contain operations.');
         }
 
-        $operationsByConnection = [];
-        foreach ($this->operations as $operation) {
-            $key = $operation['connection'] ?? '__default__';
-            $operationsByConnection[$key][] = $operation;
-        }
+        $connectionRouter = new ConnectionOperationRouter();
+        $operationsByConnection = $connectionRouter->groupByConnection(
+            $this->operations,
+            static fn(array $operation): ?string => is_string($operation['connection'] ?? null)
+                ? $operation['connection']
+                : null,
+        );
 
         foreach ($operationsByConnection as $connection => $connectionOperations) {
-            $resolvedClient = $connection === '__default__'
-                ? $client
-                : app("elastic.client.connection.$connection");
+            $resolvedClient = $connectionRouter->resolveClientForConnection($connection, $client);
 
             $body = [];
             foreach ($connectionOperations as $operation) {

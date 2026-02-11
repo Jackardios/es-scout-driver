@@ -202,6 +202,8 @@ $paginator = Book::searchQuery(Query::matchAll())
 {{ $paginator->links() }}
 ```
 
+`perPage` must be greater than `0`, and `page` must be greater than or equal to `1`.
+
 ### Aggregations
 
 ```php

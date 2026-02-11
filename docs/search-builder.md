@@ -93,6 +93,9 @@ $paginator = Book::searchQuery(Query::matchAll())
 {{ $paginator->links() }}
 ```
 
+> `perPage` must be greater than `0`, and `page` must be greater than or equal to `1`.
+> `paginate()` automatically resets any previously set `searchAfter()` cursor state.
+
 ### cursor()
 
 For efficient iteration over large result sets using Point-in-Time:
@@ -107,6 +110,8 @@ foreach ($cursor as $hit) {
 }
 ```
 
+> `chunkSize` must be greater than `0`.
+
 ### chunk()
 
 Process results in chunks:
@@ -120,6 +125,8 @@ Book::searchQuery(Query::matchAll())
         }
     });
 ```
+
+> `chunkSize` must be greater than `0`.
 
 ## Sorting
 
@@ -333,6 +340,8 @@ $builder
     ->with(['tags'], Article::class);
 ```
 
+> In multi-index mode (after at least one `join()`), pass `modelClass` explicitly to `with()`.
+
 ## Query Modifiers
 
 ### modifyQuery()
@@ -345,7 +354,9 @@ $builder->modifyQuery(function ($query, $rawResult) {
 });
 ```
 
-> **Warning:** Do not use `modifyQuery()` to filter results (e.g., `->where('active', true)`). This will break pagination because Elasticsearch returns a fixed number of hits, and filtering them in PHP will result in fewer items than expected on the page. Always filter in Elasticsearch using `filter()` or `must()`.
+> **Warning:** Do not use `modifyQuery()` to filter results (e.g., `->where('active', true)`) unless you intentionally accept hydration mismatch (`hits` count in Elasticsearch can differ from hydrated models count). For strict safety, set `elastic.scout.model_hydration_mismatch=exception`.
+>
+> In multi-index mode (after at least one `join()`), pass `modelClass` explicitly to `modifyQuery()`.
 
 ### modifyModels()
 
@@ -357,7 +368,9 @@ $builder->modifyModels(function ($models) {
 });
 ```
 
-> **Warning:** Do not use `modifyModels()` to filter results. This will break pagination and cause `total` count to be incorrect. Use Elasticsearch queries for filtering instead.
+> **Warning:** Do not use `modifyModels()` to filter results unless you intentionally accept hydration mismatch (`hits` count in Elasticsearch can differ from hydrated models count). For strict safety, set `elastic.scout.model_hydration_mismatch=exception`.
+>
+> In multi-index mode (after at least one `join()`), pass `modelClass` explicitly to `modifyModels()`.
 
 ## Soft Deletes
 
@@ -501,6 +514,7 @@ $lastHit = $result->hits()->last();
 $nextResult = Book::searchQuery(Query::matchAll())
     ->pointInTime($pitId)
     ->searchAfter($lastHit->sort)
+    ->from(0) // search_after is only valid with from=0
     ->sort('_id')
     ->size(100)
     ->execute();

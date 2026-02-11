@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Tests\Integration;
 
+use Jackardios\EsScoutDriver\Exceptions\ModelHydrationMismatchException;
 use Jackardios\EsScoutDriver\Support\Query;
 use Jackardios\EsScoutDriver\Tests\App\Book;
 use PHPUnit\Framework\Attributes\Test;
@@ -94,5 +95,31 @@ final class CallbackTest extends TestCase
         $this->assertContains($book1->id, $ids);
         $this->assertContains($book3->id, $ids);
         $this->assertNotContains($book2->id, $ids);
+    }
+
+    #[Test]
+    public function test_strict_hydration_mode_throws_when_callbacks_filter_out_models(): void
+    {
+        $this->app['config']->set('elastic.scout.model_hydration_mismatch', 'exception');
+
+        $book1 = Book::factory()->create(['title' => 'Expensive Book', 'price' => 50.00]);
+        $book2 = Book::factory()->create(['title' => 'Cheap Book', 'price' => 10.00]);
+
+        $book1->searchable();
+        $book2->searchable();
+
+        $this->refreshIndex('books');
+
+        $builder = Book::searchQuery(Query::matchAll());
+        $builder->modifyModels(function ($collection) {
+            return $collection->filter(function ($book) {
+                return $book->price >= 25.00;
+            })->values();
+        });
+
+        $this->expectException(ModelHydrationMismatchException::class);
+        $this->expectExceptionMessage('Model hydration mismatch');
+
+        $builder->execute()->models();
     }
 }

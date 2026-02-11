@@ -108,7 +108,8 @@ foreach ($suggestions['title_suggest'] as $suggestion) {
     echo "Length: {$suggestion->length}\n";
 
     foreach ($suggestion->options as $option) {
-        echo "  - {$option['text']} (score: {$option['score']})\n";
+        $score = $option['_score'] ?? $option['score'] ?? null;
+        echo "  - {$option['text']} (score: {$score})\n";
     }
 }
 ```
@@ -227,6 +228,8 @@ $paginator = Book::searchQuery(Query::matchAll())
     ->sort('created_at', 'desc')
     ->paginate(perPage: 15, pageName: 'page', page: 1);
 ```
+
+`perPage` must be greater than `0`, and `page` must be greater than or equal to `1`.
 
 ### Basic Usage
 

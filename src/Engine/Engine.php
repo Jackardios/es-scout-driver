@@ -18,12 +18,12 @@ use Laravel\Scout\Engines\Engine as ScoutEngine;
 class Engine extends ScoutEngine implements EngineInterface
 {
     use HandlesBulkResponse;
-    private const ENGINE_CONNECTION_FALLBACK = '__engine_default__';
 
     public function __construct(
         protected Client $client,
         protected bool $refreshDocuments = false,
         protected ?string $connectionName = null,
+        private readonly ConnectionOperationRouter $connectionRouter = new ConnectionOperationRouter(),
     ) {}
 
     public function update($models): void
@@ -425,7 +425,7 @@ class Engine extends ScoutEngine implements EngineInterface
                 throw new InvalidArgumentException('Bulk operations expect an iterable of Eloquent models.');
             }
 
-            $connection = $this->resolveConnectionNameForModel($model);
+            $connection = $this->connectionRouter->normalize($this->resolveConnectionNameForModel($model));
             $grouped[$connection][] = $model;
         }
 
@@ -467,7 +467,7 @@ class Engine extends ScoutEngine implements EngineInterface
         }
     }
 
-    private function resolveConnectionNameForModel(Model $model): string
+    private function resolveConnectionNameForModel(Model $model): ?string
     {
         $connection = $model->searchableConnection();
         if ($connection !== null && $connection !== '') {
@@ -478,20 +478,16 @@ class Engine extends ScoutEngine implements EngineInterface
             return $this->connectionName;
         }
 
-        return self::ENGINE_CONNECTION_FALLBACK;
+        return null;
     }
 
     private function resolveClientForConnection(string $connection): mixed
     {
-        if ($connection === self::ENGINE_CONNECTION_FALLBACK) {
-            return $this->client;
-        }
-
-        if ($this->connectionName !== null && $connection === $this->connectionName) {
-            return $this->client;
-        }
-
-        return app("elastic.client.connection.$connection");
+        return $this->connectionRouter->resolveClientForConnection(
+            connection: $connection,
+            defaultClient: $this->client,
+            defaultConnectionName: $this->connectionName,
+        );
     }
 
     protected function usesSoftDelete(Model $model): bool

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Jackardios\EsScoutDriver\Search;
 
 use Generator;
+use InvalidArgumentException;
 use IteratorAggregate;
+use Throwable;
 use Traversable;
 
 /**
@@ -19,6 +21,10 @@ final class SearchCursor implements IteratorAggregate
 
     public function __construct(SearchBuilder $builder, int $chunkSize = 1000, string $keepAlive = '5m')
     {
+        if ($chunkSize < 1) {
+            throw new InvalidArgumentException('chunkSize must be greater than 0.');
+        }
+
         $this->builder = $builder;
         $this->chunkSize = $chunkSize;
         $this->keepAlive = $keepAlive;
@@ -38,7 +44,8 @@ final class SearchCursor implements IteratorAggregate
         $index = implode(',', array_values($indexNames));
         $engine = $this->builder->getEngine();
 
-        $pitId = $engine->openPointInTime($index, $this->keepAlive);
+        $currentPitId = $engine->openPointInTime($index, $this->keepAlive);
+        $primaryError = null;
 
         try {
             $searchAfter = $this->builder->getSearchAfter();
@@ -46,7 +53,7 @@ final class SearchCursor implements IteratorAggregate
 
             do {
                 $searchBuilder = clone $this->builder;
-                $searchBuilder->pointInTime($pitId, $this->keepAlive);
+                $searchBuilder->pointInTime($currentPitId, $this->keepAlive);
                 $searchBuilder->size($this->chunkSize);
 
                 if ($searchBuilder->getSort() === [] || !$this->hasShardDocSort($searchBuilder->getSort())) {
@@ -63,6 +70,11 @@ final class SearchCursor implements IteratorAggregate
                 $result = $searchBuilder->execute();
                 $hits = $result->hits();
 
+                $returnedPitId = $result->raw['pit_id'] ?? null;
+                if (is_string($returnedPitId) && $returnedPitId !== '') {
+                    $currentPitId = $returnedPitId;
+                }
+
                 if ($hits->isEmpty()) {
                     break;
                 }
@@ -76,8 +88,17 @@ final class SearchCursor implements IteratorAggregate
                 $searchAfter = $lastHit->sort ?: null;
 
             } while ($hits->count() === $this->chunkSize && $searchAfter !== null);
+        } catch (Throwable $e) {
+            $primaryError = $e;
+            throw $e;
         } finally {
-            $engine->closePointInTime($pitId);
+            try {
+                $engine->closePointInTime($currentPitId);
+            } catch (Throwable $closeError) {
+                if ($primaryError === null) {
+                    throw $closeError;
+                }
+            }
         }
     }
 

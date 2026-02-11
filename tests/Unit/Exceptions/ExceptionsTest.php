@@ -10,6 +10,7 @@ use Jackardios\EsScoutDriver\Exceptions\AmbiguousJoinedIndexException;
 use Jackardios\EsScoutDriver\Exceptions\IncompatibleSearchConnectionException;
 use Jackardios\EsScoutDriver\Exceptions\InvalidQueryException;
 use Jackardios\EsScoutDriver\Exceptions\InvalidSearchResultException;
+use Jackardios\EsScoutDriver\Exceptions\ModelHydrationMismatchException;
 use Jackardios\EsScoutDriver\Exceptions\ModelNotJoinedException;
 use Jackardios\EsScoutDriver\Exceptions\NotSearchableModelException;
 use Jackardios\EsScoutDriver\Exceptions\SearchException;
@@ -115,6 +116,41 @@ final class ExceptionsTest extends TestCase
         $this->assertInstanceOf(InvalidSearchResultException::class, $e);
         $this->assertStringContainsString('total hits', $e->getMessage());
         $this->assertStringContainsString('tracked', $e->getMessage());
+    }
+
+    #[Test]
+    public function model_hydration_mismatch_exception_extends_search_exception(): void
+    {
+        $e = new ModelHydrationMismatchException(
+            totalHits: 10,
+            resolvedModels: 8,
+            missingModels: 2,
+            missingDocuments: [['index' => 'books', 'id' => '42']],
+        );
+
+        $this->assertInstanceOf(SearchException::class, $e);
+        $this->assertStringContainsString('Model hydration mismatch', $e->getMessage());
+    }
+
+    #[Test]
+    public function model_hydration_mismatch_exception_exposes_context_properties(): void
+    {
+        $missingDocuments = [
+            ['index' => 'books', 'id' => '1'],
+            ['index' => 'books', 'id' => '2'],
+        ];
+
+        $e = new ModelHydrationMismatchException(
+            totalHits: 5,
+            resolvedModels: 3,
+            missingModels: 2,
+            missingDocuments: $missingDocuments,
+        );
+
+        $this->assertSame(5, $e->totalHits);
+        $this->assertSame(3, $e->resolvedModels);
+        $this->assertSame(2, $e->missingModels);
+        $this->assertSame($missingDocuments, $e->missingDocuments);
     }
 
     #[Test]

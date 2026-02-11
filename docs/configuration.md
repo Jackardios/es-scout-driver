@@ -40,6 +40,9 @@ ELASTIC_CONNECTION=default
 
 # Optional: Refresh documents immediately
 ELASTIC_REFRESH_DOCUMENTS=false
+
+# Optional: Model hydration mismatch strategy: ignore, log, exception
+ELASTIC_MODEL_HYDRATION_MISMATCH=ignore
 ```
 
 ---
@@ -176,6 +179,9 @@ When using multiple connections:
 return [
     // Refresh documents immediately after write operations
     'refresh_documents' => env('ELASTIC_REFRESH_DOCUMENTS', false),
+
+    // Behavior when hits cannot be hydrated into models
+    'model_hydration_mismatch' => env('ELASTIC_MODEL_HYDRATION_MISMATCH', 'ignore'),
 ];
 ```
 
@@ -186,6 +192,16 @@ When `true`, documents are immediately available for search after indexing. This
 ```php
 'refresh_documents' => true,  // Immediate consistency
 'refresh_documents' => false, // Better performance (default)
+```
+
+### Model Hydration Mismatch
+
+Controls behavior when Elasticsearch hits cannot be hydrated into Eloquent models (for example, if `modifyQuery()` or `modifyModels()` filters records):
+
+```php
+'model_hydration_mismatch' => 'ignore',    // default, silently skip missing models
+'model_hydration_mismatch' => 'log',       // log warning and skip
+'model_hydration_mismatch' => 'exception', // throw ModelHydrationMismatchException
 ```
 
 ### Laravel Scout Config

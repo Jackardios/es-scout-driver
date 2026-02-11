@@ -198,4 +198,42 @@ final class SuggestionTest extends TestCase
 
         $this->assertCount(0, $scores);
     }
+
+    #[Test]
+    public function it_reads_score_field_when_underscore_score_is_missing(): void
+    {
+        $suggestion = Suggestion::fromRaw([
+            'text' => 'tset',
+            'offset' => 0,
+            'length' => 4,
+            'options' => [
+                ['text' => 'test', 'score' => 0.8],
+                ['text' => 'best', 'score' => 0.6],
+            ],
+        ]);
+
+        $scores = $suggestion->scores();
+
+        $this->assertCount(2, $scores);
+        $this->assertSame(0.8, $scores[0]);
+        $this->assertSame(0.6, $scores[1]);
+    }
+
+    #[Test]
+    public function it_prefers_underscore_score_over_score_when_both_are_present(): void
+    {
+        $suggestion = Suggestion::fromRaw([
+            'text' => 'tset',
+            'offset' => 0,
+            'length' => 4,
+            'options' => [
+                ['text' => 'test', '_score' => 0.7, 'score' => 0.8],
+            ],
+        ]);
+
+        $scores = $suggestion->scores();
+
+        $this->assertCount(1, $scores);
+        $this->assertSame(0.7, $scores[0]);
+    }
 }

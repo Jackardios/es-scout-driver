@@ -749,7 +749,7 @@ class SearchBuilder
 
     public function getQuery(): ?array
     {
-        return $this->query;
+        return $this->query !== null ? $this->deepCloneArray($this->query) : null;
     }
 
     public function getSort(): array
@@ -784,7 +784,7 @@ class SearchBuilder
 
     public function getPostFilter(): ?array
     {
-        return $this->postFilter;
+        return $this->postFilter !== null ? $this->deepCloneArray($this->postFilter) : null;
     }
 
     public function getRescore(): array
@@ -943,7 +943,11 @@ class SearchBuilder
 
         $modelResolver = $this->createModelResolver($rawResult);
 
-        return new SearchResult($rawResult, $modelResolver->createResolver());
+        return new SearchResult(
+            raw: $rawResult,
+            modelResolver: $modelResolver->createResolver(),
+            modelHydrationMismatchMode: $this->resolveModelHydrationMismatchMode(),
+        );
     }
 
     public function paginate(
@@ -951,9 +955,18 @@ class SearchBuilder
         string $pageName = 'page',
         ?int $page = null,
     ): Paginator {
+        if ($perPage < 1) {
+            throw new \InvalidArgumentException('perPage must be greater than 0.');
+        }
+
         $page ??= Paginator::resolveCurrentPage($pageName);
 
+        if ($page < 1) {
+            throw new \InvalidArgumentException('page must be greater than or equal to 1.');
+        }
+
         $builder = clone $this;
+        $builder->clearSearchAfter();
         $builder->from(($page - 1) * $perPage);
         $builder->size($perPage);
         $builder->trackTotalHits(true);
@@ -1075,11 +1088,19 @@ class SearchBuilder
 
     public function cursor(int $chunkSize = 1000, string $keepAlive = '5m'): SearchCursor
     {
+        if ($chunkSize < 1) {
+            throw new \InvalidArgumentException('chunkSize must be greater than 0.');
+        }
+
         return new SearchCursor($this, $chunkSize, $keepAlive);
     }
 
     public function chunk(int $chunkSize, callable $callback): void
     {
+        if ($chunkSize < 1) {
+            throw new \InvalidArgumentException('chunkSize must be greater than 0.');
+        }
+
         $cursor = $this->cursor($chunkSize);
         $currentChunk = [];
 
@@ -1105,6 +1126,10 @@ class SearchBuilder
     {
         // AliasRegistry is intentionally shared between clones (singleton-like, caches alias lookups)
 
+        if ($this->query !== null) {
+            $this->query = $this->deepCloneArray($this->query);
+        }
+
         if ($this->boolQuery !== null) {
             $this->boolQuery = clone $this->boolQuery;
         }
@@ -1121,6 +1146,10 @@ class SearchBuilder
             $this->pointInTime = $this->deepCloneArray($this->pointInTime);
         }
 
+        if ($this->postFilter !== null) {
+            $this->postFilter = $this->deepCloneArray($this->postFilter);
+        }
+
         if ($this->scriptFields !== null) {
             $this->scriptFields = $this->deepCloneArray($this->scriptFields);
         }
@@ -1132,13 +1161,29 @@ class SearchBuilder
         if ($this->knn !== null) {
             $this->knn = $this->deepCloneArray($this->knn);
         }
+
+        if ($this->searchAfter !== null) {
+            $this->searchAfter = $this->deepCloneArray($this->searchAfter);
+        }
+
+        if ($this->routing !== null) {
+            $this->routing = $this->deepCloneArray($this->routing);
+        }
+
+        if (is_array($this->source)) {
+            $this->source = $this->deepCloneArray($this->source);
+        }
     }
 
     /** @param array<mixed> $arr */
     private function deepCloneArray(array $arr): array
     {
         return array_map(
-            fn($item) => $item instanceof QueryInterface ? clone $item : (is_array($item) ? $this->deepCloneArray($item) : $item),
+            fn($item) => $item instanceof QueryInterface
+                ? clone $item
+                : (is_object($item)
+                    ? clone $item
+                    : (is_array($item) ? $this->deepCloneArray($item) : $item)),
             $arr,
         );
     }
@@ -1147,6 +1192,8 @@ class SearchBuilder
 
     private function buildBody(): array
     {
+        $this->validateSearchAfterUsage();
+
         $body = [];
 
         $query = $this->buildFinalQuery();
@@ -1339,6 +1386,13 @@ class SearchBuilder
             throw new ModelNotJoinedException($modelClass);
         }
 
+        if (count($this->indexNames) > 1) {
+            throw new InvalidQueryException(
+                'Model class is required when multiple indices are joined. '
+                . 'Pass $modelClass to with(), modifyQuery(), or modifyModels().',
+            );
+        }
+
         return array_values($this->indexNames)[0];
     }
 
@@ -1378,6 +1432,36 @@ class SearchBuilder
             return (string) config('elastic.client.default', 'default');
         } catch (Throwable) {
             return 'default';
+        }
+    }
+
+    private function validateSearchAfterUsage(): void
+    {
+        if ($this->searchAfter === null) {
+            return;
+        }
+
+        if ($this->from === null || $this->from === 0) {
+            return;
+        }
+
+        throw new InvalidQueryException(
+            'searchAfter cannot be used with from > 0. Set from(0) or clearSearchAfter().',
+        );
+    }
+
+    private function resolveModelHydrationMismatchMode(): string
+    {
+        try {
+            $mode = strtolower((string) config('elastic.scout.model_hydration_mismatch', SearchResult::HYDRATION_MISMATCH_IGNORE));
+
+            return match ($mode) {
+                SearchResult::HYDRATION_MISMATCH_LOG,
+                SearchResult::HYDRATION_MISMATCH_EXCEPTION => $mode,
+                default => SearchResult::HYDRATION_MISMATCH_IGNORE,
+            };
+        } catch (Throwable) {
+            return SearchResult::HYDRATION_MISMATCH_IGNORE;
         }
     }
 }

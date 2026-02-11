@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Tests\Unit\Search;
 
+use Illuminate\Database\Eloquent\Model;
+use Jackardios\EsScoutDriver\Exceptions\ModelHydrationMismatchException;
 use Jackardios\EsScoutDriver\Search\SearchResult;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -213,5 +215,46 @@ final class SearchResultTest extends TestCase
         $result = new SearchResult($raw);
 
         $this->assertSame($raw, $result->raw);
+    }
+
+    #[Test]
+    public function models_throws_when_hydration_mismatch_mode_is_exception(): void
+    {
+        $rawHits = [
+            ['_index' => 'books', '_id' => '1', '_source' => ['title' => 'A']],
+            ['_index' => 'books', '_id' => '2', '_source' => ['title' => 'B']],
+        ];
+
+        $model = $this->createMock(Model::class);
+        $result = new SearchResult(
+            raw: $this->makeRawResponse($rawHits, 2),
+            modelResolver: static fn(string $indexName, string $documentId) => $documentId === '1' ? $model : null,
+            modelHydrationMismatchMode: SearchResult::HYDRATION_MISMATCH_EXCEPTION,
+        );
+
+        $this->expectException(ModelHydrationMismatchException::class);
+        $this->expectExceptionMessage('Model hydration mismatch');
+
+        $result->models();
+    }
+
+    #[Test]
+    public function models_ignores_hydration_mismatch_in_log_mode(): void
+    {
+        $rawHits = [
+            ['_index' => 'books', '_id' => '1', '_source' => ['title' => 'A']],
+            ['_index' => 'books', '_id' => '2', '_source' => ['title' => 'B']],
+        ];
+
+        $model = $this->createMock(Model::class);
+        $result = new SearchResult(
+            raw: $this->makeRawResponse($rawHits, 2),
+            modelResolver: static fn(string $indexName, string $documentId) => $documentId === '1' ? $model : null,
+            modelHydrationMismatchMode: SearchResult::HYDRATION_MISMATCH_LOG,
+        );
+
+        $models = $result->models();
+
+        $this->assertCount(1, $models);
     }
 }

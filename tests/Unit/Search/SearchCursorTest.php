@@ -42,6 +42,25 @@ final class SearchCursorTest extends TestCase
     }
 
     #[Test]
+    public function it_throws_for_non_positive_chunk_size(): void
+    {
+        $builder = new SearchCursorTestBuilder(
+            engine: $this->createMock(EngineInterface::class),
+            indexNames: ['Book' => 'books'],
+            sort: [],
+            searchAfter: null,
+            executedRequests: new ArrayObject(),
+            metrics: new SearchCursorTestBuilderMetrics(),
+            executor: fn() => [],
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('chunkSize must be greater than 0.');
+
+        new SearchCursor($builder, 0, '1m');
+    }
+
+    #[Test]
     public function it_paginates_with_search_after_and_applies_shard_doc_sort(): void
     {
         $engine = $this->createMock(EngineInterface::class);
@@ -190,6 +209,118 @@ final class SearchCursorTest extends TestCase
         }
     }
 
+    #[Test]
+    public function it_updates_point_in_time_id_from_response_between_requests(): void
+    {
+        $engine = $this->createMock(EngineInterface::class);
+        $engine->expects($this->once())
+            ->method('openPointInTime')
+            ->with('books', '1m')
+            ->willReturn('pit-1');
+        $engine->expects($this->once())
+            ->method('closePointInTime')
+            ->with('pit-2');
+
+        $executedRequests = new ArrayObject();
+        $metrics = new SearchCursorTestBuilderMetrics();
+        $requestCount = 0;
+
+        $builder = new SearchCursorTestBuilder(
+            engine: $engine,
+            indexNames: ['Book' => 'books'],
+            sort: [['_shard_doc' => 'asc']],
+            searchAfter: null,
+            executedRequests: $executedRequests,
+            metrics: $metrics,
+            executor: function () use (&$requestCount): array {
+                $requestCount++;
+
+                if ($requestCount === 1) {
+                    return [
+                        'pit_id' => 'pit-2',
+                        'hits' => [
+                            $this->rawHit('1', ['a']),
+                        ],
+                    ];
+                }
+
+                return ['hits' => []];
+            },
+        );
+
+        $cursor = new SearchCursor($builder, 1, '1m');
+        $hits = iterator_to_array($cursor);
+
+        $this->assertCount(1, $hits);
+        $this->assertCount(2, $executedRequests);
+        $this->assertSame('pit-1', $executedRequests[0]['pit']['id']);
+        $this->assertSame('pit-2', $executedRequests[1]['pit']['id']);
+    }
+
+    #[Test]
+    public function it_does_not_mask_search_error_when_close_fails(): void
+    {
+        $engine = $this->createMock(EngineInterface::class);
+        $engine->expects($this->once())
+            ->method('openPointInTime')
+            ->with('books', '1m')
+            ->willReturn('pit-1');
+        $engine->expects($this->once())
+            ->method('closePointInTime')
+            ->with('pit-1')
+            ->willThrowException(new RuntimeException('close failed'));
+
+        $builder = new SearchCursorTestBuilder(
+            engine: $engine,
+            indexNames: ['Book' => 'books'],
+            sort: [],
+            searchAfter: null,
+            executedRequests: new ArrayObject(),
+            metrics: new SearchCursorTestBuilderMetrics(),
+            executor: static function (): array {
+                throw new RuntimeException('search failed');
+            },
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('search failed');
+
+        foreach (new SearchCursor($builder, 1, '1m') as $_) {
+            // No-op.
+        }
+    }
+
+    #[Test]
+    public function it_throws_close_error_when_no_primary_error_exists(): void
+    {
+        $engine = $this->createMock(EngineInterface::class);
+        $engine->expects($this->once())
+            ->method('openPointInTime')
+            ->with('books', '1m')
+            ->willReturn('pit-1');
+        $engine->expects($this->once())
+            ->method('closePointInTime')
+            ->with('pit-1')
+            ->willThrowException(new RuntimeException('close failed'));
+
+        $builder = new SearchCursorTestBuilder(
+            engine: $engine,
+            indexNames: ['Book' => 'books'],
+            sort: [],
+            searchAfter: null,
+            executedRequests: new ArrayObject(),
+            metrics: new SearchCursorTestBuilderMetrics(),
+            executor: fn() => [],
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('close failed');
+
+        foreach (new SearchCursor($builder, 1, '1m') as $_) {
+            // No-op.
+        }
+    }
+
     private function rawHit(string $id, array $sort): array
     {
         return [
@@ -226,7 +357,7 @@ final class SearchCursorTestBuilder extends SearchBuilder
     /** @var ArrayObject<int, array<string, mixed>> */
     private ArrayObject $executedRequests;
 
-    /** @var callable(self): array<int, array<string, mixed>> */
+    /** @var callable(self): array<int, array<string, mixed>>|array{hits: array<int, array<string, mixed>>, pit_id?: string} */
     private mixed $executor;
 
     private SearchCursorTestBuilderMetrics $metrics;
@@ -234,7 +365,7 @@ final class SearchCursorTestBuilder extends SearchBuilder
     /**
      * @param array<string, string> $indexNames
      * @param array<int, array<string, mixed>> $sort
-     * @param callable(self): array<int, array<string, mixed>> $executor
+     * @param callable(self): array<int, array<string, mixed>>|array{hits: array<int, array<string, mixed>>, pit_id?: string} $executor
      * @param ArrayObject<int, array<string, mixed>> $executedRequests
      */
     public function __construct(
@@ -339,13 +470,20 @@ final class SearchCursorTestBuilder extends SearchBuilder
             'sort' => $this->sort,
         ]);
 
-        $hits = ($this->executor)($this);
+        $response = ($this->executor)($this);
+        $hits = array_is_list($response) ? $response : ($response['hits'] ?? []);
 
-        return new SearchResult([
+        $rawResult = [
             'hits' => [
                 'total' => ['value' => count($hits)],
                 'hits' => $hits,
             ],
-        ]);
+        ];
+
+        if (!array_is_list($response) && isset($response['pit_id']) && is_string($response['pit_id'])) {
+            $rawResult['pit_id'] = $response['pit_id'];
+        }
+
+        return new SearchResult($rawResult);
     }
 }
