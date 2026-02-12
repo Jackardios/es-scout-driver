@@ -9,6 +9,14 @@ use Jackardios\EsScoutDriver\Query\Concerns\HasBoost;
 use Jackardios\EsScoutDriver\Query\Concerns\HasInnerHits;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
 
+/**
+ * K-nearest neighbors (kNN) vector search query.
+ *
+ * Finds the k nearest vectors to a query vector, as measured by a similarity metric.
+ *
+ * @since Elasticsearch 8.8
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-knn-query.html
+ */
 final class KnnQuery implements QueryInterface
 {
     use HasBoost;

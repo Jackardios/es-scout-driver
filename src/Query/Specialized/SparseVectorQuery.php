@@ -8,6 +8,15 @@ use Jackardios\EsScoutDriver\Exceptions\InvalidQueryException;
 use Jackardios\EsScoutDriver\Query\Concerns\HasBoost;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
 
+/**
+ * Sparse vector query for semantic search using ELSER or other sparse embedding models.
+ *
+ * Converts query text into a sparse vector using an inference endpoint,
+ * or uses a pre-computed sparse vector directly.
+ *
+ * @since Elasticsearch 8.11 (replaces TextExpansionQuery deprecated in 8.15)
+ * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-sparse-vector-query.html
+ */
 final class SparseVectorQuery implements QueryInterface
 {
     use HasBoost;

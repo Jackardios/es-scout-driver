@@ -9,15 +9,14 @@ use Jackardios\EsScoutDriver\Query\Concerns\HasBoost;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
 
 /**
- * Text expansion query for rank features or sparse vectors (ES 8.8+).
+ * Text expansion query for rank features or sparse vectors.
  *
  * Uses a natural language processing (NLP) model to convert the query
  * text into a list of token-weight pairs which are used in a weighted
  * token query against a sparse vector or rank features field.
  *
- * Note: This query has been deprecated in favor of SparseVectorQuery
- * in Elasticsearch 8.15+, but remains supported.
- *
+ * @since Elasticsearch 8.8
+ * @deprecated Since Elasticsearch 8.15. Use {@see SparseVectorQuery} instead.
  * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-text-expansion-query.html
  */
 final class TextExpansionQuery implements QueryInterface

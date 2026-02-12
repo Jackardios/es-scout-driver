@@ -240,6 +240,7 @@ foreach ($result->hits() as $hit) {
 - [Sorting](docs/sorting.md) - Sorting options
 - [Search Results](docs/search-results.md) - Working with results
 - [Configuration](docs/configuration.md) - Configuration options
+- [Compatibility](docs/compatibility.md) - ES 8.x/9.x version notes
 
 ## License
 
