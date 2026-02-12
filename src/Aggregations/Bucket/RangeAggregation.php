@@ -62,6 +62,10 @@ final class RangeAggregation implements AggregationInterface
 
     public function toArray(): array
     {
+        if ($this->ranges === []) {
+            throw new \InvalidArgumentException('RangeAggregation requires at least one range.');
+        }
+
         $params = [
             'field' => $this->field,
             'ranges' => $this->ranges,

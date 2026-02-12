@@ -19,6 +19,7 @@ final class TermsAggregation implements AggregationInterface
     private ?string $missing = null;
     private ?array $include = null;
     private ?array $exclude = null;
+    private ?string $collectMode = null;
 
     public function __construct(private string $field) {}
 
@@ -46,17 +47,20 @@ final class TermsAggregation implements AggregationInterface
         return $this;
     }
 
+    /** @param 'asc'|'desc' $direction */
     public function order(string $key, string $direction = 'asc'): self
     {
         $this->order = [$key => $direction];
         return $this;
     }
 
+    /** @param 'asc'|'desc' $direction */
     public function orderByCount(string $direction = 'desc'): self
     {
         return $this->order('_count', $direction);
     }
 
+    /** @param 'asc'|'desc' $direction */
     public function orderByKey(string $direction = 'asc'): self
     {
         return $this->order('_key', $direction);
@@ -79,6 +83,19 @@ final class TermsAggregation implements AggregationInterface
     public function exclude(array|string $patterns): self
     {
         $this->exclude = is_array($patterns) ? $patterns : [$patterns];
+        return $this;
+    }
+
+    /**
+     * @param 'breadth_first'|'depth_first' $mode
+     * @return TermsAggregation
+     */
+    public function collectMode(string $mode): self
+    {
+        if (!in_array($mode, ['breadth_first', 'depth_first'], true)) {
+            throw new \InvalidArgumentException('collect_mode must be "breadth_first" or "depth_first".');
+        }
+        $this->collectMode = $mode;
         return $this;
     }
 
@@ -116,6 +133,10 @@ final class TermsAggregation implements AggregationInterface
 
         if ($this->exclude !== null) {
             $params['exclude'] = count($this->exclude) === 1 ? reset($this->exclude) : $this->exclude;
+        }
+
+        if ($this->collectMode !== null) {
+            $params['collect_mode'] = $this->collectMode;
         }
 
         $result = ['terms' => $params];

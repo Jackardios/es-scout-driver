@@ -697,7 +697,9 @@ class SearchBuilder
     public function with(array $relations, ?string $modelClass = null): self
     {
         $indexName = $this->resolveJoinedIndexName($modelClass);
-        $this->relations[$indexName] = array_merge($this->relations[$indexName] ?? [], $relations);
+        $this->relations[$indexName] = array_values(array_unique(
+            array_merge($this->relations[$indexName] ?? [], $relations)
+        ));
         return $this;
     }
 
@@ -785,7 +787,10 @@ class SearchBuilder
 
     public function getAggregations(): array
     {
-        return $this->aggregations;
+        return array_map(
+            fn($agg) => $agg instanceof AggregationInterface ? clone $agg : $agg,
+            $this->aggregations
+        );
     }
 
     public function getPostFilter(): ?array
@@ -975,7 +980,9 @@ class SearchBuilder
         $builder->clearSearchAfter();
         $builder->from(($page - 1) * $perPage);
         $builder->size($perPage);
-        $builder->trackTotalHits(true);
+        if ($builder->trackTotalHits === null) {
+            $builder->trackTotalHits(true);
+        }
         $searchResult = $builder->execute();
 
         return new Paginator(

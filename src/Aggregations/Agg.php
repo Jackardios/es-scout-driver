@@ -5,16 +5,20 @@ declare(strict_types=1);
 namespace Jackardios\EsScoutDriver\Aggregations;
 
 use Illuminate\Support\Traits\Macroable;
+use Jackardios\EsScoutDriver\Aggregations\Bucket\CompositeAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Bucket\DateHistogramAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Bucket\HistogramAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Bucket\RangeAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Bucket\TermsAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Metric\AvgAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Metric\CardinalityAggregation;
+use Jackardios\EsScoutDriver\Aggregations\Metric\ExtendedStatsAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Metric\MaxAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Metric\MinAggregation;
+use Jackardios\EsScoutDriver\Aggregations\Metric\PercentilesAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Metric\StatsAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Metric\SumAggregation;
+use Jackardios\EsScoutDriver\Aggregations\Metric\TopHitsAggregation;
 
 /**
  * Static factory for creating aggregation objects.
@@ -74,5 +78,25 @@ final class Agg
     public static function range(string $field): RangeAggregation
     {
         return new RangeAggregation($field);
+    }
+
+    public static function percentiles(string $field): PercentilesAggregation
+    {
+        return new PercentilesAggregation($field);
+    }
+
+    public static function extendedStats(string $field): ExtendedStatsAggregation
+    {
+        return new ExtendedStatsAggregation($field);
+    }
+
+    public static function topHits(): TopHitsAggregation
+    {
+        return new TopHitsAggregation();
+    }
+
+    public static function composite(): CompositeAggregation
+    {
+        return new CompositeAggregation();
     }
 }

@@ -29,4 +29,20 @@ return [
     |
     */
     'model_hydration_mismatch' => env('ELASTIC_MODEL_HYDRATION_MISMATCH', 'ignore'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Bulk Operation Failure Mode
+    |--------------------------------------------------------------------------
+    |
+    | Controls behavior when bulk operations partially fail (some documents
+    | fail while others succeed).
+    |
+    | Supported values:
+    | - exception: throw BulkOperationException (default)
+    | - log:       log an error and continue
+    | - ignore:    silently ignore failures
+    |
+    */
+    'bulk_failure_mode' => env('ELASTIC_BULK_FAILURE_MODE', 'exception'),
 ];

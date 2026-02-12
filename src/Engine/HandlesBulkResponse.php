@@ -15,6 +15,36 @@ trait HandlesBulkResponse
             return;
         }
 
+        $failedDocuments = $this->extractFailedDocuments($response);
+
+        if ($failedDocuments === []) {
+            return;
+        }
+
+        $mode = $this->getBulkFailureMode();
+
+        match ($mode) {
+            'ignore' => null,
+            'log' => $this->logBulkFailures($failedDocuments),
+            default => throw new BulkOperationException($failedDocuments),
+        };
+    }
+
+    private function getBulkFailureMode(): string
+    {
+        if (!function_exists('config')) {
+            return 'exception';
+        }
+
+        try {
+            return config('elastic.scout.bulk_failure_mode', 'exception') ?? 'exception';
+        } catch (\Throwable) {
+            return 'exception';
+        }
+    }
+
+    private function extractFailedDocuments(array $response): array
+    {
         $failedDocuments = [];
 
         foreach ($response['items'] ?? [] as $item) {
@@ -31,8 +61,21 @@ trait HandlesBulkResponse
             }
         }
 
-        if ($failedDocuments !== []) {
-            throw new BulkOperationException($failedDocuments);
+        return $failedDocuments;
+    }
+
+    private function logBulkFailures(array $failedDocuments): void
+    {
+        if (!function_exists('logger')) {
+            return;
+        }
+
+        try {
+            logger()->error('Elasticsearch bulk operation partially failed', [
+                'failed_count' => count($failedDocuments),
+                'documents' => $failedDocuments,
+            ]);
+        } catch (\Throwable) {
         }
     }
 }
