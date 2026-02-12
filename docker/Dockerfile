@@ -2,7 +2,7 @@ ARG PHP_VERSION=8.3
 FROM php:${PHP_VERSION}-cli
 
 RUN apt-get update -qq \
-    && apt-get install -y -qq git unzip libzip-dev \
+    && apt-get install -y -qq --no-install-recommends git unzip libzip-dev \
     && docker-php-ext-install zip pdo pdo_mysql \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*

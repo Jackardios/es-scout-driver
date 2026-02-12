@@ -43,6 +43,14 @@
         "phpstan/phpstan": "^1.10 || ^2.0",
         "friendsofphp/php-cs-fixer": "^3.14"
     },
+    "scripts": {
+        "test": "phpunit",
+        "test:unit": "phpunit --testsuite=unit",
+        "test:integration": "phpunit --testsuite=integration",
+        "analyse": "phpstan analyse --memory-limit=512M",
+        "format-check": "php-cs-fixer fix --dry-run --diff",
+        "format": "php-cs-fixer fix"
+    },
     "config": {
         "allow-plugins": {
             "php-http/discovery": true

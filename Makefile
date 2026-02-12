@@ -1,4 +1,4 @@
-.PHONY: up up-mysql up-es down down-es wait wait-mysql wait-es test unit-test integration-test coverage style-check style-fix static-analysis ci test-matrix test-full-matrix clean help build-images
+.PHONY: up up-mysql up-es down down-mysql down-es wait wait-mysql wait-es test unit-test integration-test coverage lint format-check format static-analysis ci ci-full test-es8 test-es9 test-matrix test-full-matrix install update help build-images
 
 .DEFAULT_GOAL := help
 
@@ -51,8 +51,7 @@ up-mysql: ## Start MySQL container
 			-e MYSQL_DATABASE=$(MYSQL_DATABASE) \
 			-e MYSQL_USER=$(MYSQL_USER) \
 			-e MYSQL_PASSWORD=$(MYSQL_PASSWORD) \
-			mysql:$(MYSQL_VERSION) \
-			--default-authentication-plugin=mysql_native_password; then \
+			mysql:$(MYSQL_VERSION); then \
 			printf "$(GREEN)✔ $(MYSQL_CONTAINER_NAME) started$(RESET)\n"; \
 		else \
 			printf "$(RED)✘ Failed to start $(MYSQL_CONTAINER_NAME)$(RESET)\n"; \
@@ -85,34 +84,41 @@ down: ## Stop all containers
 	@-docker stop $(ES_CONTAINER_NAME) 2>/dev/null || true
 	@printf "$(GREEN)✔ Containers stopped$(RESET)\n"
 
+down-mysql: ## Stop MySQL container only
+	@-docker stop $(MYSQL_CONTAINER_NAME) 2>/dev/null || true
+
 down-es: ## Stop Elasticsearch container only
 	@-docker stop $(ES_CONTAINER_NAME) 2>/dev/null || true
 
 wait: wait-mysql wait-es ## Wait until containers are ready
 
-wait-mysql: ## Wait until MySQL is ready
+wait-mysql: ## Wait until MySQL is ready (timeout: 60s)
 	@printf "$(YELLOW)→ Waiting for $(MYSQL_CONTAINER_NAME)$(RESET)\n"
-	@until docker exec $(MYSQL_CONTAINER_NAME) mysqladmin -u $(MYSQL_USER) -p$(MYSQL_PASSWORD) -h 127.0.0.1 ping 2>/dev/null; do \
-		printf "$(RED)✘ $(MYSQL_CONTAINER_NAME) not ready, waiting...$(RESET)\n"; \
+	@elapsed=0; \
+	while ! docker exec $(MYSQL_CONTAINER_NAME) mysqladmin -u $(MYSQL_USER) -p$(MYSQL_PASSWORD) -h 127.0.0.1 ping 2>/dev/null; do \
+		if [ $$elapsed -ge 60 ]; then \
+			printf "$(RED)✘ $(MYSQL_CONTAINER_NAME) timeout after 60s$(RESET)\n"; \
+			exit 1; \
+		fi; \
+		printf "$(RED)✘ $(MYSQL_CONTAINER_NAME) not ready, waiting... ($$elapsed/60s)$(RESET)\n"; \
 		sleep 3; \
+		elapsed=$$((elapsed + 3)); \
 	done
 	@printf "$(GREEN)✔ $(MYSQL_CONTAINER_NAME) ready$(RESET)\n"
 
-wait-es: ## Wait until Elasticsearch is ready
+wait-es: ## Wait until Elasticsearch is ready (timeout: 120s)
 	@printf "$(YELLOW)→ Waiting for $(ES_CONTAINER_NAME)$(RESET)\n"
-	@until curl -fsS "127.0.0.1:$(ES_HOST_PORT)/_cluster/health?wait_for_status=yellow&timeout=60s" >/dev/null 2>&1; do \
-		printf "$(RED)✘ $(ES_CONTAINER_NAME) not ready, waiting...$(RESET)\n"; \
+	@elapsed=0; \
+	while ! curl -fsS "127.0.0.1:$(ES_HOST_PORT)/_cluster/health?wait_for_status=yellow&timeout=5s" >/dev/null 2>&1; do \
+		if [ $$elapsed -ge 120 ]; then \
+			printf "$(RED)✘ $(ES_CONTAINER_NAME) timeout after 120s$(RESET)\n"; \
+			exit 1; \
+		fi; \
+		printf "$(RED)✘ $(ES_CONTAINER_NAME) not ready, waiting... ($$elapsed/120s)$(RESET)\n"; \
 		sleep 3; \
+		elapsed=$$((elapsed + 3)); \
 	done
 	@printf "$(GREEN)✔ $(ES_CONTAINER_NAME) ready$(RESET)\n"
-
-clean: ## Remove all containers and volumes
-	@printf "$(YELLOW)→ Cleaning up$(RESET)\n"
-	@-docker stop $(MYSQL_CONTAINER_NAME) 2>/dev/null || true
-	@-docker stop $(ES_CONTAINER_NAME) 2>/dev/null || true
-	@-docker rm -f $(MYSQL_CONTAINER_NAME) 2>/dev/null || true
-	@-docker rm -f $(ES_CONTAINER_NAME) 2>/dev/null || true
-	@printf "$(GREEN)✔ Cleanup complete$(RESET)\n"
 
 build-images: ## Build Docker images for matrix testing
 	@printf "$(YELLOW)→ Building Docker images for matrix testing$(RESET)\n"
@@ -238,12 +244,14 @@ test-full-matrix: build-images ## Run full test matrix (PHP × Laravel × ES) vi
 
 ##@ Code Quality
 
-style-check: ## Check code style (dry-run)
+lint: format-check static-analysis ## Quick lint check (no tests)
+
+format-check: ## Check code style (dry-run)
 	@printf "$(YELLOW)→ Checking code style$(RESET)\n"
 	@vendor/bin/php-cs-fixer fix --dry-run --diff --verbose
 	@printf "$(GREEN)✔ Code style OK$(RESET)\n"
 
-style-fix: ## Fix code style
+format: ## Fix code style
 	@printf "$(YELLOW)→ Fixing code style$(RESET)\n"
 	@vendor/bin/php-cs-fixer fix --verbose
 	@printf "$(GREEN)✔ Code style fixed$(RESET)\n"
@@ -255,13 +263,18 @@ static-analysis: ## Run PHPStan static analysis
 
 ##@ CI
 
-ci: style-check static-analysis ## Run all CI checks
-	@$(MAKE) up wait test; status=$$?; $(MAKE) down; exit $$status
-	@printf "$(GREEN)════════════════════════════════════════$(RESET)\n"
-	@printf "$(GREEN)  All CI checks passed!$(RESET)\n"
-	@printf "$(GREEN)════════════════════════════════════════$(RESET)\n"
+ci: format-check static-analysis ## Run all CI checks
+	@$(MAKE) up wait && \
+	vendor/bin/phpunit --testdox --colors=always; status=$$?; \
+	$(MAKE) down; \
+	if [ $$status -eq 0 ]; then \
+		printf "$(GREEN)════════════════════════════════════════$(RESET)\n"; \
+		printf "$(GREEN)  All CI checks passed!$(RESET)\n"; \
+		printf "$(GREEN)════════════════════════════════════════$(RESET)\n"; \
+	fi; \
+	exit $$status
 
-ci-full: style-check static-analysis test-full-matrix ## Run full CI with complete matrix (PHP × Laravel × ES)
+ci-full: format-check static-analysis test-full-matrix ## Run full CI with complete matrix (PHP × Laravel × ES)
 	@printf "$(GREEN)════════════════════════════════════════$(RESET)\n"
 	@printf "$(GREEN)  Full CI passed!$(RESET)\n"
 	@printf "$(GREEN)════════════════════════════════════════$(RESET)\n"

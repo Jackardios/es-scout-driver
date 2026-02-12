@@ -5,11 +5,17 @@ on:
     branches: [main, master, '*.x']
   pull_request:
     branches: [main, master, '*.x']
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   tests:
     name: PHP ${{ matrix.php }} / Laravel ${{ matrix.laravel }} / ES ${{ matrix.elasticsearch }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     services:
       mysql:
@@ -24,6 +30,20 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=3
+
+      elasticsearch:
+        image: elasticsearch:${{ matrix.elasticsearch }}
+        env:
+          discovery.type: single-node
+          xpack.security.enabled: "false"
+          ES_JAVA_OPTS: -Xms512m -Xmx512m
+        ports:
+          - 9200:9200
+        options: >-
+          --health-cmd="curl -f http://localhost:9200/_cluster/health"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
 
     strategy:
       fail-fast: false
@@ -79,31 +99,6 @@ jobs:
             --with="elasticsearch/elasticsearch:^${{ matrix.es_client }}.0" \
             --prefer-dist --no-interaction --no-progress
 
-      - name: Start Elasticsearch
-        run: |
-          docker run -d --name elasticsearch \
-            -p 9200:9200 \
-            -e "discovery.type=single-node" \
-            -e "xpack.security.enabled=false" \
-            -e "ES_JAVA_OPTS=-Xms512m -Xmx512m" \
-            elasticsearch:${{ matrix.elasticsearch }}
-
-      - name: Wait for Elasticsearch
-        run: |
-          echo "Waiting for Elasticsearch..."
-          for i in {1..60}; do
-            if curl -s "http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=1s" > /dev/null 2>&1; then
-              echo "Elasticsearch is ready!"
-              curl -s http://localhost:9200
-              exit 0
-            fi
-            echo "Attempt $i/60..."
-            sleep 2
-          done
-          echo "Elasticsearch failed to start"
-          docker logs elasticsearch
-          exit 1
-
       - name: Run tests
         run: vendor/bin/phpunit --colors=always
         env:
@@ -118,6 +113,7 @@ jobs:
   static-analysis:
     name: Static Analysis (PHPStan)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout code
@@ -146,6 +142,7 @@ jobs:
   code-style:
     name: Code Style (PHP-CS-Fixer)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout code
