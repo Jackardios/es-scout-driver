@@ -325,4 +325,80 @@ final class AggregationTest extends TestCase
 
         $this->assertArrayHasKey('authors', $result->aggregations());
     }
+
+    #[Test]
+    public function test_filter_aggregation(): void
+    {
+        $book1 = Book::factory()->create(['author' => 'John Doe', 'price' => 10.00]);
+        $book2 = Book::factory()->create(['author' => 'John Doe', 'price' => 20.00]);
+        $book3 = Book::factory()->create(['author' => 'Jane Smith', 'price' => 30.00]);
+
+        $book1->searchable();
+        $book2->searchable();
+        $book3->searchable();
+
+        $this->refreshIndex('books');
+
+        $result = Book::searchQuery(Query::matchAll())
+            ->aggregate('john_books', Agg::filter(Query::term('author', 'John Doe'))
+                ->agg('avg_price', Agg::avg('price')))
+            ->execute();
+
+        $agg = $result->aggregation('john_books');
+        $this->assertSame(2, $agg['doc_count']);
+        $this->assertSame(15.0, $agg['avg_price']['value']);
+    }
+
+    #[Test]
+    public function test_filters_aggregation(): void
+    {
+        $book1 = Book::factory()->create(['author' => 'John Doe', 'price' => 10.00]);
+        $book2 = Book::factory()->create(['author' => 'Jane Smith', 'price' => 20.00]);
+        $book3 = Book::factory()->create(['author' => 'Bob Johnson', 'price' => 30.00]);
+
+        $book1->searchable();
+        $book2->searchable();
+        $book3->searchable();
+
+        $this->refreshIndex('books');
+
+        $result = Book::searchQuery(Query::matchAll())
+            ->aggregate('by_author', Agg::filters()
+                ->filter('john', Query::term('author', 'John Doe'))
+                ->filter('jane', Query::term('author', 'Jane Smith'))
+                ->otherBucket()
+                ->otherBucketKey('others'))
+            ->execute();
+
+        $agg = $result->aggregation('by_author');
+        $this->assertSame(1, $agg['buckets']['john']['doc_count']);
+        $this->assertSame(1, $agg['buckets']['jane']['doc_count']);
+        $this->assertSame(1, $agg['buckets']['others']['doc_count']);
+    }
+
+    #[Test]
+    public function test_global_aggregation(): void
+    {
+        $book1 = Book::factory()->create(['author' => 'John Doe', 'price' => 10.00]);
+        $book2 = Book::factory()->create(['author' => 'Jane Smith', 'price' => 20.00]);
+        $book3 = Book::factory()->create(['author' => 'Bob Johnson', 'price' => 30.00]);
+
+        $book1->searchable();
+        $book2->searchable();
+        $book3->searchable();
+
+        $this->refreshIndex('books');
+
+        $result = Book::searchQuery(Query::term('author', 'John Doe'))
+            ->aggregate('filtered_avg', Agg::avg('price'))
+            ->aggregate('global_avg', Agg::global()->agg('avg_price', Agg::avg('price')))
+            ->execute();
+
+        $this->assertSame(1, $result->total);
+        $this->assertSame(10.0, $result->aggregationValue('filtered_avg'));
+
+        $globalAgg = $result->aggregation('global_avg');
+        $this->assertSame(3, $globalAgg['doc_count']);
+        $this->assertSame(20.0, $globalAgg['avg_price']['value']);
+    }
 }

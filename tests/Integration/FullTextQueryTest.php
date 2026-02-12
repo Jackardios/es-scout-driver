@@ -119,4 +119,60 @@ final class FullTextQueryTest extends TestCase
         $this->assertSame(1, $result->total);
         $this->assertSame($book1->id, $result->models()->first()->id);
     }
+
+    #[Test]
+    public function test_combined_fields_query(): void
+    {
+        $book1 = Book::factory()->create([
+            'title' => 'Elasticsearch Guide',
+            'description' => 'A comprehensive tutorial',
+        ]);
+        $book2 = Book::factory()->create([
+            'title' => 'Database Systems',
+            'description' => 'Learn about Elasticsearch',
+        ]);
+        $book3 = Book::factory()->create([
+            'title' => 'Python Programming',
+            'description' => 'Learn Python basics',
+        ]);
+
+        $book1->searchable();
+        $book2->searchable();
+        $book3->searchable();
+        $this->refreshIndex('books');
+
+        $result = Book::searchQuery(Query::combinedFields(['title', 'description'], 'elasticsearch'))
+            ->execute();
+
+        $this->assertSame(2, $result->total);
+
+        $ids = $result->models()->pluck('id')->toArray();
+        $this->assertContains($book1->id, $ids);
+        $this->assertContains($book2->id, $ids);
+        $this->assertNotContains($book3->id, $ids);
+    }
+
+    #[Test]
+    public function test_combined_fields_query_with_operator(): void
+    {
+        $book1 = Book::factory()->create([
+            'title' => 'Elasticsearch Tutorial',
+            'description' => 'A comprehensive guide',
+        ]);
+        $book2 = Book::factory()->create([
+            'title' => 'Database Guide',
+            'description' => 'Learn Elasticsearch',
+        ]);
+
+        $book1->searchable();
+        $book2->searchable();
+        $this->refreshIndex('books');
+
+        $result = Book::searchQuery(
+            Query::combinedFields(['title', 'description'], 'elasticsearch guide')
+                ->operator('and')
+        )->execute();
+
+        $this->assertSame(2, $result->total);
+    }
 }

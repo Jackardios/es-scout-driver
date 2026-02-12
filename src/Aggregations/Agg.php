@@ -7,8 +7,14 @@ namespace Jackardios\EsScoutDriver\Aggregations;
 use Illuminate\Support\Traits\Macroable;
 use Jackardios\EsScoutDriver\Aggregations\Bucket\CompositeAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Bucket\DateHistogramAggregation;
+use Jackardios\EsScoutDriver\Aggregations\Bucket\FilterAggregation;
+use Jackardios\EsScoutDriver\Aggregations\Bucket\FiltersAggregation;
+use Jackardios\EsScoutDriver\Aggregations\Bucket\GeoDistanceAggregation;
+use Jackardios\EsScoutDriver\Aggregations\Bucket\GlobalAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Bucket\HistogramAggregation;
+use Jackardios\EsScoutDriver\Aggregations\Bucket\NestedAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Bucket\RangeAggregation;
+use Jackardios\EsScoutDriver\Aggregations\Bucket\ReverseNestedAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Bucket\TermsAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Metric\AvgAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Metric\CardinalityAggregation;
@@ -18,7 +24,10 @@ use Jackardios\EsScoutDriver\Aggregations\Metric\MinAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Metric\PercentilesAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Metric\StatsAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Metric\SumAggregation;
+use Jackardios\EsScoutDriver\Aggregations\Metric\GeoBoundsAggregation;
+use Jackardios\EsScoutDriver\Aggregations\Metric\GeoCentroidAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Metric\TopHitsAggregation;
+use Jackardios\EsScoutDriver\Query\QueryInterface;
 
 /**
  * Static factory for creating aggregation objects.
@@ -98,5 +107,45 @@ final class Agg
     public static function composite(): CompositeAggregation
     {
         return new CompositeAggregation();
+    }
+
+    public static function filter(QueryInterface|array $filter): FilterAggregation
+    {
+        return new FilterAggregation($filter);
+    }
+
+    public static function filters(): FiltersAggregation
+    {
+        return new FiltersAggregation();
+    }
+
+    public static function global(): GlobalAggregation
+    {
+        return new GlobalAggregation();
+    }
+
+    public static function nested(string $path): NestedAggregation
+    {
+        return new NestedAggregation($path);
+    }
+
+    public static function reverseNested(): ReverseNestedAggregation
+    {
+        return new ReverseNestedAggregation();
+    }
+
+    public static function geoDistance(string $field, float $lat, float $lon): GeoDistanceAggregation
+    {
+        return new GeoDistanceAggregation($field, $lat, $lon);
+    }
+
+    public static function geoBounds(string $field): GeoBoundsAggregation
+    {
+        return new GeoBoundsAggregation($field);
+    }
+
+    public static function geoCentroid(string $field): GeoCentroidAggregation
+    {
+        return new GeoCentroidAggregation($field);
     }
 }

@@ -10,10 +10,12 @@ use Jackardios\EsScoutDriver\Support\Query;
 ## Table of Contents
 
 - [Using Aggregations](#using-aggregations)
-- [Metric Aggregations](#metric-aggregations)
-- [Bucket Aggregations](#bucket-aggregations)
+- [Metric Aggregations](#metric-aggregations) — avg, sum, min, max, stats, cardinality, percentiles, extendedStats, topHits, geoBounds, geoCentroid
+- [Bucket Aggregations](#bucket-aggregations) — terms, histogram, dateHistogram, range, filter, filters, global, nested, reverseNested, geoDistance, composite
 - [Sub-Aggregations](#sub-aggregations)
 - [Accessing Results](#accessing-results)
+- [Raw Aggregations](#raw-aggregations)
+- [Extending Agg](#extending-agg)
 
 ---
 
@@ -118,6 +120,80 @@ Count unique values (approximate):
 Agg::cardinality('author_id')
 ```
 
+### percentiles
+
+Calculate percentile values:
+
+```php
+Agg::percentiles('response_time')
+
+Agg::percentiles('response_time')
+    ->percents([50, 75, 90, 95, 99])
+    ->keyed(true)
+    ->missing(0)
+```
+
+### extendedStats
+
+Extended statistics (variance, std deviation, etc.):
+
+```php
+Agg::extendedStats('price')
+
+Agg::extendedStats('price')
+    ->sigma(2)              // Standard deviation bounds multiplier
+    ->missing(0)
+```
+
+Result:
+```php
+[
+    'count' => 100,
+    'min' => 5.99,
+    'max' => 299.99,
+    'avg' => 45.50,
+    'sum' => 4550.00,
+    'sum_of_squares' => 500000.0,
+    'variance' => 2500.0,
+    'std_deviation' => 50.0,
+    'std_deviation_bounds' => ['upper' => 145.50, 'lower' => -54.50],
+]
+```
+
+### topHits
+
+Get the top matching documents per bucket:
+
+```php
+Agg::topHits()
+
+Agg::topHits()
+    ->size(3)
+    ->from(0)
+    ->sort('created_at', 'desc')
+    ->source(['title', 'author'])
+    ->highlight(['fields' => ['title' => new \stdClass()]])
+```
+
+### geoBounds
+
+Calculate bounding box for geo points:
+
+```php
+Agg::geoBounds('location')
+
+Agg::geoBounds('location')
+    ->wrapLongitude(true)   // Wrap longitude around the dateline
+```
+
+### geoCentroid
+
+Calculate the centroid (center point) of geo points:
+
+```php
+Agg::geoCentroid('location')
+```
+
 ---
 
 ## Bucket Aggregations
@@ -203,6 +279,143 @@ Agg::range('price')
     ->range(to: 20, key: 'cheap')
     ->range(from: 20, to: 50, key: 'medium')
     ->range(from: 50, key: 'expensive')
+```
+
+### filter
+
+Single filter bucket for computing aggregations on filtered documents:
+
+```php
+use Jackardios\EsScoutDriver\Support\Query;
+
+// Basic
+Agg::filter(Query::term('status', 'published'))
+
+// With sub-aggregations
+Agg::filter(Query::term('status', 'published'))
+    ->agg('avg_price', Agg::avg('price'))
+    ->agg('max_price', Agg::max('price'))
+
+// Using raw array
+Agg::filter(['term' => ['status' => 'published']])
+```
+
+### filters
+
+Multiple named filter buckets:
+
+```php
+// Fluent API
+Agg::filters()
+    ->filter('published', Query::term('status', 'published'))
+    ->filter('draft', Query::term('status', 'draft'))
+    ->filter('archived', Query::term('status', 'archived'))
+
+// With "other" bucket for unmatched documents
+Agg::filters()
+    ->filter('electronics', Query::term('category', 'electronics'))
+    ->filter('books', Query::term('category', 'books'))
+    ->otherBucket()
+    ->otherBucketKey('other_categories')
+
+// With sub-aggregations
+Agg::filters()
+    ->filter('expensive', Query::range('price')->gte(100))
+    ->filter('cheap', Query::range('price')->lt(100))
+    ->agg('avg_rating', Agg::avg('rating'))
+```
+
+### global
+
+Bypass the query scope to aggregate over all documents:
+
+```php
+// Compare query results with global stats
+Agg::global()
+    ->agg('all_avg_price', Agg::avg('price'))
+```
+
+### nested
+
+Aggregate on nested documents:
+
+```php
+// Basic
+Agg::nested('comments')
+    ->agg('avg_rating', Agg::avg('comments.rating'))
+
+// With terms
+Agg::nested('reviews')
+    ->agg('reviewers', Agg::terms('reviews.author'))
+```
+
+### reverseNested
+
+Escape from nested context back to parent documents:
+
+```php
+// Inside a nested aggregation, get back to parent
+Agg::nested('comments')
+    ->agg('authors', Agg::terms('comments.author')
+        ->agg('parent_categories', Agg::reverseNested()
+            ->agg('categories', Agg::terms('category'))
+        )
+    )
+
+// Navigate to a specific ancestor path
+Agg::reverseNested()->path('parent_path')
+```
+
+### geoDistance
+
+Group by distance ranges from a point:
+
+```php
+// Basic
+Agg::geoDistance('location', 52.3760, 4.894)
+    ->range(to: 5)
+    ->range(from: 5, to: 10)
+    ->range(from: 10)
+
+// With keys and unit
+Agg::geoDistance('location', 52.3760, 4.894)
+    ->range(to: 5, key: 'walking')
+    ->range(from: 5, to: 20, key: 'biking')
+    ->range(from: 20, key: 'driving')
+    ->unit('km')
+
+// With options
+Agg::geoDistance('location', 52.3760, 4.894)
+    ->ranges([
+        ['to' => 100, 'key' => 'nearby'],
+        ['from' => 100, 'key' => 'far'],
+    ])
+    ->unit('km')
+    ->distanceType('arc')   // arc (accurate) or plane (fast)
+    ->keyed()               // Return as object instead of array
+```
+
+### composite
+
+Paginate through all unique combinations of field values:
+
+```php
+// Basic
+Agg::composite()
+    ->termsSource('category', 'category')
+    ->termsSource('author', 'author')
+    ->size(100)
+
+// With date histogram source
+Agg::composite()
+    ->termsSource('status', 'status')
+    ->dateHistogramSource('month', 'created_at', '1M')
+    ->size(50)
+
+// Pagination with after key
+Agg::composite()
+    ->termsSource('category', 'category')
+    ->after(['category' => 'electronics'])
 ```
 
 ---

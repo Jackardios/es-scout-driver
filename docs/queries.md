@@ -261,6 +261,23 @@ Query::simpleQueryString('"quick brown" + fox')
     ->quoteFieldSuffix('.exact')
 ```
 
+### combinedFields
+
+Search across multiple text fields as if they were one combined field (ES 7.13+):
+
+```php
+Query::combinedFields(['title', 'description', 'content'], 'search text')
+
+Query::combinedFields(['title^2', 'description'], 'search text')
+    ->operator('and')                           // 'and' or 'or' (default)
+    ->minimumShouldMatch('75%')
+    ->zeroTermsQuery('none')                    // 'none' or 'all'
+    ->autoGenerateSynonymsPhraseQuery(true)
+    ->boost(1.5)
+```
+
+Unlike `multiMatch`, `combinedFields` treats all fields as having the same analyzer and combines term frequencies across fields for more accurate BM25 scoring. Best for searching across multiple text fields that should be treated as one logical field.
+
 ---
 
 ## Compound Queries

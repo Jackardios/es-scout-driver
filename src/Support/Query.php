@@ -14,6 +14,7 @@ use Jackardios\EsScoutDriver\Query\Compound\NestedQuery;
 use Jackardios\EsScoutDriver\Query\Joining\HasChildQuery;
 use Jackardios\EsScoutDriver\Query\Joining\HasParentQuery;
 use Jackardios\EsScoutDriver\Query\Joining\ParentIdQuery;
+use Jackardios\EsScoutDriver\Query\FullText\CombinedFieldsQuery;
 use Jackardios\EsScoutDriver\Query\FullText\MatchPhrasePrefixQuery;
 use Jackardios\EsScoutDriver\Query\FullText\MatchPhraseQuery;
 use Jackardios\EsScoutDriver\Query\FullText\MatchQuery;
@@ -117,6 +118,12 @@ final class Query
     public static function multiMatch(array $fields, string|int|float|bool $query): MultiMatchQuery
     {
         return new MultiMatchQuery($fields, $query);
+    }
+
+    /** @param array<int, string> $fields */
+    public static function combinedFields(array $fields, string $query): CombinedFieldsQuery
+    {
+        return new CombinedFieldsQuery($fields, $query);
     }
 
     public static function matchPhrase(string $field, string $query): MatchPhraseQuery
