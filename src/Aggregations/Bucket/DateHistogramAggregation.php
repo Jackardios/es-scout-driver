@@ -69,6 +69,7 @@ final class DateHistogramAggregation implements AggregationInterface
         return $this;
     }
 
+    /** @param 'asc'|'desc' $direction */
     public function order(string $key, string $direction = 'asc'): self
     {
         $this->order = [$key => $direction];
