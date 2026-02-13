@@ -8,6 +8,8 @@ use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Traits\Conditionable;
+use Illuminate\Support\Traits\Macroable;
+use Illuminate\Support\Traits\Tappable;
 use Jackardios\EsScoutDriver\Engine\AliasRegistry;
 use Jackardios\EsScoutDriver\Engine\EngineInterface;
 use Jackardios\EsScoutDriver\Engine\ModelResolver;
@@ -31,6 +33,8 @@ use Throwable;
 class SearchBuilder
 {
     use Conditionable;
+    use Macroable;
+    use Tappable;
     use ResolvesQueries;
 
     public const DEFAULT_PAGE_SIZE = 10;

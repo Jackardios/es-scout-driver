@@ -1628,4 +1628,186 @@ final class SearchBuilderMethodsTest extends TestCase
 
         $builder->chunk(0, static function (): void {});
     }
+
+    // ---- Macroable trait ----
+
+    #[Test]
+    public function macro_can_be_registered_and_called(): void
+    {
+        SearchBuilder::macro('testMacro', fn() => 'macro-result');
+
+        $builder = $this->createBuilder();
+        $result = $builder->testMacro();
+
+        $this->assertSame('macro-result', $result);
+
+        SearchBuilder::flushMacros();
+    }
+
+    #[Test]
+    public function macro_receives_builder_as_this(): void
+    {
+        SearchBuilder::macro('getSortCount', function () {
+            return count($this->getSort());
+        });
+
+        $builder = $this->createBuilder();
+        $builder->sort('created_at', 'desc');
+        $builder->sort('title', 'asc');
+
+        $result = $builder->getSortCount();
+
+        $this->assertSame(2, $result);
+
+        SearchBuilder::flushMacros();
+    }
+
+    #[Test]
+    public function macro_can_return_builder_for_chaining(): void
+    {
+        SearchBuilder::macro('published', function () {
+            return $this->filter(new TermQuery('status', 'published'));
+        });
+
+        $builder = $this->createBuilder();
+        $result = $builder->published();
+
+        $this->assertSame($builder, $result);
+        $this->assertTrue($builder->hasBoolQuery());
+
+        SearchBuilder::flushMacros();
+    }
+
+    #[Test]
+    public function macro_accepts_arguments(): void
+    {
+        SearchBuilder::macro('filterByStatus', function (string $status) {
+            return $this->filter(new TermQuery('status', $status));
+        });
+
+        $builder = $this->createBuilder();
+        $builder->filterByStatus('active');
+
+        $this->assertTrue($builder->hasBoolQuery());
+
+        SearchBuilder::flushMacros();
+    }
+
+    #[Test]
+    public function has_macro_returns_true_for_registered_macro(): void
+    {
+        SearchBuilder::macro('customMethod', fn() => null);
+
+        $this->assertTrue(SearchBuilder::hasMacro('customMethod'));
+        $this->assertFalse(SearchBuilder::hasMacro('nonExistentMethod'));
+
+        SearchBuilder::flushMacros();
+    }
+
+    // ---- Tappable trait ----
+
+    #[Test]
+    public function tap_calls_callback_with_builder(): void
+    {
+        $builder = $this->createBuilder();
+        $called = false;
+        $receivedBuilder = null;
+
+        $result = $builder->tap(function ($b) use (&$called, &$receivedBuilder) {
+            $called = true;
+            $receivedBuilder = $b;
+        });
+
+        $this->assertTrue($called);
+        $this->assertSame($builder, $receivedBuilder);
+        $this->assertSame($builder, $result);
+    }
+
+    #[Test]
+    public function tap_returns_builder_for_chaining(): void
+    {
+        $builder = $this->createBuilder();
+
+        $result = $builder
+            ->sort('created_at', 'desc')
+            ->tap(fn($b) => null)
+            ->size(10);
+
+        $this->assertSame($builder, $result);
+        $this->assertSame(10, $builder->getSize());
+    }
+
+    #[Test]
+    public function tap_can_be_used_for_debugging(): void
+    {
+        $builder = $this->createBuilder();
+        $debugOutput = null;
+
+        $builder
+            ->sort('created_at', 'desc')
+            ->tap(function ($b) use (&$debugOutput) {
+                $debugOutput = $b->getSort();
+            })
+            ->size(10);
+
+        $this->assertSame([['created_at' => 'desc']], $debugOutput);
+    }
+
+    // ---- Conditionable trait (already existed, adding explicit tests) ----
+
+    #[Test]
+    public function when_executes_callback_when_condition_is_true(): void
+    {
+        $builder = $this->createBuilder();
+        $filterApplied = false;
+
+        $builder->when(true, function ($b) use (&$filterApplied) {
+            $filterApplied = true;
+            return $b;
+        });
+
+        $this->assertTrue($filterApplied);
+    }
+
+    #[Test]
+    public function when_skips_callback_when_condition_is_false(): void
+    {
+        $builder = $this->createBuilder();
+        $filterApplied = false;
+
+        $builder->when(false, function ($b) use (&$filterApplied) {
+            $filterApplied = true;
+            return $b;
+        });
+
+        $this->assertFalse($filterApplied);
+    }
+
+    #[Test]
+    public function unless_executes_callback_when_condition_is_false(): void
+    {
+        $builder = $this->createBuilder();
+        $filterApplied = false;
+
+        $builder->unless(false, function ($b) use (&$filterApplied) {
+            $filterApplied = true;
+            return $b;
+        });
+
+        $this->assertTrue($filterApplied);
+    }
+
+    #[Test]
+    public function unless_skips_callback_when_condition_is_true(): void
+    {
+        $builder = $this->createBuilder();
+        $filterApplied = false;
+
+        $builder->unless(true, function ($b) use (&$filterApplied) {
+            $filterApplied = true;
+            return $b;
+        });
+
+        $this->assertFalse($filterApplied);
+    }
 }

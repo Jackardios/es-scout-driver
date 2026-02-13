@@ -496,6 +496,88 @@ echo $builder->toJson(JSON_PRETTY_PRINT);
 $params = $builder->toArray();
 ```
 
+### tap()
+
+Inspect or debug the builder without breaking the chain:
+
+```php
+$result = Book::searchQuery(Query::matchAll())
+    ->filter(Query::term('status', 'published'))
+    ->tap(fn($builder) => dump($builder->toJson()))
+    ->sort('created_at', 'desc')
+    ->execute();
+```
+
+## Conditional Methods
+
+### when()
+
+Apply operations conditionally:
+
+```php
+Book::searchQuery(Query::matchAll())
+    ->when($request->has('category'), function ($builder) use ($request) {
+        $builder->filter(Query::term('category', $request->category));
+    })
+    ->when($request->sort === 'price', function ($builder) {
+        $builder->sort('price', 'asc');
+    }, function ($builder) {
+        $builder->sort('created_at', 'desc'); // Default sort
+    })
+    ->execute();
+```
+
+### unless()
+
+Apply operations when condition is false:
+
+```php
+Book::searchQuery(Query::matchAll())
+    ->unless($user->isAdmin(), function ($builder) {
+        $builder->filter(Query::term('status', 'published'));
+    })
+    ->execute();
+```
+
+## Extending with Macros
+
+Add custom methods to SearchBuilder at runtime:
+
+```php
+// In AppServiceProvider::boot()
+use Jackardios\EsScoutDriver\Search\SearchBuilder;
+
+SearchBuilder::macro('published', function () {
+    return $this->filter(Query::term('status', 'published'));
+});
+
+SearchBuilder::macro('byAuthor', function (string $author) {
+    return $this->filter(Query::term('author', $author));
+});
+
+SearchBuilder::macro('recentFirst', function () {
+    return $this->sort('created_at', 'desc');
+});
+```
+
+Then use anywhere:
+
+```php
+Book::searchQuery(Query::match('title', 'laravel'))
+    ->published()
+    ->byAuthor('John Doe')
+    ->recentFirst()
+    ->execute();
+```
+
+Check if a macro exists:
+
+```php
+if (SearchBuilder::hasMacro('published')) {
+    // ...
+}
+```
+
 ## Additional Options
 
 ```php
