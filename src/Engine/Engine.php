@@ -124,16 +124,14 @@ class Engine extends ScoutEngine implements EngineInterface
 
     public function map(Builder $builder, $results, $model): EloquentCollection
     {
-        if (!isset($results['hits']['hits']) || count($results['hits']['hits']) === 0) {
+        $extracted = $this->extractIdsFromResults($results);
+        if ($extracted === null) {
             return EloquentCollection::make();
         }
 
-        $ids = Collection::make($results['hits']['hits'])->pluck('_id')->values()->all();
-        $objectIdPositions = array_flip($ids);
-
-        $models = $model->getScoutModelsByIds($builder, $ids)
-            ->filter(fn($model) => isset($objectIdPositions[$model->getScoutKey()]))
-            ->sortBy(fn($model) => $objectIdPositions[$model->getScoutKey()])
+        $models = $model->getScoutModelsByIds($builder, $extracted['ids'])
+            ->filter(fn($model) => isset($extracted['positions'][$model->getScoutKey()]))
+            ->sortBy(fn($model) => $extracted['positions'][$model->getScoutKey()])
             ->values();
 
         return new EloquentCollection($models);
@@ -141,23 +139,39 @@ class Engine extends ScoutEngine implements EngineInterface
 
     public function lazyMap(Builder $builder, $results, $model): LazyCollection
     {
-        if (!isset($results['hits']['hits']) || count($results['hits']['hits']) === 0) {
+        $extracted = $this->extractIdsFromResults($results);
+        if ($extracted === null) {
             return LazyCollection::make();
         }
 
-        $ids = Collection::make($results['hits']['hits'])->pluck('_id')->values()->all();
-        $objectIdPositions = array_flip($ids);
-
-        return $model->queryScoutModelsByIds($builder, $ids)
+        return $model->queryScoutModelsByIds($builder, $extracted['ids'])
             ->cursor()
-            ->filter(fn($model) => isset($objectIdPositions[$model->getScoutKey()]))
-            ->sortBy(fn($model) => $objectIdPositions[$model->getScoutKey()])
+            ->filter(fn($model) => isset($extracted['positions'][$model->getScoutKey()]))
+            ->sortBy(fn($model) => $extracted['positions'][$model->getScoutKey()])
             ->values();
     }
 
     public function getTotalCount($results): int
     {
         return $results['hits']['total']['value'] ?? 0;
+    }
+
+    /**
+     * @param array<string, mixed> $results
+     * @return array{ids: list<string>, positions: array<string, int>}|null
+     */
+    private function extractIdsFromResults(array $results): ?array
+    {
+        if (!isset($results['hits']['hits']) || count($results['hits']['hits']) === 0) {
+            return null;
+        }
+
+        $ids = Collection::make($results['hits']['hits'])->pluck('_id')->values()->all();
+
+        return [
+            'ids' => $ids,
+            'positions' => array_flip($ids),
+        ];
     }
 
     public function flush($model): void
@@ -207,13 +221,10 @@ class Engine extends ScoutEngine implements EngineInterface
 
     public function openPointInTime(string $indexName, ?string $keepAlive = null): string
     {
-        $params = ['index' => $indexName];
-
-        if ($keepAlive !== null) {
-            $params['keep_alive'] = $keepAlive;
-        } else {
-            $params['keep_alive'] = '5m';
-        }
+        $params = [
+            'index' => $indexName,
+            'keep_alive' => $keepAlive ?? '5m',
+        ];
 
         /** @var ElasticsearchResponse $response */
         $response = $this->client->openPointInTime($params);
@@ -267,8 +278,9 @@ class Engine extends ScoutEngine implements EngineInterface
         ];
 
         if ($builder->query !== null && $builder->query !== '') {
+            $queryType = $this->getScoutQueryType();
             $params['body']['query'] = [
-                'query_string' => ['query' => $builder->query],
+                $queryType => ['query' => $builder->query],
             ];
         }
 
@@ -488,6 +500,15 @@ class Engine extends ScoutEngine implements EngineInterface
             defaultClient: $this->client,
             defaultConnectionName: $this->connectionName,
         );
+    }
+
+    private function getScoutQueryType(): string
+    {
+        if (!function_exists('app') || !app()->bound('config')) {
+            return 'simple_query_string';
+        }
+
+        return config('elastic.scout.scout_query_type', 'simple_query_string');
     }
 
     protected function usesSoftDelete(Model $model): bool

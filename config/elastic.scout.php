@@ -45,4 +45,24 @@ return [
     |
     */
     'bulk_failure_mode' => env('ELASTIC_BULK_FAILURE_MODE', 'exception'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Scout Query Type
+    |--------------------------------------------------------------------------
+    |
+    | Controls which Elasticsearch query type is used for Scout's basic
+    | search (Model::search('query')). This does NOT affect SearchBuilder.
+    |
+    | Supported values:
+    | - simple_query_string: safer, limited syntax (default)
+    | - query_string:        full Lucene syntax (use with caution)
+    |
+    | Security note: "query_string" accepts full Lucene syntax including
+    | field:value queries. If user input is passed directly to search(),
+    | users could query unintended fields. Use "simple_query_string" when
+    | search input comes from untrusted sources.
+    |
+    */
+    'scout_query_type' => env('ELASTIC_SCOUT_QUERY_TYPE', 'simple_query_string'),
 ];

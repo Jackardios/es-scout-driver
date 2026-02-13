@@ -204,6 +204,17 @@ Controls behavior when Elasticsearch hits cannot be hydrated into Eloquent model
 'model_hydration_mismatch' => 'exception', // throw ModelHydrationMismatchException
 ```
 
+### Scout Query Type
+
+Controls which Elasticsearch query type is used for Scout's basic search (`Model::search('query')`). This does NOT affect `SearchBuilder`.
+
+```php
+'scout_query_type' => 'simple_query_string', // default, safer limited syntax
+'scout_query_type' => 'query_string',        // full Lucene syntax
+```
+
+**Security note:** `query_string` accepts full Lucene syntax including `field:value` queries. If user input is passed directly to `search()`, users could query unintended fields (e.g., `password:*`). Use `simple_query_string` (the default) when search input comes from untrusted sources.
+
 ### Laravel Scout Config
 
 `config/scout.php`:
