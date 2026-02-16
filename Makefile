@@ -135,22 +135,22 @@ build-images: ## Build Docker images for matrix testing
 
 test: ## Run all tests (ARGS="--filter=testName")
 	@printf "$(YELLOW)→ Running all tests$(RESET)\n"
-	@vendor/bin/phpunit --testdox --colors=always $(ARGS)
+	@(ulimit -n 10240 2>/dev/null; vendor/bin/phpunit --testdox --colors=always $(ARGS))
 	@printf "$(GREEN)✔ Tests completed$(RESET)\n"
 
 unit-test: ## Run unit tests only (ARGS="--filter=testName")
 	@printf "$(YELLOW)→ Running unit tests$(RESET)\n"
-	@vendor/bin/phpunit --testsuite=unit --testdox --colors=always $(ARGS)
+	@(ulimit -n 10240 2>/dev/null; vendor/bin/phpunit --testsuite=unit --testdox --colors=always $(ARGS))
 	@printf "$(GREEN)✔ Unit tests completed$(RESET)\n"
 
 integration-test: ## Run integration tests (ARGS="--filter=testName")
 	@printf "$(YELLOW)→ Running integration tests$(RESET)\n"
-	@vendor/bin/phpunit --testsuite=integration --testdox --colors=always $(ARGS)
+	@(ulimit -n 10240 2>/dev/null; vendor/bin/phpunit --testsuite=integration --testdox --colors=always $(ARGS))
 	@printf "$(GREEN)✔ Integration tests completed$(RESET)\n"
 
 coverage: ## Run tests with coverage (ARGS="--filter=testName")
 	@printf "$(YELLOW)→ Running tests with coverage$(RESET)\n"
-	@XDEBUG_MODE=coverage vendor/bin/phpunit --testdox --coverage-text --colors=always $(ARGS)
+	@(ulimit -n 10240 2>/dev/null; XDEBUG_MODE=coverage vendor/bin/phpunit --testdox --coverage-text --colors=always $(ARGS))
 	@printf "$(GREEN)✔ Coverage report generated$(RESET)\n"
 
 test-es8: ## Run tests with Elasticsearch 8.x
@@ -265,7 +265,7 @@ static-analysis: ## Run PHPStan static analysis
 
 ci: format-check static-analysis ## Run all CI checks
 	@$(MAKE) up wait && \
-	vendor/bin/phpunit --testdox --colors=always; status=$$?; \
+	(ulimit -n 10240 2>/dev/null; vendor/bin/phpunit --testdox --colors=always); status=$$?; \
 	$(MAKE) down; \
 	if [ $$status -eq 0 ]; then \
 		printf "$(GREEN)════════════════════════════════════════$(RESET)\n"; \
