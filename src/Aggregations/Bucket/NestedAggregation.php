@@ -13,6 +13,7 @@ final class NestedAggregation implements AggregationInterface
 
     public function __construct(private string $path) {}
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         $result = ['nested' => ['path' => $this->path]];

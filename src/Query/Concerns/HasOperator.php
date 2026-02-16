@@ -10,12 +10,13 @@ trait HasOperator
 {
     private ?string $operator = null;
 
-    public function operator(Operator|string $operator): self
+    public function operator(Operator|string $operator): static
     {
         $this->operator = $operator instanceof Operator ? $operator->value : $operator;
         return $this;
     }
 
+    /** @param array<string, mixed> $params */
     protected function applyOperator(array &$params): void
     {
         if ($this->operator !== null) {

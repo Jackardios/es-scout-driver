@@ -60,6 +60,7 @@ final class RangeAggregation implements AggregationInterface
         return $this;
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         if ($this->ranges === []) {

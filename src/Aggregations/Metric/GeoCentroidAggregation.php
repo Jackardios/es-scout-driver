@@ -10,6 +10,7 @@ final class GeoCentroidAggregation implements AggregationInterface
 {
     public function __construct(private string $field) {}
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         return ['geo_centroid' => ['field' => $this->field]];

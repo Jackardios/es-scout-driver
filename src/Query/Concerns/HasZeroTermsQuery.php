@@ -10,12 +10,13 @@ trait HasZeroTermsQuery
 {
     private ?string $zeroTermsQuery = null;
 
-    public function zeroTermsQuery(ZeroTermsQuery|string $zeroTermsQuery): self
+    public function zeroTermsQuery(ZeroTermsQuery|string $zeroTermsQuery): static
     {
         $this->zeroTermsQuery = $zeroTermsQuery instanceof ZeroTermsQuery ? $zeroTermsQuery->value : $zeroTermsQuery;
         return $this;
     }
 
+    /** @param array<string, mixed> $params */
     protected function applyZeroTermsQuery(array &$params): void
     {
         if ($this->zeroTermsQuery !== null) {

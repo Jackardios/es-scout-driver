@@ -20,6 +20,7 @@ final class MatchPhraseQuery implements QueryInterface
         private string $query,
     ) {}
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         $params = ['query' => $this->query];

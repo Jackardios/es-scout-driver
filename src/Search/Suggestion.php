@@ -46,10 +46,12 @@ final class Suggestion
     public function texts(): Collection
     {
         if ($this->cachedTexts === null) {
-            $this->cachedTexts = Collection::make($this->options)
+            /** @var Collection<int, string> $texts */
+            $texts = Collection::make($this->options)
                 ->pluck('text')
-                ->filter(static fn($text) => $text !== null)
+                ->filter(static fn($text): bool => is_string($text))
                 ->values();
+            $this->cachedTexts = $texts;
         }
 
         return $this->cachedTexts;
@@ -59,19 +61,22 @@ final class Suggestion
     public function scores(): Collection
     {
         if ($this->cachedScores === null) {
-            $this->cachedScores = Collection::make($this->options)
+            /** @var Collection<int, float> $scores */
+            $scores = Collection::make($this->options)
                 ->map(static function (array $option): ?float {
                     $score = $option['_score'] ?? $option['score'] ?? null;
 
-                    return $score === null ? null : (float) $score;
+                    return is_numeric($score) ? (float) $score : null;
                 })
                 ->filter(static fn(?float $score): bool => $score !== null)
                 ->values();
+            $this->cachedScores = $scores;
         }
 
         return $this->cachedScores;
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         return [
@@ -101,6 +106,7 @@ final class Suggestion
         return new EloquentCollection($models);
     }
 
+    /** @param array<string, mixed> $raw */
     public static function fromRaw(array $raw, ?Closure $modelResolver = null): self
     {
         return new self(

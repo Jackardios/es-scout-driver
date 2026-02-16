@@ -8,12 +8,13 @@ trait HasRewrite
 {
     private ?string $rewrite = null;
 
-    public function rewrite(string $rewrite): self
+    public function rewrite(string $rewrite): static
     {
         $this->rewrite = $rewrite;
         return $this;
     }
 
+    /** @param array<string, mixed> $params */
     protected function applyRewrite(array &$params): void
     {
         if ($this->rewrite !== null) {

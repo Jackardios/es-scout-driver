@@ -43,6 +43,7 @@ final class FiltersAggregation implements AggregationInterface
         return $this;
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         if ($this->filters === []) {

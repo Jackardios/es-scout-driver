@@ -8,15 +8,17 @@ use Jackardios\EsScoutDriver\Aggregations\AggregationInterface;
 
 trait HasSubAggregations
 {
-    /** @var array<string, AggregationInterface|array> */
+    /** @var array<string, AggregationInterface|array<string, mixed>> */
     private array $subAggregations = [];
 
-    public function agg(string $name, AggregationInterface|array $aggregation): self
+    /** @param AggregationInterface|array<string, mixed> $aggregation */
+    public function agg(string $name, AggregationInterface|array $aggregation): static
     {
         $this->subAggregations[$name] = $aggregation;
         return $this;
     }
 
+    /** @param array<string, mixed> $result */
     protected function applySubAggregations(array &$result): void
     {
         if ($this->subAggregations === []) {

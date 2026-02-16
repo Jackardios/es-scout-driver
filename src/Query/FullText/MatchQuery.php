@@ -30,6 +30,7 @@ final class MatchQuery implements QueryInterface
         private string|int|float|bool $query,
     ) {}
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         $params = ['query' => $this->query];

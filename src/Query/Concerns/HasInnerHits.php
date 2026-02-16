@@ -8,14 +8,17 @@ use stdClass;
 
 trait HasInnerHits
 {
+    /** @var array<string, mixed>|null */
     private ?array $innerHits = null;
 
-    public function innerHits(array $innerHits = []): self
+    /** @param array<string, mixed> $innerHits */
+    public function innerHits(array $innerHits = []): static
     {
         $this->innerHits = $innerHits;
         return $this;
     }
 
+    /** @param array<string, mixed> $params */
     protected function applyInnerHits(array &$params): void
     {
         if ($this->innerHits !== null) {

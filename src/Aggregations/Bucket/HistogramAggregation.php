@@ -67,6 +67,7 @@ final class HistogramAggregation implements AggregationInterface
         return $this;
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         $params = [

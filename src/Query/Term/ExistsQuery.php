@@ -12,6 +12,7 @@ final class ExistsQuery implements QueryInterface
         private string $field,
     ) {}
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         return ['exists' => ['field' => $this->field]];

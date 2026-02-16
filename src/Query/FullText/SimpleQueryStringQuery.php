@@ -70,6 +70,7 @@ final class SimpleQueryStringQuery implements QueryInterface
         return $this;
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         $params = ['query' => $this->query];

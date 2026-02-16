@@ -8,12 +8,13 @@ trait HasCaseInsensitive
 {
     private ?bool $caseInsensitive = null;
 
-    public function caseInsensitive(bool $caseInsensitive = true): self
+    public function caseInsensitive(bool $caseInsensitive = true): static
     {
         $this->caseInsensitive = $caseInsensitive;
         return $this;
     }
 
+    /** @param array<string, mixed> $params */
     protected function applyCaseInsensitive(array &$params): void
     {
         if ($this->caseInsensitive !== null) {

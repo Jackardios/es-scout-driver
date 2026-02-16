@@ -64,6 +64,7 @@ final class TextExpansionQuery implements QueryInterface
         return $this;
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         if ($this->modelText === null) {

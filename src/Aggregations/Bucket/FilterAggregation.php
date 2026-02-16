@@ -14,6 +14,7 @@ final class FilterAggregation implements AggregationInterface
 
     public function __construct(private QueryInterface|array $filter) {}
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         $filterArray = $this->filter instanceof QueryInterface

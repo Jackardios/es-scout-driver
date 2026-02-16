@@ -6,5 +6,6 @@ namespace Jackardios\EsScoutDriver\Query;
 
 interface QueryInterface
 {
+    /** @return array<string, mixed> */
     public function toArray(): array;
 }

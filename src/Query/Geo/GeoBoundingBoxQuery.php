@@ -21,6 +21,7 @@ final class GeoBoundingBoxQuery implements QueryInterface
         private float $bottomRightLon,
     ) {}
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         $params = [

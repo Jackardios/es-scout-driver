@@ -95,6 +95,11 @@ final class RemoveFromSearchJobTest extends TestCase
                 return $this->scoutIndex;
             }
 
+            public function indexableAs(): string
+            {
+                return $this->scoutIndex;
+            }
+
             public function searchableRouting(): ?string
             {
                 return null;
@@ -127,6 +132,11 @@ final class RemoveFromSearchJobTest extends TestCase
             }
 
             public function searchableAs(): string
+            {
+                return $this->scoutIndex;
+            }
+
+            public function indexableAs(): string
             {
                 return $this->scoutIndex;
             }

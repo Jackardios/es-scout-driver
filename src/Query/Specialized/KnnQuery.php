@@ -67,6 +67,7 @@ final class KnnQuery implements QueryInterface
         return $this;
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         $params = [

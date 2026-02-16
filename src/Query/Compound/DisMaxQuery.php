@@ -36,6 +36,7 @@ final class DisMaxQuery implements QueryInterface
         return $this;
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         if ($this->queries === []) {

@@ -36,6 +36,7 @@ final class SearchResult implements IteratorAggregate
 
     private ?EloquentCollection $parsedModels = null;
 
+    /** @param array<string, mixed> $raw */
     public function __construct(
         public readonly array $raw,
         ?Closure $modelResolver = null,
@@ -66,6 +67,7 @@ final class SearchResult implements IteratorAggregate
                 ->map(fn(Hit $hit): ?Model => $hit->model())
                 ->values();
 
+            /** @var Collection<int, Model> $models */
             $models = $resolvedModels
                 ->filter(static fn(?Model $model): bool => $model instanceof Model)
                 ->values();
@@ -97,13 +99,13 @@ final class SearchResult implements IteratorAggregate
         return $this->parsedModels;
     }
 
-    /** @return Collection<int, array> */
+    /** @return Collection<int, array<string, mixed>> */
     public function documents(): Collection
     {
         return $this->hits()->map(fn(Hit $hit) => $hit->source);
     }
 
-    /** @return Collection<int, array> */
+    /** @return Collection<int, array<string, list<string>>> */
     public function highlights(): Collection
     {
         return $this->hits()
@@ -129,17 +131,19 @@ final class SearchResult implements IteratorAggregate
         return $this->parsedSuggestions;
     }
 
+    /** @return array<string, mixed> */
     public function aggregations(): array
     {
         return $this->raw['aggregations'] ?? [];
     }
 
+    /** @return array<string, mixed>|null */
     public function aggregation(string $name): ?array
     {
         return $this->raw['aggregations'][$name] ?? null;
     }
 
-    /** @return Collection<int, array> */
+    /** @return Collection<int, array<string, mixed>> */
     public function buckets(string $aggregationName): Collection
     {
         $agg = $this->aggregation($aggregationName);

@@ -32,6 +32,7 @@ final class RawQuery implements QueryInterface
         return $this;
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         return $this->query;

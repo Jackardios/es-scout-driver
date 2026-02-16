@@ -30,6 +30,7 @@ final class CombinedFieldsQuery implements QueryInterface
         }
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         $params = [

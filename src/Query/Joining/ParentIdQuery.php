@@ -21,6 +21,7 @@ final class ParentIdQuery implements QueryInterface
         private string $id,
     ) {}
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         $params = [

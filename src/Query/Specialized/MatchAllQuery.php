@@ -12,6 +12,7 @@ final class MatchAllQuery implements QueryInterface
 {
     use HasBoost;
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         if ($this->boost !== null) {

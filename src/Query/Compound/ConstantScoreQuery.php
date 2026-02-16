@@ -20,6 +20,7 @@ final class ConstantScoreQuery implements QueryInterface
         $this->filter = $filter instanceof Closure ? $filter() : $filter;
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         $params = [

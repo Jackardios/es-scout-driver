@@ -28,6 +28,7 @@ final class ScoreSort implements SortInterface
         return $this;
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         return ['_score' => $this->order];

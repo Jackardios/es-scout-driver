@@ -151,7 +151,7 @@ final class FunctionScoreQueryTest extends TestCase
         $query = (new FunctionScoreQuery())
             ->query(['match_all' => []])
             ->addFunction(['weight' => 2])
-            ->scoreMode('multiply');
+            ->functionScoreMode('multiply');
 
         $result = $query->toArray();
         $this->assertSame('multiply', $result['function_score']['score_mode']);
@@ -196,7 +196,7 @@ final class FunctionScoreQueryTest extends TestCase
         $query = (new FunctionScoreQuery())
             ->query(['match_all' => []])
             ->functions(['weight' => 2])
-            ->scoreMode('sum')
+            ->functionScoreMode('sum')
             ->boostMode('multiply')
             ->maxBoost(10.0)
             ->minScore(2.0)
@@ -225,7 +225,7 @@ final class FunctionScoreQueryTest extends TestCase
         $this->assertSame($query, $query->query(['match_all' => []]));
         $this->assertSame($query, $query->functions(['weight' => 1]));
         $this->assertSame($query, $query->addFunction(['weight' => 1]));
-        $this->assertSame($query, $query->scoreMode('sum'));
+        $this->assertSame($query, $query->functionScoreMode('sum'));
         $this->assertSame($query, $query->boostMode('multiply'));
         $this->assertSame($query, $query->maxBoost(10.0));
         $this->assertSame($query, $query->minScore(1.0));

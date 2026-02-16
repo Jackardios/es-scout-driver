@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\EsScoutDriver\Jobs;
 
 use Elastic\Elasticsearch\Client;
+use Elastic\Elasticsearch\Response\Elasticsearch as ElasticsearchResponse;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Model;
@@ -46,7 +47,7 @@ final class RemoveFromSearch implements ShouldQueue
 
             $this->operations[] = [
                 'connection' => $connection !== null ? (string) $connection : null,
-                'index' => $model->searchableAs(),
+                'index' => $model->indexableAs(),
                 'id' => $documentId,
                 'routing' => $routing,
             ];
@@ -90,6 +91,7 @@ final class RemoveFromSearch implements ShouldQueue
                 $params['refresh'] = 'true';
             }
 
+            /** @var ElasticsearchResponse $response */
             $response = $resolvedClient->bulk($params);
             $this->handleBulkResponse($response->asArray());
         }

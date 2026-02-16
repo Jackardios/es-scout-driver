@@ -10,12 +10,13 @@ trait HasScoreMode
 {
     private ?string $scoreMode = null;
 
-    public function scoreMode(ScoreMode|string $scoreMode): self
+    public function scoreMode(ScoreMode|string $scoreMode): static
     {
         $this->scoreMode = $scoreMode instanceof ScoreMode ? $scoreMode->value : $scoreMode;
         return $this;
     }
 
+    /** @param array<string, mixed> $params */
     protected function applyScoreMode(array &$params): void
     {
         if ($this->scoreMode !== null) {

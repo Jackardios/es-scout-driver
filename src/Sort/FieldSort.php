@@ -82,6 +82,7 @@ final class FieldSort implements SortInterface
         return $this;
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         $hasOptions = $this->missing !== null

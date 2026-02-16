@@ -288,11 +288,99 @@ final class HandlesBulkResponseTest extends TestCase
         }
     }
 
+    #[Test]
+    public function handle_bulk_response_ignores_errors_when_mode_is_ignore(): void
+    {
+        $handler = $this->createHandlerWithMode('ignore');
+
+        $response = [
+            'errors' => true,
+            'items' => [
+                [
+                    'index' => [
+                        '_id' => '1',
+                        '_index' => 'test',
+                        'error' => ['type' => 'error', 'reason' => 'Failed'],
+                    ],
+                ],
+            ],
+        ];
+
+        $this->invokeHandleBulkResponse($handler, $response);
+
+        $this->addToAssertionCount(1);
+    }
+
+    #[Test]
+    public function handle_bulk_response_logs_when_mode_is_log(): void
+    {
+        $handler = $this->createHandlerWithMode('log');
+
+        $response = [
+            'errors' => true,
+            'items' => [
+                [
+                    'index' => [
+                        '_id' => '1',
+                        '_index' => 'test',
+                        'error' => ['type' => 'error', 'reason' => 'Failed'],
+                    ],
+                ],
+            ],
+        ];
+
+        $this->invokeHandleBulkResponse($handler, $response);
+
+        $this->assertTrue($handler->logCalled);
+        $this->assertCount(1, $handler->loggedDocuments);
+        $this->assertSame('1', $handler->loggedDocuments[0]['id']);
+    }
+
+    #[Test]
+    public function get_bulk_failure_mode_defaults_to_exception(): void
+    {
+        $handler = $this->createHandler();
+
+        $method = new ReflectionMethod(get_class($handler), 'getBulkFailureMode');
+        $mode = $method->invoke($handler);
+
+        $this->assertSame('exception', $mode);
+    }
+
     private function createHandler(): object
     {
         return new class {
             use HandlesBulkResponse {
                 handleBulkResponse as public;
+                getBulkFailureMode as public;
+            }
+        };
+    }
+
+    private function createHandlerWithMode(string $mode): object
+    {
+        return new class ($mode) {
+            use HandlesBulkResponse {
+                handleBulkResponse as public;
+            }
+
+            public bool $logCalled = false;
+
+            /** @var array<int, array<string, mixed>> */
+            public array $loggedDocuments = [];
+
+            public function __construct(private readonly string $mode) {}
+
+            private function getBulkFailureMode(): string
+            {
+                return $this->mode;
+            }
+
+            /** @param array<int, array<string, mixed>> $failedDocuments */
+            private function logBulkFailures(array $failedDocuments): void
+            {
+                $this->logCalled = true;
+                $this->loggedDocuments = $failedDocuments;
             }
         };
     }

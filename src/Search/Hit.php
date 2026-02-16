@@ -17,6 +17,13 @@ final class Hit
     /** @var Collection<string, Collection<int, Hit>>|null */
     private ?Collection $cachedInnerHits = null;
 
+    /**
+     * @param array<string, mixed> $source
+     * @param array<string, list<string>> $highlight
+     * @param list<mixed> $sort
+     * @param array<string, mixed> $explanation
+     * @param array<string, mixed> $raw
+     */
     public function __construct(
         public readonly string $indexName,
         public readonly string $documentId,
@@ -53,6 +60,7 @@ final class Hit
         return $this->cachedInnerHits;
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         return [
@@ -66,6 +74,7 @@ final class Hit
         ];
     }
 
+    /** @param array<string, mixed> $rawHit */
     public static function fromRaw(array $rawHit, ?Closure $modelResolver = null): self
     {
         return new self(

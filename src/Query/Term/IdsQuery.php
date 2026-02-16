@@ -14,6 +14,7 @@ final class IdsQuery implements QueryInterface
         private array $values,
     ) {}
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         if ($this->values === []) {

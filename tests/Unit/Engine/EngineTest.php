@@ -299,6 +299,169 @@ final class EngineTest extends TestCase
         return new Builder($model, $query);
     }
 
+    #[Test]
+    public function extract_ids_returns_null_for_missing_hits(): void
+    {
+        $engine = $this->createEngineWithMockTransport();
+
+        $this->assertNull($this->invokeExtractIdsFromResults($engine, []));
+        $this->assertNull($this->invokeExtractIdsFromResults($engine, ['hits' => []]));
+    }
+
+    #[Test]
+    public function extract_ids_returns_null_for_empty_hits_array(): void
+    {
+        $engine = $this->createEngineWithMockTransport();
+
+        $result = $this->invokeExtractIdsFromResults($engine, ['hits' => ['hits' => []]]);
+
+        $this->assertNull($result);
+    }
+
+    #[Test]
+    public function extract_ids_returns_ids_and_positions_map(): void
+    {
+        $engine = $this->createEngineWithMockTransport();
+
+        $results = [
+            'hits' => [
+                'hits' => [
+                    ['_id' => 'a'],
+                    ['_id' => 'b'],
+                    ['_id' => 'c'],
+                ],
+            ],
+        ];
+
+        $result = $this->invokeExtractIdsFromResults($engine, $results);
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('ids', $result);
+        $this->assertArrayHasKey('positions', $result);
+        $this->assertSame(['a', 'b', 'c'], $result['ids']);
+        $this->assertSame(['a' => 0, 'b' => 1, 'c' => 2], $result['positions']);
+    }
+
+    #[Test]
+    public function extract_metadata_returns_empty_for_no_hits(): void
+    {
+        $engine = $this->createEngineWithMockTransport();
+
+        $this->assertSame([], $this->invokeExtractHitMetadataMap($engine, []));
+        $this->assertSame([], $this->invokeExtractHitMetadataMap($engine, ['hits' => []]));
+        $this->assertSame([], $this->invokeExtractHitMetadataMap($engine, ['hits' => ['hits' => []]]));
+    }
+
+    #[Test]
+    public function extract_metadata_extracts_underscore_fields(): void
+    {
+        $engine = $this->createEngineWithMockTransport();
+
+        $results = [
+            'hits' => [
+                'hits' => [
+                    ['_id' => '1', '_index' => 'books', '_score' => 1.5, '_routing' => 'tenant-1'],
+                    ['_id' => '2', '_index' => 'books', '_score' => 0.8],
+                ],
+            ],
+        ];
+
+        $result = $this->invokeExtractHitMetadataMap($engine, $results);
+
+        $this->assertSame([
+            '1' => ['_id' => '1', '_index' => 'books', '_score' => 1.5, '_routing' => 'tenant-1'],
+            '2' => ['_id' => '2', '_index' => 'books', '_score' => 0.8],
+        ], $result);
+    }
+
+    #[Test]
+    public function extract_metadata_excludes_source(): void
+    {
+        $engine = $this->createEngineWithMockTransport();
+
+        $results = [
+            'hits' => [
+                'hits' => [
+                    ['_id' => '1', '_index' => 'books', '_source' => ['title' => 'Test']],
+                ],
+            ],
+        ];
+
+        $result = $this->invokeExtractHitMetadataMap($engine, $results);
+
+        $this->assertArrayNotHasKey('_source', $result['1']);
+        $this->assertSame(['_id' => '1', '_index' => 'books'], $result['1']);
+    }
+
+    #[Test]
+    public function extract_metadata_skips_hits_without_id(): void
+    {
+        $engine = $this->createEngineWithMockTransport();
+
+        $results = [
+            'hits' => [
+                'hits' => [
+                    ['_index' => 'books', '_score' => 1.0],
+                    ['_id' => '', '_index' => 'books'],
+                    ['_id' => '1', '_index' => 'books'],
+                ],
+            ],
+        ];
+
+        $result = $this->invokeExtractHitMetadataMap($engine, $results);
+
+        $this->assertCount(1, $result);
+        $this->assertArrayHasKey('1', $result);
+    }
+
+    #[Test]
+    public function build_filters_skips_empty_where_ins(): void
+    {
+        $engine = $this->createEngineWithMockTransport();
+        $builder = $this->createScoutBuilder('test');
+        $builder->whereIn('status', []);
+        $builder->callback = static fn($client, $query, $params) => $params;
+
+        $params = $engine->search($builder);
+
+        $this->assertArrayNotHasKey('filter', $params['body']['query']['bool'] ?? []);
+    }
+
+    #[Test]
+    public function build_filters_skips_empty_where_not_ins(): void
+    {
+        $engine = $this->createEngineWithMockTransport();
+        $builder = $this->createScoutBuilder('test');
+        $builder->whereNotIn('type', []);
+        $builder->callback = static fn($client, $query, $params) => $params;
+
+        $params = $engine->search($builder);
+
+        $this->assertArrayNotHasKey('filter', $params['body']['query']['bool'] ?? []);
+    }
+
+    /**
+     * @return array{ids: list<string>, positions: array<string, int>}|null
+     */
+    private function invokeExtractIdsFromResults(Engine $engine, array $results): ?array
+    {
+        $method = new \ReflectionMethod(Engine::class, 'extractIdsFromResults');
+
+        /** @var array{ids: list<string>, positions: array<string, int>}|null */
+        return $method->invoke($engine, $results);
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    private function invokeExtractHitMetadataMap(Engine $engine, array $results): array
+    {
+        $method = new \ReflectionMethod(Engine::class, 'extractHitMetadataMap');
+
+        /** @var array<string, array<string, mixed>> */
+        return $method->invoke($engine, $results);
+    }
+
     private function createEngineWithMockTransport(): Engine
     {
         $client = \Elastic\Elasticsearch\ClientBuilder::create()

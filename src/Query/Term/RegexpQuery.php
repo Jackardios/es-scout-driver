@@ -35,6 +35,7 @@ final class RegexpQuery implements QueryInterface
         return $this;
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         $params = ['value' => $this->value];

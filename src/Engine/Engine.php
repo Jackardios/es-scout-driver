@@ -17,6 +17,7 @@ use Laravel\Scout\Engines\Engine as ScoutEngine;
 
 class Engine extends ScoutEngine implements EngineInterface
 {
+    use ExtractsHitMetadata;
     use HandlesBulkResponse;
 
     public function __construct(
@@ -48,10 +49,10 @@ class Engine extends ScoutEngine implements EngineInterface
                 $body[] = ['index' => $metadata];
 
                 if ($this->usesSoftDelete($model) && config('scout.soft_delete', false)) {
-                    $searchableData['__soft_deleted'] = $model->trashed() ? 1 : 0;
+                    $model->pushSoftDeleteMetadata();
                 }
 
-                $body[] = $searchableData;
+                $body[] = array_merge($searchableData, $model->scoutMetadata());
             }
 
             if ($body === []) {
@@ -64,6 +65,7 @@ class Engine extends ScoutEngine implements EngineInterface
                 $params['refresh'] = 'true';
             }
 
+            /** @var ElasticsearchResponse $response */
             $response = $this->resolveClientForConnection($connection)->bulk($params);
             $this->handleBulkResponse($response->asArray());
         }
@@ -93,6 +95,7 @@ class Engine extends ScoutEngine implements EngineInterface
                 $params['refresh'] = 'true';
             }
 
+            /** @var ElasticsearchResponse $response */
             $response = $this->resolveClientForConnection($connection)->bulk($params);
             $this->handleBulkResponse($response->asArray());
         }
@@ -129,12 +132,18 @@ class Engine extends ScoutEngine implements EngineInterface
             return EloquentCollection::make();
         }
 
-        $models = $model->getScoutModelsByIds($builder, $extracted['ids'])
-            ->filter(fn($model) => isset($extracted['positions'][$model->getScoutKey()]))
-            ->sortBy(fn($model) => $extracted['positions'][$model->getScoutKey()])
-            ->values();
+        $hitMetadata = $this->extractHitMetadataMap($results);
 
-        return new EloquentCollection($models);
+        return $model->getScoutModelsByIds($builder, $extracted['ids'])
+            ->filter(fn($m) => isset($extracted['positions'][$m->getScoutKey()]))
+            ->each(function ($m) use ($hitMetadata) {
+                $id = (string) $m->getScoutKey();
+                foreach ($hitMetadata[$id] ?? [] as $key => $value) {
+                    $m->withScoutMetadata($key, $value);
+                }
+            })
+            ->sortBy(fn($m) => $extracted['positions'][$m->getScoutKey()])
+            ->values();
     }
 
     public function lazyMap(Builder $builder, $results, $model): LazyCollection
@@ -144,10 +153,18 @@ class Engine extends ScoutEngine implements EngineInterface
             return LazyCollection::make();
         }
 
+        $hitMetadata = $this->extractHitMetadataMap($results);
+
         return $model->queryScoutModelsByIds($builder, $extracted['ids'])
             ->cursor()
-            ->filter(fn($model) => isset($extracted['positions'][$model->getScoutKey()]))
-            ->sortBy(fn($model) => $extracted['positions'][$model->getScoutKey()])
+            ->filter(fn($m) => isset($extracted['positions'][$m->getScoutKey()]))
+            ->each(function ($m) use ($hitMetadata) {
+                $id = (string) $m->getScoutKey();
+                foreach ($hitMetadata[$id] ?? [] as $key => $value) {
+                    $m->withScoutMetadata($key, $value);
+                }
+            })
+            ->sortBy(fn($m) => $extracted['positions'][$m->getScoutKey()])
             ->values();
     }
 
@@ -166,18 +183,46 @@ class Engine extends ScoutEngine implements EngineInterface
             return null;
         }
 
-        $ids = Collection::make($results['hits']['hits'])->pluck('_id')->values()->all();
+        /** @var list<string> $ids */
+        $ids = Collection::make($results['hits']['hits'])
+            ->pluck('_id')
+            ->map(static fn($id): string => (string) $id)
+            ->values()
+            ->all();
+
+        /** @var array<string, int> $positions */
+        $positions = array_flip($ids);
 
         return [
             'ids' => $ids,
-            'positions' => array_flip($ids),
+            'positions' => $positions,
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $results
+     * @return array<string, array<string, mixed>>
+     */
+    private function extractHitMetadataMap(array $results): array
+    {
+        $metadata = [];
+
+        foreach ($results['hits']['hits'] ?? [] as $hit) {
+            $documentId = $hit['_id'] ?? '';
+            if ($documentId === '') {
+                continue;
+            }
+
+            $metadata[$documentId] = $this->extractHitMetadata($hit);
+        }
+
+        return $metadata;
     }
 
     public function flush($model): void
     {
         $params = [
-            'index' => $model->searchableAs(),
+            'index' => $model->indexableAs(),
             'body' => ['query' => ['match_all' => new \stdClass()]],
         ];
 
@@ -243,6 +288,7 @@ class Engine extends ScoutEngine implements EngineInterface
         return $response->asArray()['count'] ?? 0;
     }
 
+    /** @param array<string, mixed> $params */
     public function deleteByQueryRaw(array $params): array
     {
         if ($this->refreshDocuments && !isset($params['refresh'])) {
@@ -250,10 +296,11 @@ class Engine extends ScoutEngine implements EngineInterface
         }
 
         /** @var ElasticsearchResponse $response */
-        $response = $this->client->deleteByQuery($params);
+        $response = $this->client->deleteByQuery($params); // @phpstan-ignore argument.type
         return $response->asArray();
     }
 
+    /** @param array<string, mixed> $params */
     public function updateByQueryRaw(array $params): array
     {
         if ($this->refreshDocuments && !isset($params['refresh'])) {
@@ -261,11 +308,11 @@ class Engine extends ScoutEngine implements EngineInterface
         }
 
         /** @var ElasticsearchResponse $response */
-        $response = $this->client->updateByQuery($params);
+        $response = $this->client->updateByQuery($params); // @phpstan-ignore argument.type
         return $response->asArray();
     }
 
-    public function getClient(): Client
+    public function getClient(): ?Client
     {
         return $this->client;
     }
@@ -493,7 +540,8 @@ class Engine extends ScoutEngine implements EngineInterface
         return null;
     }
 
-    private function resolveClientForConnection(string $connection): mixed
+    /** @return Client */
+    private function resolveClientForConnection(string $connection): object
     {
         return $this->connectionRouter->resolveClientForConnection(
             connection: $connection,
@@ -524,7 +572,7 @@ class Engine extends ScoutEngine implements EngineInterface
     private function buildDocumentMetadata(Model $model): array
     {
         $metadata = [
-            '_index' => $model->searchableAs(),
+            '_index' => $model->indexableAs(),
             '_id' => $model->getScoutKey(),
         ];
 

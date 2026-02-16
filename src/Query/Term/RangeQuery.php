@@ -67,6 +67,7 @@ final class RangeQuery implements QueryInterface
         return $this;
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         if ($this->gt === null && $this->gte === null && $this->lt === null && $this->lte === null) {

@@ -18,6 +18,7 @@ final class TermQuery implements QueryInterface
         private string|int|float|bool $value,
     ) {}
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         $params = ['value' => $this->value];

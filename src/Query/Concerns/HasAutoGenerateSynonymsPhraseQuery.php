@@ -8,12 +8,13 @@ trait HasAutoGenerateSynonymsPhraseQuery
 {
     private ?bool $autoGenerateSynonymsPhraseQuery = null;
 
-    public function autoGenerateSynonymsPhraseQuery(bool $autoGenerateSynonymsPhraseQuery = true): self
+    public function autoGenerateSynonymsPhraseQuery(bool $autoGenerateSynonymsPhraseQuery = true): static
     {
         $this->autoGenerateSynonymsPhraseQuery = $autoGenerateSynonymsPhraseQuery;
         return $this;
     }
 
+    /** @param array<string, mixed> $params */
     protected function applyAutoGenerateSynonymsPhraseQuery(array &$params): void
     {
         if ($this->autoGenerateSynonymsPhraseQuery !== null) {

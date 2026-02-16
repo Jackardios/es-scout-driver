@@ -10,12 +10,13 @@ trait HasValidationMethod
 {
     private ?string $validationMethod = null;
 
-    public function validationMethod(ValidationMethod|string $validationMethod): self
+    public function validationMethod(ValidationMethod|string $validationMethod): static
     {
         $this->validationMethod = $validationMethod instanceof ValidationMethod ? $validationMethod->value : $validationMethod;
         return $this;
     }
 
+    /** @param array<string, mixed> $params */
     protected function applyValidationMethod(array &$params): void
     {
         if ($this->validationMethod !== null) {

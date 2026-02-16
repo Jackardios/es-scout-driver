@@ -203,6 +203,28 @@ final class ModelResolverTest extends TestCase
         $this->assertNull($resolved);
         $this->assertSame(0, FakeBookModel::$newQueryCalls);
     }
+
+    #[Test]
+    public function resolve_hydrates_model_with_hit_metadata(): void
+    {
+        FakeBookModel::seedRecords(['1', '2']);
+
+        $resolver = new ModelResolver(new AliasRegistry(), [
+            ['_index' => 'books', '_id' => '1', '_score' => 1.5, '_routing' => 'tenant-1'],
+            ['_index' => 'books', '_id' => '2', '_score' => 0.8, '_source' => ['title' => 'Test']],
+        ]);
+        $resolver->registerIndex('books', FakeBookModel::class);
+
+        $resolve = $resolver->createResolver();
+        $model1 = $resolve('books', '1');
+        $model2 = $resolve('books', '2');
+
+        $this->assertInstanceOf(FakeBookModel::class, $model1);
+        $this->assertInstanceOf(FakeBookModel::class, $model2);
+
+        $this->assertSame(['_index' => 'books', '_id' => '1', '_score' => 1.5, '_routing' => 'tenant-1'], $model1->scoutMetadata);
+        $this->assertSame(['_index' => 'books', '_id' => '2', '_score' => 0.8], $model2->scoutMetadata);
+    }
 }
 
 final class FakeModelQuery
@@ -273,6 +295,9 @@ abstract class FakeResolverModel extends Model
     /** @var array<int, array<int, string>> */
     public static array $withCalls = [];
 
+    /** @var array<string, mixed> */
+    public array $scoutMetadata = [];
+
     protected $guarded = [];
     public $timestamps = false;
 
@@ -284,6 +309,13 @@ abstract class FakeResolverModel extends Model
         static::$getCalls = 0;
         static::$whereInCalls = [];
         static::$withCalls = [];
+    }
+
+    public function withScoutMetadata(string $key, mixed $value): self
+    {
+        $this->scoutMetadata[$key] = $value;
+
+        return $this;
     }
 
     /**

@@ -6,5 +6,6 @@ namespace Jackardios\EsScoutDriver\Sort;
 
 interface SortInterface
 {
+    /** @return array<string, mixed> */
     public function toArray(): array;
 }

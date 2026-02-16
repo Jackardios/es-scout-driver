@@ -24,11 +24,13 @@ final class ServiceProvider extends AbstractServiceProvider
         $this->registerConnections();
 
         $this->app->singleton(Engine::class, function () {
-            $defaultConnection = $this->app['config']->get('elastic.client.default', 'default');
+            /** @var \Illuminate\Config\Repository $config */
+            $config = $this->app->make('config');
+            $defaultConnection = $config->get('elastic.client.default', 'default');
 
             return new Engine(
                 $this->app->make("elastic.client.connection.$defaultConnection"),
-                (bool) $this->app['config']->get('elastic.scout.refresh_documents', false),
+                (bool) $config->get('elastic.scout.refresh_documents', false),
                 $defaultConnection,
             );
         });
@@ -50,8 +52,10 @@ final class ServiceProvider extends AbstractServiceProvider
         $engineManager->extend('elastic', fn() => $this->app->make(Engine::class));
         $engineManager->extend('null', fn() => new NullEngine());
 
+        /** @var \Illuminate\Config\Repository $config */
+        $config = $this->app->make('config');
         if (
-            $this->app['config']->get('scout.driver') === 'elastic'
+            $config->get('scout.driver') === 'elastic'
             && Scout::$removeFromSearchJob === DefaultRemoveFromSearch::class
         ) {
             Scout::removeFromSearchUsing(RemoveFromSearch::class);
@@ -60,8 +64,11 @@ final class ServiceProvider extends AbstractServiceProvider
 
     private function registerConnections(): void
     {
-        $connections = $this->app['config']->get('elastic.client.connections', []);
-        $default = $this->app['config']->get('elastic.client.default', 'default');
+        /** @var \Illuminate\Config\Repository $config */
+        $config = $this->app->make('config');
+        /** @var array<string, array<string, mixed>> $connections */
+        $connections = $config->get('elastic.client.connections', []);
+        $default = $config->get('elastic.client.default', 'default');
 
         foreach ($connections as $name => $connectionConfig) {
             $this->app->singleton(

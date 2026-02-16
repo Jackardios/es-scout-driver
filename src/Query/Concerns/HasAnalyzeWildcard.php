@@ -8,12 +8,13 @@ trait HasAnalyzeWildcard
 {
     private ?bool $analyzeWildcard = null;
 
-    public function analyzeWildcard(bool $analyzeWildcard = true): self
+    public function analyzeWildcard(bool $analyzeWildcard = true): static
     {
         $this->analyzeWildcard = $analyzeWildcard;
         return $this;
     }
 
+    /** @param array<string, mixed> $params */
     protected function applyAnalyzeWildcard(array &$params): void
     {
         if ($this->analyzeWildcard !== null) {

@@ -83,14 +83,16 @@ class AliasRegistry
 
     private function fetchAliases(): void
     {
-        if ($this->registeredIndices === []) {
+        if ($this->client === null || $this->registeredIndices === []) {
             return;
         }
 
         try {
             // Single batch request for all registered indices
             $indices = implode(',', array_keys($this->registeredIndices));
+            /** @var \Elastic\Elasticsearch\Response\Elasticsearch $response */
             $response = $this->client->indices()->getAlias(['index' => $indices]);
+            /** @var array<string, array{aliases?: array<string, mixed>}> $responseArray */
             $responseArray = $response->asArray();
 
             foreach ($responseArray as $realIndex => $data) {
@@ -105,9 +107,10 @@ class AliasRegistry
 
                 // Map all aliases to their registered index
                 foreach (array_keys($data['aliases'] ?? []) as $alias) {
+                    $aliasName = (string) $alias;
                     foreach (array_keys($this->registeredIndices) as $registeredIndex) {
-                        if ($alias === $registeredIndex || $realIndex === $registeredIndex) {
-                            $this->aliasMap[$alias] = $registeredIndex;
+                        if ($aliasName === $registeredIndex || $realIndex === $registeredIndex) {
+                            $this->aliasMap[$aliasName] = $registeredIndex;
                             $this->aliasMap[$realIndex] = $registeredIndex;
                             break;
                         }

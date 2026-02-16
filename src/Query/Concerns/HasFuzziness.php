@@ -12,36 +12,37 @@ trait HasFuzziness
     private ?bool $fuzzyTranspositions = null;
     private ?string $fuzzyRewrite = null;
 
-    public function fuzziness(string|int $fuzziness): self
+    public function fuzziness(string|int $fuzziness): static
     {
         $this->fuzziness = $fuzziness;
         return $this;
     }
 
-    public function maxExpansions(int $maxExpansions): self
+    public function maxExpansions(int $maxExpansions): static
     {
         $this->maxExpansions = $maxExpansions;
         return $this;
     }
 
-    public function prefixLength(int $prefixLength): self
+    public function prefixLength(int $prefixLength): static
     {
         $this->prefixLength = $prefixLength;
         return $this;
     }
 
-    public function fuzzyTranspositions(bool $fuzzyTranspositions = true): self
+    public function fuzzyTranspositions(bool $fuzzyTranspositions = true): static
     {
         $this->fuzzyTranspositions = $fuzzyTranspositions;
         return $this;
     }
 
-    public function fuzzyRewrite(string $fuzzyRewrite): self
+    public function fuzzyRewrite(string $fuzzyRewrite): static
     {
         $this->fuzzyRewrite = $fuzzyRewrite;
         return $this;
     }
 
+    /** @param array<string, mixed> $params */
     protected function applyFuzziness(array &$params): void
     {
         if ($this->fuzziness !== null) {

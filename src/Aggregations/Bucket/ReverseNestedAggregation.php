@@ -20,6 +20,7 @@ final class ReverseNestedAggregation implements AggregationInterface
         return $this;
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         $params = $this->path !== null ? ['path' => $this->path] : new stdClass();

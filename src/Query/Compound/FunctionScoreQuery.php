@@ -63,6 +63,7 @@ final class FunctionScoreQuery implements QueryInterface
         return $this;
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         $params = [];
@@ -75,7 +76,7 @@ final class FunctionScoreQuery implements QueryInterface
             $params['functions'] = $this->functions;
         }
 
-        $this->applyScoreMode($params);
+        $this->applyFunctionScoreMode($params);
 
         if ($this->boostMode !== null) {
             $params['boost_mode'] = $this->boostMode;

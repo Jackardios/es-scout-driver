@@ -86,6 +86,7 @@ final class GeoShapeQuery implements QueryInterface
         return $this;
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         if ($this->shape === null && $this->indexedShape === null) {

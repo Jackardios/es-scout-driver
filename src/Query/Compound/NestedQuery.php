@@ -26,6 +26,7 @@ final class NestedQuery implements QueryInterface
         $this->query = $query instanceof Closure ? $query() : $query;
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         $params = [

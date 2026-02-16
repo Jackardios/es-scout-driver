@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 final class ModelResolver
 {
+    use ExtractsHitMetadata;
     /** @var array<string, IndexConfig> */
     private array $indices = [];
 
@@ -20,8 +21,16 @@ final class ModelResolver
     /** @var array<string, array<string, Model>> */
     private array $cache = [];
 
+    /** @var array<string, array<string, array<string, mixed>>> */
+    private array $hitMetadata = [];
+
     private bool $idsCollected = false;
 
+    /**
+     * @param list<array<string, mixed>> $rawHits
+     * @param array<string, list<array<string, mixed>>> $rawSuggestions
+     * @param array<string, mixed> $rawResult
+     */
     public function __construct(
         private readonly AliasRegistry $aliasRegistry,
         private readonly array $rawHits = [],
@@ -31,6 +40,8 @@ final class ModelResolver
 
     /**
      * Register an index configuration.
+     *
+     * @param class-string<Model> $modelClass
      */
     public function registerIndex(
         string $indexName,
@@ -55,6 +66,10 @@ final class ModelResolver
 
     /**
      * Create a new resolver with different raw data but same configuration.
+     *
+     * @param list<array<string, mixed>> $rawHits
+     * @param array<string, list<array<string, mixed>>> $rawSuggestions
+     * @param array<string, mixed> $rawResult
      */
     public function withRawData(array $rawHits, array $rawSuggestions = [], array $rawResult = []): self
     {
@@ -140,18 +155,29 @@ final class ModelResolver
         $this->idsCollected = true;
     }
 
+    /** @param list<array<string, mixed>> $rawHits */
     private function collectIdsFromHits(array $rawHits): void
     {
         foreach ($rawHits as $rawHit) {
-            $this->addPendingId($rawHit['_index'] ?? '', $rawHit['_id'] ?? '');
+            $indexName = $rawHit['_index'] ?? '';
+            $documentId = $rawHit['_id'] ?? '';
 
-            // Collect from inner_hits recursively
+            $this->addPendingId($indexName, $documentId);
+
+            if ($indexName !== '' && $documentId !== '') {
+                $resolvedIndex = $this->aliasRegistry->resolve($indexName);
+                if (isset($this->indices[$resolvedIndex])) {
+                    $this->hitMetadata[$resolvedIndex][$documentId] = $this->extractHitMetadata($rawHit);
+                }
+            }
+
             foreach ($rawHit['inner_hits'] ?? [] as $innerHitsGroup) {
                 $this->collectIdsFromHits($innerHitsGroup['hits']['hits'] ?? []);
             }
         }
     }
 
+    /** @param array<string, list<array<string, mixed>>> $rawSuggestions */
     private function collectIdsFromSuggestions(array $rawSuggestions): void
     {
         foreach ($rawSuggestions as $suggestionEntries) {
@@ -195,16 +221,21 @@ final class ModelResolver
 
         $config = $this->indices[$indexName];
         $collection = $this->queryModels($config, $documentIds);
+        $hitMetadata = $this->hitMetadata[$indexName] ?? [];
 
-        // Build keyed array for O(1) lookup
         $keyed = [];
         foreach ($collection as $model) {
-            $keyed[(string) $model->getScoutKey()] = $model;
+            $documentId = (string) $model->getScoutKey();
+            foreach ($hitMetadata[$documentId] ?? [] as $key => $value) {
+                $model->withScoutMetadata($key, $value);
+            }
+            $keyed[$documentId] = $model;
         }
 
         $this->cache[$indexName] = $keyed;
     }
 
+    /** @param array<int, string> $documentIds */
     private function queryModels(IndexConfig $config, array $documentIds): EloquentCollection
     {
         /** @var Model $model */

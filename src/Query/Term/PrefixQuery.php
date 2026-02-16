@@ -18,6 +18,7 @@ final class PrefixQuery implements QueryInterface
         private string $value,
     ) {}
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         $params = ['value' => $this->value];

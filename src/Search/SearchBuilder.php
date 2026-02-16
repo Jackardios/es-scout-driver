@@ -44,24 +44,33 @@ class SearchBuilder
     private ?string $joinedConnectionName = null;
     private ?string $baseModelClass = null;
 
-    /** @var array<string, string> model class => index name */
+    /** @var array<class-string<Model>, string> model class => index name */
     private array $indexNames = [];
 
+    /** @var array<string, mixed>|null */
     private ?array $query = null;
     private ?BoolQuery $boolQuery = null;
+    /** @var array<string, mixed> */
     private array $highlight = [];
+    /** @var array<int, array<string, mixed>> */
     private array $sort = [];
+    /** @var array<string, mixed> */
     private array $rescore = [];
     private ?int $from = null;
     private ?int $size = null;
+    /** @var array<string, mixed> */
     private array $suggest = [];
+    /** @var bool|string|array<string, mixed>|null */
     private bool|string|array|null $source = null;
+    /** @var array<string, mixed> */
     private array $collapse = [];
+    /** @var array<string, array<string, mixed>> */
     private array $aggregations = [];
     private ?array $postFilter = null;
     private int|bool|null $trackTotalHits = null;
     private ?bool $trackScores = null;
     private ?float $minScore = null;
+    /** @var list<array<string, float>> */
     private array $indicesBoost = [];
     private ?string $searchType = null;
     private ?string $preference = null;
@@ -789,12 +798,10 @@ class SearchBuilder
         return $this->highlight;
     }
 
+    /** @return array<string, array<string, mixed>> */
     public function getAggregations(): array
     {
-        return array_map(
-            fn($agg) => $agg instanceof AggregationInterface ? clone $agg : $agg,
-            $this->aggregations
-        );
+        return $this->aggregations;
     }
 
     public function getPostFilter(): ?array
@@ -1322,7 +1329,7 @@ class SearchBuilder
         $hasBoolClauses = $this->boolQuery !== null && $this->boolQuery->hasClauses();
         $softDeleteFilter = $this->buildSoftDeleteFilter();
 
-        if ($this->query !== null && $hasBoolClauses) {
+        if ($this->query !== null && $hasBoolClauses && $this->boolQuery !== null) {
             // Both set: wrap $this->query into must of a cloned BoolQuery to avoid mutation
             $merged = clone $this->boolQuery;
             $merged->addMust($this->query);
@@ -1332,7 +1339,7 @@ class SearchBuilder
             return $merged->toArray();
         }
 
-        if ($hasBoolClauses) {
+        if ($hasBoolClauses && $this->boolQuery !== null) {
             if ($softDeleteFilter !== null) {
                 $merged = clone $this->boolQuery;
                 $merged->addFilter($softDeleteFilter);

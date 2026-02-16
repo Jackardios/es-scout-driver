@@ -33,7 +33,12 @@ final class ConnectionOperationRouter
         return $grouped;
     }
 
-    public function resolveClientForConnection(string $connection, mixed $defaultClient, ?string $defaultConnectionName = null): mixed
+    /**
+     * @template TClient of object
+     * @param TClient $defaultClient
+     * @return TClient
+     */
+    public function resolveClientForConnection(string $connection, object $defaultClient, ?string $defaultConnectionName = null): object
     {
         if ($connection === self::DEFAULT_CONNECTION) {
             return $defaultClient;

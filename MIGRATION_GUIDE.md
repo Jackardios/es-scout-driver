@@ -729,6 +729,7 @@ interface QueryInterface {
 
 | Area | Change |
 |------|--------|
+| **FunctionScoreQuery** | `scoreMode()` → `functionScoreMode()` |
 | **Namespace** | `Elastic\ScoutDriverPlus` → `Jackardios\EsScoutDriver` |
 | **Query construction** | `Query::match()->field()->query()` → `Query::match(field, query)` |
 | **BoolQuery methods** | `must()` → `addMust()` |

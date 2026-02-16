@@ -12,6 +12,7 @@ final class GlobalAggregation implements AggregationInterface
 {
     use HasSubAggregations;
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         $result = ['global' => new stdClass()];

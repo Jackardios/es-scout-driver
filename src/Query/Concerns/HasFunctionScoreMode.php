@@ -8,18 +8,19 @@ use Jackardios\EsScoutDriver\Enums\FunctionScoreMode;
 
 trait HasFunctionScoreMode
 {
-    private ?string $scoreMode = null;
+    private ?string $functionScoreMode = null;
 
-    public function scoreMode(FunctionScoreMode|string $scoreMode): self
+    public function functionScoreMode(FunctionScoreMode|string $functionScoreMode): static
     {
-        $this->scoreMode = $scoreMode instanceof FunctionScoreMode ? $scoreMode->value : $scoreMode;
+        $this->functionScoreMode = $functionScoreMode instanceof FunctionScoreMode ? $functionScoreMode->value : $functionScoreMode;
         return $this;
     }
 
-    protected function applyScoreMode(array &$params): void
+    /** @param array<string, mixed> $params */
+    protected function applyFunctionScoreMode(array &$params): void
     {
-        if ($this->scoreMode !== null) {
-            $params['score_mode'] = $this->scoreMode;
+        if ($this->functionScoreMode !== null) {
+            $params['score_mode'] = $this->functionScoreMode;
         }
     }
 }

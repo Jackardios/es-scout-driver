@@ -190,12 +190,25 @@ final class EngineConnectionBatchingTest extends TestCase
                 return $this->scoutWith;
             }
 
+            public function indexableAs(): string
+            {
+                return $this->scoutIndex;
+            }
+
             /**
              * @return array<string, mixed>
              */
             public function toSearchableArray(): array
             {
                 return $this->searchableData;
+            }
+
+            /**
+             * @return array<string, mixed>
+             */
+            public function scoutMetadata(): array
+            {
+                return [];
             }
 
         };

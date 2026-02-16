@@ -8,12 +8,13 @@ trait HasMinimumShouldMatch
 {
     private string|int|null $minimumShouldMatch = null;
 
-    public function minimumShouldMatch(string|int $minimumShouldMatch): self
+    public function minimumShouldMatch(string|int $minimumShouldMatch): static
     {
         $this->minimumShouldMatch = $minimumShouldMatch;
         return $this;
     }
 
+    /** @param array<string, mixed> $params */
     protected function applyMinimumShouldMatch(array &$params): void
     {
         if ($this->minimumShouldMatch !== null) {

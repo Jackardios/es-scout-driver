@@ -6,5 +6,6 @@ namespace Jackardios\EsScoutDriver\Aggregations;
 
 interface AggregationInterface
 {
+    /** @return array<string, mixed> */
     public function toArray(): array;
 }

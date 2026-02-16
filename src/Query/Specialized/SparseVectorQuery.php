@@ -74,6 +74,7 @@ final class SparseVectorQuery implements QueryInterface
         return $this;
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         $hasInference = $this->inferenceId !== null && $this->query !== null;

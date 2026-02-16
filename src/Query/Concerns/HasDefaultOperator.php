@@ -10,12 +10,13 @@ trait HasDefaultOperator
 {
     private ?string $defaultOperator = null;
 
-    public function defaultOperator(Operator|string $defaultOperator): self
+    public function defaultOperator(Operator|string $defaultOperator): static
     {
         $this->defaultOperator = $defaultOperator instanceof Operator ? $defaultOperator->value : $defaultOperator;
         return $this;
     }
 
+    /** @param array<string, mixed> $params */
     protected function applyDefaultOperator(array &$params): void
     {
         if ($this->defaultOperator !== null) {

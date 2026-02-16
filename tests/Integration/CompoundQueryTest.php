@@ -49,7 +49,7 @@ final class CompoundQueryTest extends TestCase
             Query::functionScore()
                 ->query(Query::matchAll())
                 ->addFunction(['random_score' => ['seed' => 42, 'field' => '_seq_no']])
-                ->scoreMode('sum')
+                ->functionScoreMode('sum')
                 ->boostMode('replace')
         )->execute();
 

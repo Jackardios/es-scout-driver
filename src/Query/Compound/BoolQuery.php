@@ -296,6 +296,7 @@ final class BoolQuery implements QueryInterface
 
     // ---- Serialization ----
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         if ($this->isEmpty()) {
