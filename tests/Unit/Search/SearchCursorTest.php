@@ -411,7 +411,7 @@ final class SearchCursorTestBuilder extends SearchBuilder
         return $this->sort;
     }
 
-    public function pointInTime(string $id, ?string $keepAlive = null): self
+    public function pointInTime(string $id, ?string $keepAlive = null): static
     {
         $this->pointInTime = ['id' => $id];
 
@@ -422,7 +422,7 @@ final class SearchCursorTestBuilder extends SearchBuilder
         return $this;
     }
 
-    public function size(int $size): self
+    public function size(int $size): static
     {
         $this->size = $size;
         return $this;
@@ -434,7 +434,7 @@ final class SearchCursorTestBuilder extends SearchBuilder
         string|int|float|bool|null $missing = null,
         ?string $mode = null,
         ?string $unmappedType = null,
-    ): self {
+    ): static {
         $this->metrics->sortCalls++;
 
         if ($field instanceof SortInterface) {
@@ -448,13 +448,13 @@ final class SearchCursorTestBuilder extends SearchBuilder
         return $this;
     }
 
-    public function from(int $from): self
+    public function from(int $from): static
     {
         $this->from = $from;
         return $this;
     }
 
-    public function searchAfter(array $searchAfter): self
+    public function searchAfter(array $searchAfter): static
     {
         $this->searchAfter = $searchAfter;
         return $this;

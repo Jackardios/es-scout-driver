@@ -113,7 +113,7 @@ class SearchBuilder
     // ---- Query methods ----
 
     /** @param QueryInterface|Closure|array $query */
-    public function query($query): self
+    public function query($query): static
     {
         $resolved = $this->resolveQueryToArray($query);
 
@@ -125,7 +125,7 @@ class SearchBuilder
         return $this;
     }
 
-    public function clearQuery(): self
+    public function clearQuery(): static
     {
         $this->query = null;
         return $this;
@@ -134,28 +134,28 @@ class SearchBuilder
     // ---- Bool query shortcuts (variadic add methods) ----
 
     /** @param QueryInterface|Closure|array ...$queries */
-    public function must(QueryInterface|Closure|array ...$queries): self
+    public function must(QueryInterface|Closure|array ...$queries): static
     {
         $this->boolQuery()->addMustMany(...array_map(fn($q) => $this->resolveQueryObject($q), $queries));
         return $this;
     }
 
     /** @param QueryInterface|Closure|array ...$queries */
-    public function mustNot(QueryInterface|Closure|array ...$queries): self
+    public function mustNot(QueryInterface|Closure|array ...$queries): static
     {
         $this->boolQuery()->addMustNotMany(...array_map(fn($q) => $this->resolveQueryObject($q), $queries));
         return $this;
     }
 
     /** @param QueryInterface|Closure|array ...$queries */
-    public function should(QueryInterface|Closure|array ...$queries): self
+    public function should(QueryInterface|Closure|array ...$queries): static
     {
         $this->boolQuery()->addShouldMany(...array_map(fn($q) => $this->resolveQueryObject($q), $queries));
         return $this;
     }
 
     /** @param QueryInterface|Closure|array ...$queries */
-    public function filter(QueryInterface|Closure|array ...$queries): self
+    public function filter(QueryInterface|Closure|array ...$queries): static
     {
         $this->boolQuery()->addFilterMany(...array_map(fn($q) => $this->resolveQueryObject($q), $queries));
         return $this;
@@ -180,7 +180,7 @@ class SearchBuilder
         return $this->boolQuery;
     }
 
-    public function clearBoolQuery(): self
+    public function clearBoolQuery(): static
     {
         $this->boolQuery = null;
         return $this;
@@ -188,7 +188,7 @@ class SearchBuilder
 
     // ---- Highlight ----
 
-    public function highlightRaw(array $highlight): self
+    public function highlightRaw(array $highlight): static
     {
         $this->highlight = $highlight;
         return $this;
@@ -201,7 +201,7 @@ class SearchBuilder
         ?int $numberOfFragments = null,
         ?array $preTags = null,
         ?array $postTags = null,
-    ): self {
+    ): static {
         if (!isset($this->highlight['fields'])) {
             $this->highlight['fields'] = [];
         }
@@ -233,7 +233,7 @@ class SearchBuilder
         ?string $type = null,
         ?string $boundaryScanner = null,
         ?string $encoder = null,
-    ): self {
+    ): static {
         if ($fragmentSize !== null) {
             $this->highlight['fragment_size'] = $fragmentSize;
         }
@@ -258,7 +258,7 @@ class SearchBuilder
         return $this;
     }
 
-    public function clearHighlight(): self
+    public function clearHighlight(): static
     {
         $this->highlight = [];
         return $this;
@@ -266,7 +266,7 @@ class SearchBuilder
 
     // ---- Sort ----
 
-    public function sortRaw(array $sort): self
+    public function sortRaw(array $sort): static
     {
         $this->sort = $sort;
         return $this;
@@ -278,7 +278,7 @@ class SearchBuilder
         string|int|float|bool|null $missing = null,
         ?string $mode = null,
         ?string $unmappedType = null,
-    ): self {
+    ): static {
         if ($field instanceof SortInterface) {
             $this->sort[] = $field->toArray();
             return $this;
@@ -305,7 +305,7 @@ class SearchBuilder
         return $this;
     }
 
-    public function clearSort(): self
+    public function clearSort(): static
     {
         $this->sort = [];
         return $this;
@@ -313,14 +313,14 @@ class SearchBuilder
 
     // ---- Rescore ----
 
-    public function rescoreRaw(array $rescore): self
+    public function rescoreRaw(array $rescore): static
     {
         $this->rescore = $rescore;
         return $this;
     }
 
     /** @param QueryInterface|Closure|array $query */
-    public function rescore($query, ?int $windowSize = null, ?float $queryWeight = null, ?float $rescoreQueryWeight = null): self
+    public function rescore($query, ?int $windowSize = null, ?float $queryWeight = null, ?float $rescoreQueryWeight = null): static
     {
         $this->rescore['query']['rescore_query'] = $this->resolveQueryToArray($query);
 
@@ -339,7 +339,7 @@ class SearchBuilder
         return $this;
     }
 
-    public function clearRescore(): self
+    public function clearRescore(): static
     {
         $this->rescore = [];
         return $this;
@@ -347,13 +347,13 @@ class SearchBuilder
 
     // ---- Pagination ----
 
-    public function from(int $from): self
+    public function from(int $from): static
     {
         $this->from = $from;
         return $this;
     }
 
-    public function size(int $size): self
+    public function size(int $size): static
     {
         $this->size = $size;
         return $this;
@@ -361,19 +361,19 @@ class SearchBuilder
 
     // ---- Suggest ----
 
-    public function suggestRaw(array $suggest): self
+    public function suggestRaw(array $suggest): static
     {
         $this->suggest = $suggest;
         return $this;
     }
 
-    public function suggest(string $name, array $definition): self
+    public function suggest(string $name, array $definition): static
     {
         $this->suggest[$name] = $definition;
         return $this;
     }
 
-    public function clearSuggest(): self
+    public function clearSuggest(): static
     {
         $this->suggest = [];
         return $this;
@@ -381,19 +381,19 @@ class SearchBuilder
 
     // ---- Source ----
 
-    public function sourceRaw(bool|string|array $source): self
+    public function sourceRaw(bool|string|array $source): static
     {
         $this->source = $source;
         return $this;
     }
 
-    public function withoutSource(): self
+    public function withoutSource(): static
     {
         $this->source = false;
         return $this;
     }
 
-    public function source(array $includes, ?array $excludes = null): self
+    public function source(array $includes, ?array $excludes = null): static
     {
         if ($excludes !== null) {
             $this->source = ['includes' => $includes, 'excludes' => $excludes];
@@ -404,7 +404,7 @@ class SearchBuilder
         return $this;
     }
 
-    public function clearSource(): self
+    public function clearSource(): static
     {
         $this->source = null;
         return $this;
@@ -412,19 +412,19 @@ class SearchBuilder
 
     // ---- Collapse ----
 
-    public function collapseRaw(array $collapse): self
+    public function collapseRaw(array $collapse): static
     {
         $this->collapse = $collapse;
         return $this;
     }
 
-    public function collapse(string $field): self
+    public function collapse(string $field): static
     {
         $this->collapse = ['field' => $field];
         return $this;
     }
 
-    public function clearCollapse(): self
+    public function clearCollapse(): static
     {
         $this->collapse = [];
         return $this;
@@ -432,13 +432,13 @@ class SearchBuilder
 
     // ---- Aggregate ----
 
-    public function aggregateRaw(array $aggregations): self
+    public function aggregateRaw(array $aggregations): static
     {
         $this->aggregations = $aggregations;
         return $this;
     }
 
-    public function aggregate(string $name, AggregationInterface|array $definition): self
+    public function aggregate(string $name, AggregationInterface|array $definition): static
     {
         $this->aggregations[$name] = $definition instanceof AggregationInterface
             ? $definition->toArray()
@@ -446,7 +446,7 @@ class SearchBuilder
         return $this;
     }
 
-    public function clearAggregations(): self
+    public function clearAggregations(): static
     {
         $this->aggregations = [];
         return $this;
@@ -455,13 +455,13 @@ class SearchBuilder
     // ---- Post Filter ----
 
     /** @param QueryInterface|Closure|array $query */
-    public function postFilter($query): self
+    public function postFilter($query): static
     {
         $this->postFilter = $this->resolveQueryToArray($query);
         return $this;
     }
 
-    public function clearPostFilter(): self
+    public function clearPostFilter(): static
     {
         $this->postFilter = null;
         return $this;
@@ -469,19 +469,19 @@ class SearchBuilder
 
     // ---- Track & Score ----
 
-    public function trackTotalHits(int|bool $trackTotalHits): self
+    public function trackTotalHits(int|bool $trackTotalHits): static
     {
         $this->trackTotalHits = $trackTotalHits;
         return $this;
     }
 
-    public function trackScores(bool $trackScores): self
+    public function trackScores(bool $trackScores): static
     {
         $this->trackScores = $trackScores;
         return $this;
     }
 
-    public function minScore(float $minScore): self
+    public function minScore(float $minScore): static
     {
         $this->minScore = $minScore;
         return $this;
@@ -489,19 +489,19 @@ class SearchBuilder
 
     // ---- Search config ----
 
-    public function searchType(string $searchType): self
+    public function searchType(string $searchType): static
     {
         $this->searchType = $searchType;
         return $this;
     }
 
-    public function preference(string $preference): self
+    public function preference(string $preference): static
     {
         $this->preference = $preference;
         return $this;
     }
 
-    public function pointInTime(string $id, ?string $keepAlive = null): self
+    public function pointInTime(string $id, ?string $keepAlive = null): static
     {
         $this->pointInTime = ['id' => $id];
 
@@ -512,25 +512,25 @@ class SearchBuilder
         return $this;
     }
 
-    public function clearPointInTime(): self
+    public function clearPointInTime(): static
     {
         $this->pointInTime = null;
         return $this;
     }
 
-    public function searchAfter(array $searchAfter): self
+    public function searchAfter(array $searchAfter): static
     {
         $this->searchAfter = $searchAfter;
         return $this;
     }
 
-    public function clearSearchAfter(): self
+    public function clearSearchAfter(): static
     {
         $this->searchAfter = null;
         return $this;
     }
 
-    public function routing(string|int|array|null $routing): self
+    public function routing(string|int|array|null $routing): static
     {
         $this->routing = match (true) {
             $routing === null => null,
@@ -540,25 +540,25 @@ class SearchBuilder
         return $this;
     }
 
-    public function clearRouting(): self
+    public function clearRouting(): static
     {
         $this->routing = null;
         return $this;
     }
 
-    public function explain(bool $explain): self
+    public function explain(bool $explain): static
     {
         $this->explain = $explain;
         return $this;
     }
 
-    public function terminateAfter(int $terminateAfter): self
+    public function terminateAfter(int $terminateAfter): static
     {
         $this->terminateAfter = $terminateAfter;
         return $this;
     }
 
-    public function requestCache(bool $requestCache): self
+    public function requestCache(bool $requestCache): static
     {
         $this->requestCache = $requestCache;
         return $this;
@@ -566,39 +566,39 @@ class SearchBuilder
 
     // ---- Search options ----
 
-    public function timeout(string $timeout): self
+    public function timeout(string $timeout): static
     {
         $this->timeout = $timeout;
         return $this;
     }
 
     /** @param array<int, string> $fields */
-    public function storedFields(array $fields): self
+    public function storedFields(array $fields): static
     {
         $this->storedFields = $fields;
         return $this;
     }
 
     /** @param array<int, string|array<string, mixed>> $fields */
-    public function docvalueFields(array $fields): self
+    public function docvalueFields(array $fields): static
     {
         $this->docvalueFields = $fields;
         return $this;
     }
 
-    public function version(bool $version = true): self
+    public function version(bool $version = true): static
     {
         $this->version = $version;
         return $this;
     }
 
-    public function scriptFields(array $scriptFields): self
+    public function scriptFields(array $scriptFields): static
     {
         $this->scriptFields = $scriptFields;
         return $this;
     }
 
-    public function runtimeMappings(array $runtimeMappings): self
+    public function runtimeMappings(array $runtimeMappings): static
     {
         $this->runtimeMappings = $runtimeMappings;
         return $this;
@@ -616,7 +616,7 @@ class SearchBuilder
         ?int $numCandidates = null,
         ?float $similarity = null,
         QueryInterface|array|null $filter = null,
-    ): self {
+    ): static {
         $knn = new KnnQuery($field, $queryVector, $k);
 
         if ($numCandidates !== null) {
@@ -636,13 +636,13 @@ class SearchBuilder
         return $this;
     }
 
-    public function knnRaw(array $knn): self
+    public function knnRaw(array $knn): static
     {
         $this->knn = $knn;
         return $this;
     }
 
-    public function clearKnn(): self
+    public function clearKnn(): static
     {
         $this->knn = null;
         return $this;
@@ -655,7 +655,7 @@ class SearchBuilder
 
     // ---- Join & Load ----
 
-    public function join(string $modelClass, ?float $boost = null): self
+    public function join(string $modelClass, ?float $boost = null): static
     {
         if (
             !is_a($modelClass, Model::class, true)
@@ -695,7 +695,7 @@ class SearchBuilder
         return $this;
     }
 
-    public function clearIndicesBoost(): self
+    public function clearIndicesBoost(): static
     {
         $this->indicesBoost = [];
         return $this;
@@ -707,7 +707,7 @@ class SearchBuilder
      * @param array<string> $relations Relations to eager load
      * @param string|null $modelClass Model class to apply relations to (for multi-index searches)
      */
-    public function with(array $relations, ?string $modelClass = null): self
+    public function with(array $relations, ?string $modelClass = null): static
     {
         $indexName = $this->resolveJoinedIndexName($modelClass);
         $this->relations[$indexName] = array_values(array_unique(
@@ -724,14 +724,14 @@ class SearchBuilder
      * @param Closure(\Illuminate\Database\Eloquent\Builder $query, array $rawResult): void $callback
      * @param string|null $modelClass Model class to apply callback to (for multi-index searches)
      */
-    public function modifyQuery(Closure $callback, ?string $modelClass = null): self
+    public function modifyQuery(Closure $callback, ?string $modelClass = null): static
     {
         $indexName = $this->resolveJoinedIndexName($modelClass);
         $this->queryModifiers[$indexName][] = $callback;
         return $this;
     }
 
-    public function clearQueryModifiers(?string $modelClass = null): self
+    public function clearQueryModifiers(?string $modelClass = null): static
     {
         if ($modelClass === null) {
             $this->queryModifiers = [];
@@ -748,14 +748,14 @@ class SearchBuilder
      * @param Closure(\Illuminate\Database\Eloquent\Collection $models): \Illuminate\Database\Eloquent\Collection $callback
      * @param string|null $modelClass Model class to apply callback to (for multi-index searches)
      */
-    public function modifyModels(Closure $callback, ?string $modelClass = null): self
+    public function modifyModels(Closure $callback, ?string $modelClass = null): static
     {
         $indexName = $this->resolveJoinedIndexName($modelClass);
         $this->modelModifiers[$indexName][] = $callback;
         return $this;
     }
 
-    public function clearModelModifiers(?string $modelClass = null): self
+    public function clearModelModifiers(?string $modelClass = null): static
     {
         if ($modelClass === null) {
             $this->modelModifiers = [];
@@ -882,7 +882,7 @@ class SearchBuilder
 
     // ---- Clear all ----
 
-    public function clearAll(): self
+    public function clearAll(): static
     {
         $this->query = null;
         $this->boolQuery = null;
