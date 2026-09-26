@@ -49,7 +49,7 @@ final class ServiceProvider extends AbstractServiceProvider
         /** @var EngineManager $engineManager */
         $engineManager = $this->app->make(EngineManager::class);
 
-        $engineManager->extend('elastic', fn() => $this->app->make(Engine::class));
+        $engineManager->extend('elastic', fn($app) => $app->make(Engine::class));
         $engineManager->extend('null', fn() => new NullEngine());
 
         /** @var \Illuminate\Config\Repository $config */
