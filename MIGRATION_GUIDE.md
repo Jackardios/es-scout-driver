@@ -4,8 +4,8 @@
 
 | | OLD (elastic-scout-driver-plus) | NEW (es-scout-driver) |
 |---|---|---|
-| **PHP** | ^7.4 \|\| ^8.0 | ^8.1 |
-| **Laravel** | 8-10 | 10-12 |
+| **PHP** | ^7.4 \|\| ^8.0 | ^8.2 (0.x: ^8.1) |
+| **Laravel** | 8-10 | 12-13 (0.x: 10-13) |
 | **Elasticsearch** | 7.x-8.x | 8.x-9.x |
 | **Dependencies** | babenkoivan/elastic-scout-driver, babenkoivan/elastic-adapter | elasticsearch/elasticsearch (official) |
 

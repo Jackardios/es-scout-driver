@@ -1,5 +1,41 @@
 # Changelog
 
+## Unreleased (1.0.0-rc.1)
+
+The 1.x line requires Laravel 12 or 13. Laravel 10 and 11 stay on 0.x.
+
+### Upgrading from 0.x
+
+- Requirements: PHP 8.2, Laravel 12 or 13, Scout 10.24 or 11.
+- `BoolQuery::addMustMany()`, `addMustNotMany()`, `addShouldMany()` and `addFilterMany()` are removed. Call
+  `must()`, `mustNot()`, `should()` and `filter()`, which take the same arguments.
+- The soft-delete mode moves from `BoolQuery` to `SearchBuilder`: replace `$builder->boolQuery()->withTrashed()` with
+  `$builder->withTrashed()`, and the same for `onlyTrashed()`, `excludeTrashed()`, `softDelete()` and
+  `getSoftDeleteMode()`.
+- `Engine` is final and its members are private. Implement `EngineInterface` or wrap the engine instead of extending
+  it.
+- `SearchBuilder::__construct()`, `query()`, `rescore()`, `postFilter()` and `Searchable::searchQuery()` type their
+  `$query` parameter as `QueryInterface|Closure|array` (nullable in the constructor and `searchQuery()`). Other values
+  throw a `TypeError` at the call.
+- Classes and methods marked `@internal` are outside the compatibility promise; see "Backward Compatibility" in the
+  README.
+
+### Added
+
+- `BoolQuery::must()`, `mustNot()`, `should()` and `filter()` append any number of clauses, like their `SearchBuilder`
+  counterparts.
+- `SearchBuilder::softDelete()`, `withTrashed()`, `onlyTrashed()`, `excludeTrashed()` and `getSoftDeleteMode()`.
+
+### Fixed
+
+- `SearchBuilder::clearBoolQuery()` no longer resets the soft-delete mode to excluding trashed documents.
+
+### Changed
+
+- `Engine::getClient()` returns `Client` (the interface still allows `null` for `NullEngine`).
+- CI covers PHP 8.2–8.5 on Laravel 12 and 13, lowest dependencies, Elasticsearch 8.19.22 and 9.5.3, a weekly run and
+  `composer audit`.
+
 ## Unreleased (0.1.0)
 
 First tagged release, cut from `bb72a59`. Supports Laravel 10–13 and Scout 10–11.

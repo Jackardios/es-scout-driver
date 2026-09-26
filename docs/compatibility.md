@@ -7,8 +7,9 @@ This document covers version-specific features and compatibility notes for Elast
 | Component | Supported Versions |
 |-----------|-------------------|
 | Elasticsearch | 8.x, 9.x |
-| PHP | 8.1+ |
-| Laravel | 10, 11, 12 |
+| PHP | 8.2+ (Laravel 13 requires 8.3+) |
+| Laravel | 12, 13 (10 and 11: the 0.x line) |
+| Laravel Scout | 10.24+, 11 |
 | elasticsearch-php client | ^8.0 \|\| ^9.0 |
 
 ## Feature Availability by Version
