@@ -87,9 +87,9 @@ The package does not perform runtime version detection. Features requiring speci
 
 The package is tested against the following matrix:
 
-- **Elasticsearch:** 8.19.x, 9.3.x
-- **PHP:** 8.1, 8.2, 8.3, 8.4
-- **Laravel:** 10, 11, 12
+- **Elasticsearch:** 8.19.x, 9.5.x
+- **PHP:** 8.2, 8.3, 8.4, 8.5 (Laravel 13 needs 8.3+)
+- **Laravel:** 12, 13 (Scout 11 everywhere, Scout 10 on one leg per Laravel version, lowest dependencies on two legs)
 
 Run the full test matrix locally:
 

@@ -18,15 +18,15 @@ MYSQL_USER := test
 MYSQL_PASSWORD := test
 
 # Elasticsearch config
-ES_VERSION ?= 9.3.0
+ES_VERSION ?= 9.5.3
 ES_CONTAINER_NAME := es-scout-driver-elasticsearch
 ES_HOST_PORT := 29200
 ES_IMAGE := elasticsearch
 
 # Supported versions for matrix testing
-ES_VERSIONS := 8.19.11 9.3.0
-PHP_VERSIONS := 8.1 8.2 8.3 8.4
-LARAVEL_VERSIONS := 10 11 12
+ES_VERSIONS := 8.19.22 9.5.3
+PHP_VERSIONS := 8.2 8.3 8.4 8.5
+LARAVEL_VERSIONS := 12 13
 
 # Docker image for matrix testing
 DOCKER_IMAGE_PREFIX := es-scout-driver-php
@@ -156,13 +156,13 @@ coverage: ## Run tests with coverage (ARGS="--filter=testName")
 test-es8: ## Run tests with Elasticsearch 8.x
 	@$(MAKE) down
 	@composer update --with="elasticsearch/elasticsearch:^8.0" --no-interaction --no-progress
-	@ES_VERSION=8.19.11 $(MAKE) up wait test
+	@ES_VERSION=8.19.22 $(MAKE) up wait test
 	@$(MAKE) down
 
 test-es9: ## Run tests with Elasticsearch 9.x
 	@$(MAKE) down
 	@composer update --with="elasticsearch/elasticsearch:^9.0" --no-interaction --no-progress
-	@ES_VERSION=9.3.0 $(MAKE) up wait test
+	@ES_VERSION=9.5.3 $(MAKE) up wait test
 	@$(MAKE) down
 
 test-matrix: ## Run tests on all Elasticsearch versions (current PHP)
@@ -195,16 +195,15 @@ test-full-matrix: build-images ## Run full test matrix (PHP × Laravel × ES) vi
 		ES_VERSION=$$es_version $(MAKE) up-es wait-es; \
 		for php_version in $(PHP_VERSIONS); do \
 			for laravel_version in $(LARAVEL_VERSIONS); do \
-				if [ "$$php_version" = "8.1" ] && [ "$$laravel_version" != "10" ]; then \
-					printf "$(YELLOW)⊘ PHP $$php_version / Laravel $$laravel_version / ES $$es_version - skipped (Laravel $$laravel_version requires PHP 8.2+)$(RESET)\n"; \
+				if [ "$$php_version" = "8.2" ] && [ "$$laravel_version" = "13" ]; then \
+					printf "$(YELLOW)⊘ PHP $$php_version / Laravel $$laravel_version / ES $$es_version - skipped (Laravel $$laravel_version requires PHP 8.3+)$(RESET)\n"; \
 					skipped=$$((skipped + 1)); \
 					continue; \
 				fi; \
 				printf "\n$(CYAN)▶ PHP $$php_version / Laravel $$laravel_version / ES $$es_version$(RESET)\n"; \
 				case $$laravel_version in \
-					10) testbench_version=8 ;; \
-					11) testbench_version=9 ;; \
 					12) testbench_version=10 ;; \
+					13) testbench_version=11 ;; \
 				esac; \
 				if docker run --rm \
 					--network host \
