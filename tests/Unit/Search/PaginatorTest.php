@@ -96,7 +96,7 @@ final class PaginatorTest extends TestCase
     #[Test]
     public function with_models_returns_new_instance_with_models(): void
     {
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
         $searchResult = $this->createSearchResultWithModels([$model], 1);
 
         $paginator = new Paginator($searchResult, 10);

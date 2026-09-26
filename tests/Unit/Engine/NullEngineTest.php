@@ -24,7 +24,7 @@ final class NullEngineTest extends TestCase
     #[Test]
     public function search_returns_empty_result(): void
     {
-        $builder = $this->createMock(Builder::class);
+        $builder = $this->createStub(Builder::class);
         $result = $this->engine->search($builder);
 
         $this->assertSame(0, $result['hits']['total']['value']);
@@ -34,7 +34,7 @@ final class NullEngineTest extends TestCase
     #[Test]
     public function paginate_returns_empty_result(): void
     {
-        $builder = $this->createMock(Builder::class);
+        $builder = $this->createStub(Builder::class);
         $result = $this->engine->paginate($builder, 10, 1);
 
         $this->assertSame(0, $result['hits']['total']['value']);
@@ -51,8 +51,8 @@ final class NullEngineTest extends TestCase
     #[Test]
     public function map_returns_empty_collection(): void
     {
-        $builder = $this->createMock(Builder::class);
-        $result = $this->engine->map($builder, [], $this->createMock(\Illuminate\Database\Eloquent\Model::class));
+        $builder = $this->createStub(Builder::class);
+        $result = $this->engine->map($builder, [], $this->createStub(\Illuminate\Database\Eloquent\Model::class));
 
         $this->assertInstanceOf(EloquentCollection::class, $result);
         $this->assertCount(0, $result);
@@ -61,8 +61,8 @@ final class NullEngineTest extends TestCase
     #[Test]
     public function lazy_map_returns_empty_lazy_collection(): void
     {
-        $builder = $this->createMock(Builder::class);
-        $result = $this->engine->lazyMap($builder, [], $this->createMock(\Illuminate\Database\Eloquent\Model::class));
+        $builder = $this->createStub(Builder::class);
+        $result = $this->engine->lazyMap($builder, [], $this->createStub(\Illuminate\Database\Eloquent\Model::class));
 
         $this->assertInstanceOf(LazyCollection::class, $result);
     }
@@ -101,7 +101,7 @@ final class NullEngineTest extends TestCase
     {
         $this->engine->update(new EloquentCollection());
         $this->engine->delete(new EloquentCollection());
-        $this->engine->flush($this->createMock(\Illuminate\Database\Eloquent\Model::class));
+        $this->engine->flush($this->createStub(\Illuminate\Database\Eloquent\Model::class));
         $this->engine->createIndex('test');
         $this->engine->deleteIndex('test');
         $this->engine->closePointInTime('pit-id');

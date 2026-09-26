@@ -225,7 +225,7 @@ final class SearchResultTest extends TestCase
             ['_index' => 'books', '_id' => '2', '_source' => ['title' => 'B']],
         ];
 
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
         $result = new SearchResult(
             raw: $this->makeRawResponse($rawHits, 2),
             modelResolver: static fn(string $indexName, string $documentId) => $documentId === '1' ? $model : null,
@@ -246,7 +246,7 @@ final class SearchResultTest extends TestCase
             ['_index' => 'books', '_id' => '2', '_source' => ['title' => 'B']],
         ];
 
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
         $result = new SearchResult(
             raw: $this->makeRawResponse($rawHits, 2),
             modelResolver: static fn(string $indexName, string $documentId) => $documentId === '1' ? $model : null,

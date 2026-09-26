@@ -387,7 +387,7 @@ final class SearchBuilderMethodsTest extends TestCase
     public function aggregate_with_aggregation_interface(): void
     {
         $builder = $this->createBuilder();
-        $agg = $this->createMock(AggregationInterface::class);
+        $agg = $this->createStub(AggregationInterface::class);
         $agg->method('toArray')->willReturn(['terms' => ['field' => 'status']]);
 
         $result = $builder->aggregate('by_status', $agg);

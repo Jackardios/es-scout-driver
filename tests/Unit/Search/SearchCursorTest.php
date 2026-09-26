@@ -45,7 +45,7 @@ final class SearchCursorTest extends TestCase
     public function it_throws_for_non_positive_chunk_size(): void
     {
         $builder = new SearchCursorTestBuilder(
-            engine: $this->createMock(EngineInterface::class),
+            engine: $this->createStub(EngineInterface::class),
             indexNames: ['Book' => 'books'],
             sort: [],
             searchAfter: null,
