@@ -148,10 +148,10 @@ final class BoolQuery implements QueryInterface
         return $this;
     }
 
-    // ---- Add many clauses methods ----
+    // ---- Variadic add methods ----
 
     /** @param QueryInterface|Closure|array ...$queries */
-    public function addMustMany(QueryInterface|Closure|array ...$queries): self
+    public function must(QueryInterface|Closure|array ...$queries): self
     {
         foreach ($queries as $query) {
             $this->addMust($query);
@@ -160,7 +160,7 @@ final class BoolQuery implements QueryInterface
     }
 
     /** @param QueryInterface|Closure|array ...$queries */
-    public function addMustNotMany(QueryInterface|Closure|array ...$queries): self
+    public function mustNot(QueryInterface|Closure|array ...$queries): self
     {
         foreach ($queries as $query) {
             $this->addMustNot($query);
@@ -169,7 +169,7 @@ final class BoolQuery implements QueryInterface
     }
 
     /** @param QueryInterface|Closure|array ...$queries */
-    public function addShouldMany(QueryInterface|Closure|array ...$queries): self
+    public function should(QueryInterface|Closure|array ...$queries): self
     {
         foreach ($queries as $query) {
             $this->addShould($query);
@@ -178,7 +178,7 @@ final class BoolQuery implements QueryInterface
     }
 
     /** @param QueryInterface|Closure|array ...$queries */
-    public function addFilterMany(QueryInterface|Closure|array ...$queries): self
+    public function filter(QueryInterface|Closure|array ...$queries): self
     {
         foreach ($queries as $query) {
             $this->addFilter($query);

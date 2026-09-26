@@ -232,13 +232,29 @@ final class BoolQueryTest extends TestCase
         ], $query->toArray());
     }
 
-    // ---- Add many methods ----
+    // ---- Variadic add methods ----
+
+    #[Test]
+    public function it_resolves_closures_and_arrays_in_variadic_methods(): void
+    {
+        $query = (new BoolQuery())
+            ->filter(fn() => new TermQuery('status', 'active'), ['exists' => ['field' => 'title']]);
+
+        $this->assertSame([
+            'bool' => [
+                'filter' => [
+                    ['term' => ['status' => ['value' => 'active']]],
+                    ['exists' => ['field' => 'title']],
+                ],
+            ],
+        ], $query->toArray());
+    }
 
     #[Test]
     public function it_adds_many_must_clauses(): void
     {
         $query = (new BoolQuery())
-            ->addMustMany(
+            ->must(
                 new TermQuery('status', 'active'),
                 new TermQuery('type', 'post'),
             );
@@ -250,7 +266,7 @@ final class BoolQueryTest extends TestCase
     public function it_adds_many_must_not_clauses(): void
     {
         $query = (new BoolQuery())
-            ->addMustNotMany(
+            ->mustNot(
                 new TermQuery('status', 'deleted'),
                 new TermQuery('archived', true),
             );
@@ -262,7 +278,7 @@ final class BoolQueryTest extends TestCase
     public function it_adds_many_should_clauses(): void
     {
         $query = (new BoolQuery())
-            ->addShouldMany(
+            ->should(
                 new TermQuery('priority', 'high'),
                 new TermQuery('priority', 'medium'),
             );
@@ -274,7 +290,7 @@ final class BoolQueryTest extends TestCase
     public function it_adds_many_filter_clauses(): void
     {
         $query = (new BoolQuery())
-            ->addFilterMany(
+            ->filter(
                 new TermQuery('status', 'active'),
                 new TermQuery('type', 'post'),
             );
@@ -655,10 +671,10 @@ final class BoolQueryTest extends TestCase
         $this->assertSame($query, $query->addFilter(new TermQuery('a', 'b')));
 
         // Add many methods
-        $this->assertSame($query, $query->addMustMany(new TermQuery('a', 'b')));
-        $this->assertSame($query, $query->addMustNotMany(new TermQuery('a', 'b')));
-        $this->assertSame($query, $query->addShouldMany(new TermQuery('a', 'b')));
-        $this->assertSame($query, $query->addFilterMany(new TermQuery('a', 'b')));
+        $this->assertSame($query, $query->must(new TermQuery('a', 'b')));
+        $this->assertSame($query, $query->mustNot(new TermQuery('a', 'b')));
+        $this->assertSame($query, $query->should(new TermQuery('a', 'b')));
+        $this->assertSame($query, $query->filter(new TermQuery('a', 'b')));
 
         // Clear methods
         $this->assertSame($query, $query->clearMust());

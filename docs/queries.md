@@ -290,14 +290,16 @@ Combine multiple queries with boolean logic:
 
 ```php
 Query::bool()
-    ->addMust(Query::match('title', 'elasticsearch'))
-    ->addMust(Query::match('author', 'john'))
-    ->addShould(Query::term('featured', true))
-    ->addFilter(Query::range('price')->lte(100))
-    ->addMustNot(Query::term('status', 'draft'))
+    ->must(Query::match('title', 'elasticsearch'), Query::match('author', 'john'))
+    ->should(Query::term('featured', true))
+    ->filter(Query::range('price')->lte(100))
+    ->mustNot(Query::term('status', 'draft'))
     ->minimumShouldMatch(1)
     ->boost(1.5)
 ```
+
+`must()`, `mustNot()`, `should()` and `filter()` append every query they receive. `addMust()`, `addMustNot()`,
+`addShould()` and `addFilter()` append one query and take an optional key.
 
 Using keyed clauses for later modification:
 
@@ -331,8 +333,7 @@ Search within nested objects:
 Query::nested('comments', Query::match('comments.text', 'great'))
 
 Query::nested('comments', Query::bool()
-    ->addMust(Query::match('comments.text', 'great'))
-    ->addMust(Query::term('comments.author', 'john'))
+    ->must(Query::match('comments.text', 'great'), Query::term('comments.author', 'john'))
 )
     ->scoreMode('avg')          // avg, max, min, sum, none
     ->ignoreUnmapped(true)

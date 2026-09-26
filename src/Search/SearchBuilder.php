@@ -136,28 +136,28 @@ class SearchBuilder
     /** @param QueryInterface|Closure|array ...$queries */
     public function must(QueryInterface|Closure|array ...$queries): static
     {
-        $this->boolQuery()->addMustMany(...array_map(fn($q) => $this->resolveQueryObject($q), $queries));
+        $this->boolQuery()->must(...array_map(fn($q) => $this->resolveQueryObject($q), $queries));
         return $this;
     }
 
     /** @param QueryInterface|Closure|array ...$queries */
     public function mustNot(QueryInterface|Closure|array ...$queries): static
     {
-        $this->boolQuery()->addMustNotMany(...array_map(fn($q) => $this->resolveQueryObject($q), $queries));
+        $this->boolQuery()->mustNot(...array_map(fn($q) => $this->resolveQueryObject($q), $queries));
         return $this;
     }
 
     /** @param QueryInterface|Closure|array ...$queries */
     public function should(QueryInterface|Closure|array ...$queries): static
     {
-        $this->boolQuery()->addShouldMany(...array_map(fn($q) => $this->resolveQueryObject($q), $queries));
+        $this->boolQuery()->should(...array_map(fn($q) => $this->resolveQueryObject($q), $queries));
         return $this;
     }
 
     /** @param QueryInterface|Closure|array ...$queries */
     public function filter(QueryInterface|Closure|array ...$queries): static
     {
-        $this->boolQuery()->addFilterMany(...array_map(fn($q) => $this->resolveQueryObject($q), $queries));
+        $this->boolQuery()->filter(...array_map(fn($q) => $this->resolveQueryObject($q), $queries));
         return $this;
     }
 

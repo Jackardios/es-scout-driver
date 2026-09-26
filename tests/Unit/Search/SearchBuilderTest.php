@@ -334,23 +334,23 @@ final class SearchBuilderTest extends TestCase
         $this->assertCount(2, $bool->getMustClauses());
     }
 
-    // ---- Tests for addMustMany behavior (must() now adds, not replaces) ----
+    // ---- BoolQuery variadic add methods append clauses ----
 
     #[Test]
-    public function bool_query_add_must_many_accumulates(): void
+    public function bool_query_must_accumulates(): void
     {
         $bool = new BoolQuery();
-        $bool->addMustMany(new TermQuery('status', 'active'));
-        $bool->addMustMany(new TermQuery('type', 'book'));
+        $bool->must(new TermQuery('status', 'active'));
+        $bool->must(new TermQuery('type', 'book'));
 
         $this->assertCount(2, $bool->getMustClauses());
     }
 
     #[Test]
-    public function bool_query_add_must_many_variadic(): void
+    public function bool_query_must_variadic(): void
     {
         $bool = new BoolQuery();
-        $bool->addMustMany(
+        $bool->must(
             new TermQuery('status', 'active'),
             new TermQuery('type', 'book'),
             new MatchQuery('title', 'test'),
@@ -360,31 +360,31 @@ final class SearchBuilderTest extends TestCase
     }
 
     #[Test]
-    public function bool_query_add_filter_many_accumulates(): void
+    public function bool_query_filter_accumulates(): void
     {
         $bool = new BoolQuery();
-        $bool->addFilterMany(new TermQuery('status', 'active'));
-        $bool->addFilterMany(new TermQuery('type', 'book'));
+        $bool->filter(new TermQuery('status', 'active'));
+        $bool->filter(new TermQuery('type', 'book'));
 
         $this->assertCount(2, $bool->getFilterClauses());
     }
 
     #[Test]
-    public function bool_query_add_should_many_accumulates(): void
+    public function bool_query_should_accumulates(): void
     {
         $bool = new BoolQuery();
-        $bool->addShouldMany(new MatchQuery('title', 'test'));
-        $bool->addShouldMany(new MatchQuery('body', 'test'));
+        $bool->should(new MatchQuery('title', 'test'));
+        $bool->should(new MatchQuery('body', 'test'));
 
         $this->assertCount(2, $bool->getShouldClauses());
     }
 
     #[Test]
-    public function bool_query_add_must_not_many_accumulates(): void
+    public function bool_query_must_not_accumulates(): void
     {
         $bool = new BoolQuery();
-        $bool->addMustNotMany(new ExistsQuery('deleted_at'));
-        $bool->addMustNotMany(new TermQuery('status', 'hidden'));
+        $bool->mustNot(new ExistsQuery('deleted_at'));
+        $bool->mustNot(new TermQuery('status', 'hidden'));
 
         $this->assertCount(2, $bool->getMustNotClauses());
     }

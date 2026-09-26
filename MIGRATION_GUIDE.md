@@ -91,7 +91,7 @@ Query::matchPhrasePrefix('title', 'laravel fra')
 ### Bool Query Methods
 
 **OLD**: Single query per call (`must()`, `should()`, etc.)
-**NEW**: Renamed to `addMust()`, `addShould()`, etc. Variadic support via `addMustMany()`, etc.
+**NEW**: `must()`, `mustNot()`, `should()` and `filter()` keep their names and accept several queries. `addMust()`, `addMustNot()`, `addShould()` and `addFilter()` add one query under an optional key.
 
 ```php
 // OLD
@@ -100,28 +100,19 @@ Query::bool()
     ->must(Query::match()->field('body')->query('php'))
     ->filter(Query::term()->field('status')->value('active'))
 
-// NEW - option 1: individual calls
+// NEW - one or several queries per call
 Query::bool()
-    ->addMust(Query::match('title', 'laravel'))
-    ->addMust(Query::match('body', 'php'))
-    ->addFilter(Query::term('status', 'active'))
-
-// NEW - option 2: variadic
-Query::bool()
-    ->addMustMany(
+    ->must(
         Query::match('title', 'laravel'),
         Query::match('body', 'php')
     )
-    ->addFilter(Query::term('status', 'active'))
-```
+    ->filter(Query::term('status', 'active'))
 
-| OLD | NEW |
-|-----|-----|
-| `must($query)` | `addMust($query)` |
-| `mustNot($query)` | `addMustNot($query)` |
-| `should($query)` | `addShould($query)` |
-| `filter($query)` | `addFilter($query)` |
-| `mustRaw(array)` | `addMustRaw(array)` (not available, use raw arrays) |
+// NEW - keyed clause: a repeated key is ignored, removeFilter() drops it
+Query::bool()
+    ->addFilter(Query::term('status', 'active'), key: 'status')
+    ->removeFilter('status')
+```
 
 ### Soft Delete Handling
 
@@ -670,12 +661,6 @@ Query::ids\(\)->values\( → Query::ids(
 Query::matchPhrase\(\)->field\('([^']+)'\)->query\(([^)]+)\) → Query::matchPhrase('$1', $2)
 Query::matchPhrasePrefix\(\)->field\('([^']+)'\)->query\(([^)]+)\) → Query::matchPhrasePrefix('$1', $2)
 Query::nested\(\)->path\('([^']+)'\)->query\( → Query::nested('$1',
-
-# BoolQuery methods
-->must\( → ->addMust(
-->mustNot\( → ->addMustNot(
-->should\( → ->addShould(
-->filter\( → ->addFilter(
 
 # SearchBuilder methods
 ->load\( → ->with(
