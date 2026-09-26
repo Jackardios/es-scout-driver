@@ -389,8 +389,10 @@ class Engine extends ScoutEngine implements EngineInterface
     {
         $filters = [];
 
-        foreach ($builder->wheres as $field => $value) {
-            $filters[] = ['term' => [$field => ['value' => $value]]];
+        foreach ($builder->wheres as $key => $where) {
+            $filters[] = is_int($key) && is_array($where) && array_key_exists('field', $where)
+                ? $this->buildWhereFilter((string) $where['field'], (string) ($where['operator'] ?? '='), $where['value'] ?? null)
+                : $this->buildWhereFilter((string) $key, '=', $where);
         }
 
         foreach ($builder->whereIns as $field => $values) {
@@ -416,6 +418,35 @@ class Engine extends ScoutEngine implements EngineInterface
         }
 
         return $filters;
+    }
+
+    /**
+     * Scout 10 stores wheres as `field => value`, Scout 11 as `['field', 'operator', 'value']` entries.
+     *
+     * @return array<string, mixed>
+     */
+    private function buildWhereFilter(string $field, string $operator, mixed $value): array
+    {
+        if ($value instanceof \DateTimeInterface) {
+            $value = $value->format(\DateTimeInterface::ATOM);
+        }
+
+        $ranges = ['>' => 'gt', '>=' => 'gte', '<' => 'lt', '<=' => 'lte'];
+
+        return match (true) {
+            $operator === '=' && $value === null => ['bool' => ['must_not' => [['exists' => ['field' => $field]]]]],
+            $operator === '=' => ['term' => [$field => ['value' => $value]]],
+            ($operator === '!=' || $operator === '<>') && $value === null => ['exists' => ['field' => $field]],
+            $operator === '!=' || $operator === '<>' => [
+                'bool' => ['must_not' => [['term' => [$field => ['value' => $value]]]]],
+            ],
+            isset($ranges[$operator]) && $value !== null => ['range' => [$field => [$ranges[$operator] => $value]]],
+            default => throw new InvalidArgumentException(sprintf(
+                'Unsupported where operator [%s] for field [%s].',
+                $operator,
+                $field,
+            )),
+        };
     }
 
     /**

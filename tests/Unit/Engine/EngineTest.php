@@ -109,6 +109,89 @@ final class EngineTest extends TestCase
     }
 
     #[Test]
+    public function search_supports_where_filters(): void
+    {
+        $engine = $this->createEngineWithMockTransport();
+        $builder = $this->createScoutBuilder('test');
+        $builder->where('status', 'active');
+        $builder->where('deleted_by', null);
+        $builder->callback = static fn($client, $query, $params) => $params;
+
+        $params = $engine->search($builder);
+
+        $this->assertSame([
+            ['term' => ['status' => ['value' => 'active']]],
+            ['bool' => ['must_not' => [['exists' => ['field' => 'deleted_by']]]]],
+        ], $params['body']['query']['bool']['filter']);
+    }
+
+    #[Test]
+    public function search_filters_soft_deleted_models(): void
+    {
+        $engine = $this->createEngineWithMockTransport();
+        $search = static function (callable $configure) use ($engine): array {
+            $builder = new Builder(new class extends Model {
+                public function searchableAs(): string
+                {
+                    return 'books';
+                }
+            }, 'test', null, true);
+            $configure($builder);
+            $builder->callback = static fn($client, $query, $params) => $params;
+
+            return $engine->search($builder)['body']['query']['bool']['filter'] ?? [];
+        };
+
+        $this->assertSame([['term' => ['__soft_deleted' => ['value' => 0]]]], $search(static fn() => null));
+        $this->assertSame(
+            [['term' => ['__soft_deleted' => ['value' => 1]]]],
+            $search(static fn(Builder $builder) => $builder->onlyTrashed()),
+        );
+        $this->assertSame([], $search(static fn(Builder $builder) => $builder->withTrashed()));
+    }
+
+    #[Test]
+    public function search_supports_where_comparison_operators(): void
+    {
+        $this->skipUnlessScoutSupportsWhereOperators();
+
+        $engine = $this->createEngineWithMockTransport();
+        $builder = $this->createScoutBuilder('test');
+        $builder->where('price', '>', 10);
+        $builder->where('price', '<=', 100);
+        $builder->where('status', '!=', 'draft');
+        $builder->where('published_at', '<>', null);
+        $builder->where('created_at', '>=', new \DateTimeImmutable('2024-01-31 10:00:00', new \DateTimeZone('+03:00')));
+        $builder->callback = static fn($client, $query, $params) => $params;
+
+        $params = $engine->search($builder);
+
+        $this->assertSame([
+            ['range' => ['price' => ['gt' => 10]]],
+            ['range' => ['price' => ['lte' => 100]]],
+            ['bool' => ['must_not' => [['term' => ['status' => ['value' => 'draft']]]]]],
+            ['exists' => ['field' => 'published_at']],
+            ['range' => ['created_at' => ['gte' => '2024-01-31T10:00:00+03:00']]],
+        ], $params['body']['query']['bool']['filter']);
+    }
+
+    #[Test]
+    public function search_rejects_unsupported_where_operators(): void
+    {
+        $this->skipUnlessScoutSupportsWhereOperators();
+
+        $engine = $this->createEngineWithMockTransport();
+        $builder = $this->createScoutBuilder('test');
+        $builder->where('title', 'like', '%book%');
+        $builder->callback = static fn($client, $query, $params) => $params;
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Unsupported where operator [like] for field [title].');
+
+        $engine->search($builder);
+    }
+
+    #[Test]
     public function search_merges_scout_options_into_params(): void
     {
         $engine = $this->createEngineWithMockTransport();
@@ -285,6 +368,13 @@ final class EngineTest extends TestCase
 
         /** @var array<string, mixed> */
         return $method->invoke($engine, $base, $override);
+    }
+
+    private function skipUnlessScoutSupportsWhereOperators(): void
+    {
+        if ((new \ReflectionMethod(Builder::class, 'where'))->getNumberOfParameters() < 3) {
+            $this->markTestSkipped('Scout 10 where() takes no operator.');
+        }
     }
 
     private function createScoutBuilder(string $query): Builder
