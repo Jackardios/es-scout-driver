@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Query\Term;
 
+use Jackardios\EsScoutDriver\Query\Concerns\HasBoost;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
 
 final class ExistsQuery implements QueryInterface
 {
+    use HasBoost;
+
     public function __construct(
         private string $field,
     ) {}
@@ -15,6 +18,10 @@ final class ExistsQuery implements QueryInterface
     /** @return array<string, mixed> */
     public function toArray(): array
     {
-        return ['exists' => ['field' => $this->field]];
+        $params = ['field' => $this->field];
+
+        $this->applyBoost($params);
+
+        return ['exists' => $params];
     }
 }

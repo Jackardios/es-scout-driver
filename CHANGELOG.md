@@ -25,6 +25,7 @@ The 1.x line requires Laravel 12 or 13. Laravel 10 and 11 stay on 0.x.
 - `BoolQuery::must()`, `mustNot()`, `should()` and `filter()` append any number of clauses, like their `SearchBuilder`
   counterparts.
 - `SearchBuilder::softDelete()`, `withTrashed()`, `onlyTrashed()`, `excludeTrashed()` and `getSoftDeleteMode()`.
+- `PrefixQuery::boost()` and `ExistsQuery::boost()`.
 
 ### Fixed
 

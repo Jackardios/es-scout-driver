@@ -70,6 +70,21 @@ final class TermLevelQueryTest extends TestCase
     }
 
     #[Test]
+    public function test_prefix_and_exists_queries_take_a_boost(): void
+    {
+        $book = Book::factory()->create(['author' => 'John Smith', 'description' => 'A great book']);
+
+        $book->searchable();
+        $this->refreshIndex('books');
+
+        $prefix = Book::searchQuery(Query::prefix('author', 'John')->boost(2.0))->execute();
+        $exists = Book::searchQuery(Query::exists('description')->boost(3.0))->execute();
+
+        $this->assertSame(2.0, $prefix->hits()->first()->score);
+        $this->assertSame(3.0, $exists->hits()->first()->score);
+    }
+
+    #[Test]
     public function test_exists_query(): void
     {
         $book1 = Book::factory()->create(['description' => 'A great book']);

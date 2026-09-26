@@ -24,12 +24,14 @@ final class PrefixQueryTest extends TestCase
     public function it_builds_prefix_query_with_all_options(): void
     {
         $query = (new PrefixQuery('username', 'joh'))
+            ->boost(2.0)
             ->rewrite('constant_score')
             ->caseInsensitive(true);
 
         $this->assertSame([
             'prefix' => ['username' => [
                 'value' => 'joh',
+                'boost' => 2.0,
                 'rewrite' => 'constant_score',
                 'case_insensitive' => true,
             ]],

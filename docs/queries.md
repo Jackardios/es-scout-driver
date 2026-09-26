@@ -80,6 +80,8 @@ Find documents where a field exists:
 
 ```php
 Query::exists('email')
+
+Query::exists('email')->boost(2.0)
 ```
 
 ### prefix
@@ -92,6 +94,7 @@ Query::prefix('title', 'ela')
 Query::prefix('title', 'ela')
     ->caseInsensitive(true)
     ->rewrite('constant_score')
+    ->boost(2.0)
 ```
 
 ### wildcard
