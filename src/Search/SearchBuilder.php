@@ -50,6 +50,7 @@ class SearchBuilder
     /** @var array<string, mixed>|null */
     private ?array $query = null;
     private ?BoolQuery $boolQuery = null;
+    private SoftDeleteMode $softDeleteMode = SoftDeleteMode::ExcludeTrashed;
     /** @var array<string, mixed> */
     private array $highlight = [];
     /** @var array<int, array<string, mixed>> */
@@ -182,6 +183,37 @@ class SearchBuilder
     {
         $this->boolQuery = null;
         return $this;
+    }
+
+    // ---- Soft delete methods ----
+
+    public function softDelete(SoftDeleteMode $mode): static
+    {
+        $this->softDeleteMode = $mode;
+        return $this;
+    }
+
+    public function withTrashed(): static
+    {
+        $this->softDeleteMode = SoftDeleteMode::WithTrashed;
+        return $this;
+    }
+
+    public function onlyTrashed(): static
+    {
+        $this->softDeleteMode = SoftDeleteMode::OnlyTrashed;
+        return $this;
+    }
+
+    public function excludeTrashed(): static
+    {
+        $this->softDeleteMode = SoftDeleteMode::ExcludeTrashed;
+        return $this;
+    }
+
+    public function getSoftDeleteMode(): SoftDeleteMode
+    {
+        return $this->softDeleteMode;
     }
 
     // ---- Highlight ----
@@ -1042,7 +1074,7 @@ class SearchBuilder
         if (!$this->hasWriteQuery()) {
             throw new InvalidQueryException(
                 'deleteByQuery requires an explicit query. Use Query::matchAll() to target all visible documents. '
-                . 'When scout.soft_delete=true, call boolQuery()->withTrashed() to include soft-deleted documents.',
+                . 'When scout.soft_delete=true, call withTrashed() to include soft-deleted documents.',
             );
         }
 
@@ -1065,7 +1097,7 @@ class SearchBuilder
         if (!$this->hasWriteQuery()) {
             throw new InvalidQueryException(
                 'updateByQuery requires an explicit query. Use Query::matchAll() to target all visible documents. '
-                . 'When scout.soft_delete=true, call boolQuery()->withTrashed() to include soft-deleted documents.',
+                . 'When scout.soft_delete=true, call withTrashed() to include soft-deleted documents.',
             );
         }
 
@@ -1363,9 +1395,7 @@ class SearchBuilder
             return null;
         }
 
-        $softDeleteMode = $this->boolQuery?->getSoftDeleteMode() ?? SoftDeleteMode::ExcludeTrashed;
-
-        return match ($softDeleteMode) {
+        return match ($this->softDeleteMode) {
             SoftDeleteMode::WithTrashed => null,
             SoftDeleteMode::OnlyTrashed => new TermQuery('__soft_deleted', 1),
             SoftDeleteMode::ExcludeTrashed => [
@@ -1418,8 +1448,7 @@ class SearchBuilder
 
     private function createModelResolver(array $rawResult): ModelResolver
     {
-        $softDeleteMode = $this->boolQuery?->getSoftDeleteMode() ?? SoftDeleteMode::ExcludeTrashed;
-        $withTrashed = $softDeleteMode !== SoftDeleteMode::ExcludeTrashed;
+        $withTrashed = $this->softDeleteMode !== SoftDeleteMode::ExcludeTrashed;
 
         $resolver = new ModelResolver(
             $this->aliasRegistry,

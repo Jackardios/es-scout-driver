@@ -83,7 +83,7 @@ final class SoftDeleteTest extends TestCase
 
         // Search with withTrashed
         $builder = Book::searchQuery(Query::matchAll());
-        $builder->boolQuery()->withTrashed();
+        $builder->withTrashed();
         $result = $builder->execute();
 
         $this->assertSame(2, $result->total);
@@ -112,7 +112,7 @@ final class SoftDeleteTest extends TestCase
 
         // Search with onlyTrashed
         $builder = Book::searchQuery(Query::matchAll());
-        $builder->boolQuery()->onlyTrashed();
+        $builder->onlyTrashed();
         $result = $builder->execute();
 
         // ES should return only soft-deleted documents

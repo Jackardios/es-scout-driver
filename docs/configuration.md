@@ -401,14 +401,10 @@ Query soft-deleted documents:
 use Jackardios\EsScoutDriver\Support\Query;
 
 // Include soft-deleted
-$builder = Book::searchQuery(Query::matchAll());
-$builder->boolQuery()->withTrashed();
-$builder->execute();
+Book::searchQuery(Query::matchAll())->withTrashed()->execute();
 
 // Only soft-deleted
-$builder = Book::searchQuery(Query::matchAll());
-$builder->boolQuery()->onlyTrashed();
-$builder->execute();
+Book::searchQuery(Query::matchAll())->onlyTrashed()->execute();
 ```
 
 ---

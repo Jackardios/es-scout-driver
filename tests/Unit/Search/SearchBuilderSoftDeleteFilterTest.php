@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\EsScoutDriver\Tests\Unit\Search;
 
 use Illuminate\Database\Eloquent\Model;
+use Jackardios\EsScoutDriver\Enums\SoftDeleteMode;
 use Jackardios\EsScoutDriver\Searchable;
 use Jackardios\EsScoutDriver\ServiceProvider;
 use Jackardios\EsScoutDriver\Support\Query;
@@ -42,12 +43,46 @@ final class SearchBuilderSoftDeleteFilterTest extends TestCase
     #[Test]
     public function only_trashed_mode_uses_explicit_soft_delete_flag_filter(): void
     {
-        $builder = NonSoftDeleteModel::searchQuery(Query::matchAll());
-        $builder->boolQuery()->onlyTrashed();
+        $builder = NonSoftDeleteModel::searchQuery(Query::matchAll())->onlyTrashed();
 
         $json = json_encode($builder->toArray(), JSON_THROW_ON_ERROR);
 
         $this->assertStringContainsString('"__soft_deleted":{"value":1}', $json);
+    }
+
+    #[Test]
+    public function with_trashed_mode_adds_no_soft_delete_filter(): void
+    {
+        $builder = NonSoftDeleteModel::searchQuery(Query::matchAll())->withTrashed();
+
+        $this->assertSame(SoftDeleteMode::WithTrashed, $builder->getSoftDeleteMode());
+        $this->assertStringNotContainsString('__soft_deleted', json_encode($builder->toArray(), JSON_THROW_ON_ERROR));
+    }
+
+    #[Test]
+    public function soft_delete_mode_survives_clearing_the_bool_query(): void
+    {
+        $builder = NonSoftDeleteModel::searchQuery()->onlyTrashed();
+        $builder->filter(Query::term('status', 'active'));
+        $builder->clearBoolQuery();
+
+        $this->assertSame(SoftDeleteMode::OnlyTrashed, $builder->getSoftDeleteMode());
+        $this->assertStringContainsString(
+            '"__soft_deleted":{"value":1}',
+            json_encode($builder->toArray(), JSON_THROW_ON_ERROR),
+        );
+    }
+
+    #[Test]
+    public function soft_delete_mode_setters_return_the_builder(): void
+    {
+        $builder = NonSoftDeleteModel::searchQuery();
+
+        $this->assertSame($builder, $builder->withTrashed());
+        $this->assertSame($builder, $builder->onlyTrashed());
+        $this->assertSame($builder, $builder->excludeTrashed());
+        $this->assertSame($builder, $builder->softDelete(SoftDeleteMode::WithTrashed));
+        $this->assertSame(SoftDeleteMode::WithTrashed, $builder->getSoftDeleteMode());
     }
 }
 

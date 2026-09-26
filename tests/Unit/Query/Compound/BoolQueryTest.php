@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Tests\Unit\Query\Compound;
 
-use Jackardios\EsScoutDriver\Enums\SoftDeleteMode;
 use Jackardios\EsScoutDriver\Exceptions\DuplicateKeyedClauseException;
 use Jackardios\EsScoutDriver\Query\Compound\BoolQuery;
 use Jackardios\EsScoutDriver\Query\Term\TermQuery;
@@ -476,43 +475,6 @@ final class BoolQueryTest extends TestCase
         $this->assertSame(1.5, $result['bool']['boost']);
     }
 
-    // ---- Soft delete mode ----
-
-    #[Test]
-    public function it_defaults_to_exclude_trashed(): void
-    {
-        $query = new BoolQuery();
-        $this->assertSame(SoftDeleteMode::ExcludeTrashed, $query->getSoftDeleteMode());
-    }
-
-    #[Test]
-    public function it_sets_soft_delete_mode_via_enum(): void
-    {
-        $query = (new BoolQuery())->softDelete(SoftDeleteMode::WithTrashed);
-        $this->assertSame(SoftDeleteMode::WithTrashed, $query->getSoftDeleteMode());
-    }
-
-    #[Test]
-    public function it_sets_with_trashed(): void
-    {
-        $query = (new BoolQuery())->withTrashed();
-        $this->assertSame(SoftDeleteMode::WithTrashed, $query->getSoftDeleteMode());
-    }
-
-    #[Test]
-    public function it_sets_only_trashed(): void
-    {
-        $query = (new BoolQuery())->onlyTrashed();
-        $this->assertSame(SoftDeleteMode::OnlyTrashed, $query->getSoftDeleteMode());
-    }
-
-    #[Test]
-    public function it_sets_exclude_trashed(): void
-    {
-        $query = (new BoolQuery())->withTrashed()->excludeTrashed();
-        $this->assertSame(SoftDeleteMode::ExcludeTrashed, $query->getSoftDeleteMode());
-    }
-
     // ---- Clear methods ----
 
     #[Test]
@@ -682,12 +644,6 @@ final class BoolQueryTest extends TestCase
         $this->assertSame($query, $query->clearShould());
         $this->assertSame($query, $query->clearFilter());
         $this->assertSame($query, $query->clear());
-
-        // Soft delete
-        $this->assertSame($query, $query->withTrashed());
-        $this->assertSame($query, $query->onlyTrashed());
-        $this->assertSame($query, $query->excludeTrashed());
-        $this->assertSame($query, $query->softDelete(SoftDeleteMode::WithTrashed));
 
         // Options
         $this->assertSame($query, $query->minimumShouldMatch(1));

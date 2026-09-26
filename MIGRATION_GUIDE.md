@@ -121,10 +121,10 @@ Query::bool()
 Query::bool()->withTrashed()
 Query::bool()->onlyTrashed()
 
-// NEW - on BoolQuery (same methods, but enum-based internally)
-Query::bool()->withTrashed()
-Query::bool()->onlyTrashed()
-Query::bool()->excludeTrashed()  // NEW: explicit exclude
+// NEW - on SearchBuilder, which applies the filter to the whole search
+Book::searchQuery($query)->withTrashed()
+Book::searchQuery($query)->onlyTrashed()
+Book::searchQuery($query)->excludeTrashed()  // NEW: explicit exclude (the default)
 ```
 
 ### Nested Query with Closure

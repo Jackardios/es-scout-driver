@@ -6,7 +6,6 @@ namespace Jackardios\EsScoutDriver\Query\Compound;
 
 use Closure;
 use Illuminate\Support\Traits\Conditionable;
-use Jackardios\EsScoutDriver\Enums\SoftDeleteMode;
 use Jackardios\EsScoutDriver\Exceptions\DuplicateKeyedClauseException;
 use Jackardios\EsScoutDriver\Query\Concerns\HasBoost;
 use Jackardios\EsScoutDriver\Query\Concerns\HasMinimumShouldMatch;
@@ -30,8 +29,6 @@ final class BoolQuery implements QueryInterface
 
     /** @var array<int|string, QueryInterface|array> */
     private array $filter = [];
-
-    private SoftDeleteMode $softDeleteMode = SoftDeleteMode::ExcludeTrashed;
 
     // ---- Set methods (replace all clauses) ----
 
@@ -210,37 +207,6 @@ final class BoolQuery implements QueryInterface
     {
         unset($this->filter[$key]);
         return $this;
-    }
-
-    // ---- Soft delete methods ----
-
-    public function softDelete(SoftDeleteMode $mode): self
-    {
-        $this->softDeleteMode = $mode;
-        return $this;
-    }
-
-    public function withTrashed(): self
-    {
-        $this->softDeleteMode = SoftDeleteMode::WithTrashed;
-        return $this;
-    }
-
-    public function onlyTrashed(): self
-    {
-        $this->softDeleteMode = SoftDeleteMode::OnlyTrashed;
-        return $this;
-    }
-
-    public function excludeTrashed(): self
-    {
-        $this->softDeleteMode = SoftDeleteMode::ExcludeTrashed;
-        return $this;
-    }
-
-    public function getSoftDeleteMode(): SoftDeleteMode
-    {
-        return $this->softDeleteMode;
     }
 
     // ---- Introspection methods ----

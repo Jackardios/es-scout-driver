@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Tests\Unit\Search;
 
-use Jackardios\EsScoutDriver\Enums\SoftDeleteMode;
 use Jackardios\EsScoutDriver\Enums\SortOrder;
 use Jackardios\EsScoutDriver\Query\Compound\BoolQuery;
 use Jackardios\EsScoutDriver\Query\FullText\MatchQuery;
@@ -83,20 +82,6 @@ final class SearchBuilderTest extends TestCase
         $this->assertTrue($bool->hasClauses());
         $this->assertCount(1, $bool->getMustClauses());
         $this->assertCount(1, $bool->getFilterClauses());
-    }
-
-    #[Test]
-    public function bool_query_with_trashed_and_only_trashed(): void
-    {
-        $bool = new BoolQuery();
-        $bool->withTrashed();
-        $this->assertSame(SoftDeleteMode::WithTrashed, $bool->getSoftDeleteMode());
-
-        $bool->onlyTrashed();
-        $this->assertSame(SoftDeleteMode::OnlyTrashed, $bool->getSoftDeleteMode());
-
-        $bool->excludeTrashed();
-        $this->assertSame(SoftDeleteMode::ExcludeTrashed, $bool->getSoftDeleteMode());
     }
 
     #[Test]

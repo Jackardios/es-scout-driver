@@ -399,15 +399,13 @@ When `scout.soft_delete` is enabled:
 Book::searchQuery(Query::matchAll())->execute();
 
 // Include trashed
-$builder = Book::searchQuery(Query::matchAll());
-$builder->boolQuery()->withTrashed();
-$builder->execute();
+Book::searchQuery(Query::matchAll())->withTrashed()->execute();
 
 // Only trashed
-$builder = Book::searchQuery(Query::matchAll());
-$builder->boolQuery()->onlyTrashed();
-$builder->execute();
+Book::searchQuery(Query::matchAll())->onlyTrashed()->execute();
 ```
+
+The mode belongs to the builder, not to a bool query: `clearBoolQuery()` keeps it, and nested bool queries have none.
 
 ## Execution Methods
 
@@ -465,7 +463,7 @@ Book::searchQuery(Query::term('status', 'draft'))
 ```
 
 > `deleteByQuery()` requires an explicit query. Use `Query::matchAll()` to target all visible documents.
-> When `scout.soft_delete=true`, set mode before execution: `$builder->boolQuery()->withTrashed();`.
+> When `scout.soft_delete=true`, set mode before execution: `$builder->withTrashed();`.
 
 ### updateByQuery()
 
@@ -480,7 +478,7 @@ Book::searchQuery(Query::term('status', 'draft'))
 ```
 
 > `updateByQuery()` requires an explicit query. Use `Query::matchAll()` to target all visible documents.
-> When `scout.soft_delete=true`, set mode before execution: `$builder->boolQuery()->withTrashed();`.
+> When `scout.soft_delete=true`, set mode before execution: `$builder->withTrashed();`.
 
 ## Debugging
 
