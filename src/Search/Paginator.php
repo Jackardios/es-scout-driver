@@ -14,6 +14,7 @@ final class Paginator extends LengthAwarePaginator
 
     private SearchResult $searchResult;
 
+    /** @internal Obtain paginators from SearchBuilder::paginate(). */
     public function __construct(
         SearchResult $searchResult,
         int $perPage,

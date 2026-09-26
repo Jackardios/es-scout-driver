@@ -243,6 +243,22 @@ foreach ($result->hits() as $hit) {
 - [Configuration](docs/configuration.md) - Configuration options
 - [Compatibility](docs/compatibility.md) - ES 8.x/9.x version notes
 
+## Backward Compatibility
+
+From 1.0.0 the package follows [Semantic Versioning](https://semver.org). Breaking changes to the public API ship only
+in a new major version.
+
+The public API is every public class, method, constant and property not marked `@internal`: `Searchable`,
+`SearchBuilder`, `SearchResult`, `Hit`, `Suggestion`, `Paginator`, `SearchCursor`, the `Query`, `Agg` and `Sort`
+factories and the classes they return, the enums, the exceptions and the configuration files.
+
+- `QueryInterface`, `AggregationInterface`, `SortInterface` and `EngineInterface` may be implemented outside the
+  package. New methods are added to them only in a major version.
+- `SearchBuilder` may be extended. Its protected members come from `@internal` traits and are not covered.
+- `Engine` is final: to change engine behaviour, implement `EngineInterface` or wrap the engine.
+- `@internal` code (the engine helpers, model resolution, the `fromRaw()` factories, the `Paginator` and
+  `SearchCursor` constructors and every `SearchResult` constructor argument after `$raw`) may change in any release.
+
 ## License
 
 MIT License. See [LICENSE](LICENSE) for details.

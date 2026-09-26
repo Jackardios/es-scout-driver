@@ -106,7 +106,11 @@ final class Suggestion
         return new EloquentCollection($models);
     }
 
-    /** @param array<string, mixed> $raw */
+    /**
+     * @param array<string, mixed> $raw
+     *
+     * @internal
+     */
     public static function fromRaw(array $raw, ?Closure $modelResolver = null): self
     {
         return new self(

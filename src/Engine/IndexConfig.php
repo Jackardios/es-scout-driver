@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * @template TModel of Model
+ *
+ * @internal
  */
 final class IndexConfig
 {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Engine;
 
+/** @internal */
 final class ConnectionOperationRouter
 {
     public const DEFAULT_CONNECTION = '__default__';

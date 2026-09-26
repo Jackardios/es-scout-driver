@@ -74,7 +74,11 @@ final class Hit
         ];
     }
 
-    /** @param array<string, mixed> $rawHit */
+    /**
+     * @param array<string, mixed> $rawHit
+     *
+     * @internal
+     */
     public static function fromRaw(array $rawHit, ?Closure $modelResolver = null): self
     {
         return new self(

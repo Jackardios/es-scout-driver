@@ -7,6 +7,7 @@ namespace Jackardios\EsScoutDriver\Query\Concerns;
 use Closure;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
 
+/** @internal */
 trait ResolvesQueries
 {
     /**

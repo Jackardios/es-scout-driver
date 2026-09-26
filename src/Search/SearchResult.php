@@ -36,7 +36,11 @@ final class SearchResult implements IteratorAggregate
 
     private ?EloquentCollection $parsedModels = null;
 
-    /** @param array<string, mixed> $raw */
+    /**
+     * Only $raw is public API; $modelResolver and $modelHydrationMismatchMode are internal and may change in 1.x.
+     *
+     * @param array<string, mixed> $raw
+     */
     public function __construct(
         public readonly array $raw,
         ?Closure $modelResolver = null,

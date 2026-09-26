@@ -6,6 +6,7 @@ namespace Jackardios\EsScoutDriver\Engine;
 
 use Jackardios\EsScoutDriver\Exceptions\BulkOperationException;
 
+/** @internal */
 trait HandlesBulkResponse
 {
     /** @param array<string, mixed> $response */

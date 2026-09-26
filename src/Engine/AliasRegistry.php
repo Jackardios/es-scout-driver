@@ -9,6 +9,8 @@ use Elastic\Elasticsearch\Client;
 /**
  * Registry for Elasticsearch index aliases with TTL caching.
  * Shared between SearchBuilder clones to prevent N+1 HTTP requests.
+ *
+ * @internal
  */
 class AliasRegistry
 {

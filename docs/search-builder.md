@@ -430,7 +430,7 @@ $rawResponse = $builder->raw();
 
 ### first()
 
-Get the first hit:
+Get the first hit. Unlike Eloquent and Scout, `first()` returns a `Hit` (or `null`), not a model:
 
 ```php
 $hit = $builder->first();

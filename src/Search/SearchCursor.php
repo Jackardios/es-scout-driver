@@ -19,6 +19,7 @@ final class SearchCursor implements IteratorAggregate
     private int $chunkSize;
     private string $keepAlive;
 
+    /** @internal Obtain cursors from SearchBuilder::cursor(). */
     public function __construct(SearchBuilder $builder, int $chunkSize = 1000, string $keepAlive = '5m')
     {
         if ($chunkSize < 1) {
