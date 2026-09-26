@@ -97,8 +97,7 @@ class SearchBuilder
     /** @var array<string, array> index => relations */
     private array $relations = [];
 
-    /** @param QueryInterface|Closure|array|null $query */
-    public function __construct(Model $model, $query = null)
+    public function __construct(Model $model, QueryInterface|Closure|array|null $query = null)
     {
         $this->engine = $model->searchableUsing();
         $this->aliasRegistry = new AliasRegistry($this->engine->getClient());
@@ -112,8 +111,7 @@ class SearchBuilder
 
     // ---- Query methods ----
 
-    /** @param QueryInterface|Closure|array $query */
-    public function query($query): static
+    public function query(QueryInterface|Closure|array $query): static
     {
         $resolved = $this->resolveQueryToArray($query);
 
@@ -319,8 +317,7 @@ class SearchBuilder
         return $this;
     }
 
-    /** @param QueryInterface|Closure|array $query */
-    public function rescore($query, ?int $windowSize = null, ?float $queryWeight = null, ?float $rescoreQueryWeight = null): static
+    public function rescore(QueryInterface|Closure|array $query, ?int $windowSize = null, ?float $queryWeight = null, ?float $rescoreQueryWeight = null): static
     {
         $this->rescore['query']['rescore_query'] = $this->resolveQueryToArray($query);
 
@@ -454,8 +451,7 @@ class SearchBuilder
 
     // ---- Post Filter ----
 
-    /** @param QueryInterface|Closure|array $query */
-    public function postFilter($query): static
+    public function postFilter(QueryInterface|Closure|array $query): static
     {
         $this->postFilter = $this->resolveQueryToArray($query);
         return $this;
