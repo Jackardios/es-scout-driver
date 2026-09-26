@@ -15,15 +15,15 @@ use InvalidArgumentException;
 use Laravel\Scout\Builder;
 use Laravel\Scout\Engines\Engine as ScoutEngine;
 
-class Engine extends ScoutEngine implements EngineInterface
+final class Engine extends ScoutEngine implements EngineInterface
 {
     use ExtractsHitMetadata;
     use HandlesBulkResponse;
 
     public function __construct(
-        protected Client $client,
-        protected bool $refreshDocuments = false,
-        protected ?string $connectionName = null,
+        private Client $client,
+        private bool $refreshDocuments = false,
+        private ?string $connectionName = null,
         private readonly ConnectionOperationRouter $connectionRouter = new ConnectionOperationRouter(),
     ) {}
 
@@ -312,12 +312,12 @@ class Engine extends ScoutEngine implements EngineInterface
         return $response->asArray();
     }
 
-    public function getClient(): ?Client
+    public function getClient(): Client
     {
         return $this->client;
     }
 
-    protected function performSearch(Builder $builder, array $options = []): array
+    private function performSearch(Builder $builder, array $options = []): array
     {
         $params = [
             'index' => $builder->index ?? $builder->model->searchableAs(),
@@ -590,7 +590,7 @@ class Engine extends ScoutEngine implements EngineInterface
         return config('elastic.scout.scout_query_type', 'simple_query_string');
     }
 
-    protected function usesSoftDelete(Model $model): bool
+    private function usesSoftDelete(Model $model): bool
     {
         return in_array(SoftDeletes::class, class_uses_recursive($model));
     }
