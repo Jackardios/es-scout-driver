@@ -1326,12 +1326,12 @@ class SearchBuilder
 
     private function buildFinalQuery(): ?array
     {
-        $hasBoolClauses = $this->boolQuery !== null && $this->boolQuery->hasClauses();
+        $boolQuery = $this->boolQuery?->hasClauses() ? $this->boolQuery : null;
         $softDeleteFilter = $this->buildSoftDeleteFilter();
 
-        if ($this->query !== null && $hasBoolClauses && $this->boolQuery !== null) {
+        if ($this->query !== null && $boolQuery !== null) {
             // Both set: wrap $this->query into must of a cloned BoolQuery to avoid mutation
-            $merged = clone $this->boolQuery;
+            $merged = clone $boolQuery;
             $merged->addMust($this->query);
             if ($softDeleteFilter !== null) {
                 $merged->addFilter($softDeleteFilter);
@@ -1339,13 +1339,13 @@ class SearchBuilder
             return $merged->toArray();
         }
 
-        if ($hasBoolClauses && $this->boolQuery !== null) {
+        if ($boolQuery !== null) {
             if ($softDeleteFilter !== null) {
-                $merged = clone $this->boolQuery;
+                $merged = clone $boolQuery;
                 $merged->addFilter($softDeleteFilter);
                 return $merged->toArray();
             }
-            return $this->boolQuery->toArray();
+            return $boolQuery->toArray();
         }
 
         // If we have a soft delete filter but no bool query, wrap the query in a bool query

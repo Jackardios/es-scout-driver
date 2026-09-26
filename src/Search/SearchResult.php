@@ -121,7 +121,7 @@ final class SearchResult implements IteratorAggregate
             $result = [];
 
             foreach ($raw as $name => $entries) {
-                $result[$name] = Collection::make($entries)
+                $result[(string) $name] = Collection::make(array_values($entries))
                     ->map(fn(array $entry) => Suggestion::fromRaw($entry, $this->modelResolver));
             }
 

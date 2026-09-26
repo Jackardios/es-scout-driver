@@ -87,7 +87,7 @@ final class TermsAggregation implements AggregationInterface
     }
 
     /**
-     * @param 'breadth_first'|'depth_first' $mode
+     * @param string $mode breadth_first or depth_first
      * @return TermsAggregation
      */
     public function collectMode(string $mode): self
