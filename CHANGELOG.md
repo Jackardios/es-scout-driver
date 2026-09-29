@@ -26,6 +26,7 @@ The 1.x line requires Laravel 12 or 13. Laravel 10 and 11 stay on 0.x.
   counterparts.
 - `SearchBuilder::softDelete()`, `withTrashed()`, `onlyTrashed()`, `excludeTrashed()` and `getSoftDeleteMode()`.
 - `PrefixQuery::boost()` and `ExistsQuery::boost()`.
+- `dev-main` is aliased `1.x-dev`, so dependants can require `^1.0@dev` instead of `dev-main`.
 
 ### Fixed
 
