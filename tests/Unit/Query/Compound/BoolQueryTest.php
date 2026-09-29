@@ -722,4 +722,19 @@ final class BoolQueryTest extends TestCase
 
         $this->assertNotSame($originalClauses[0], $clonedClauses[0]);
     }
+
+    #[Test]
+    public function an_empty_bool_query_keeps_its_boost(): void
+    {
+        $this->assertSame(['match_all' => ['boost' => 2.0]], (new BoolQuery())->boost(2.0)->toArray());
+    }
+
+    #[Test]
+    public function an_unknown_section_name_is_refused(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Unknown bool query section `mustNot`');
+
+        (new BoolQuery())->hasClause('mustNot', 'status');
+    }
 }

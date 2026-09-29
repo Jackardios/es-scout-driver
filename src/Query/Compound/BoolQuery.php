@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\EsScoutDriver\Query\Compound;
 
 use Closure;
+use InvalidArgumentException;
 use Illuminate\Support\Traits\Conditionable;
 use Jackardios\EsScoutDriver\Exceptions\DuplicateKeyedClauseException;
 use Jackardios\EsScoutDriver\Query\Concerns\HasBoost;
@@ -211,12 +212,22 @@ final class BoolQuery implements QueryInterface
 
     // ---- Introspection methods ----
 
+    /**
+     * @param string $section must, must_not, should or filter
+     *
+     * @throws InvalidArgumentException for another section name
+     */
     public function hasClause(string $section, string $key): bool
     {
         $clauses = $this->getSection($section);
         return isset($clauses[$key]);
     }
 
+    /**
+     * @param string $section must, must_not, should or filter
+     *
+     * @throws InvalidArgumentException for another section name
+     */
     public function getClause(string $section, string $key): QueryInterface|array|null
     {
         $clauses = $this->getSection($section);
@@ -266,7 +277,10 @@ final class BoolQuery implements QueryInterface
     public function toArray(): array
     {
         if ($this->isEmpty()) {
-            return ['match_all' => new stdClass()];
+            $matchAll = [];
+            $this->applyBoost($matchAll);
+
+            return ['match_all' => $matchAll === [] ? new stdClass() : $matchAll];
         }
 
         $bool = [];
@@ -370,7 +384,10 @@ final class BoolQuery implements QueryInterface
             'must_not' => $this->mustNot,
             'should' => $this->should,
             'filter' => $this->filter,
-            default => [],
+            default => throw new InvalidArgumentException(sprintf(
+                'Unknown bool query section `%s`; expected must, must_not, should or filter.',
+                $section,
+            )),
         };
     }
 }
