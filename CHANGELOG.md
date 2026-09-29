@@ -35,6 +35,8 @@ The 1.x line requires Laravel 12 or 13. Laravel 10 and 11 stay on 0.x.
 
 - `SearchBuilder::clearBoolQuery()` no longer resets the soft-delete mode to excluding trashed documents;
   `clearAll()` still does.
+- `paginate()` throws `InvalidArgumentException` for a page whose offset does not fit in an integer instead of a
+  `TypeError`.
 - An empty `BoolQuery` keeps its boost: it is sent as `match_all` with the boost instead of dropping it.
 - `BoolQuery::hasClause()` and `getClause()` throw `InvalidArgumentException` for a section other than `must`,
   `must_not`, `should` or `filter` (a typo such as `mustNot` returned false or null).

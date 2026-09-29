@@ -1016,6 +1016,10 @@ class SearchBuilder
             throw new \InvalidArgumentException('page must be greater than or equal to 1.');
         }
 
+        if ($page > intdiv(PHP_INT_MAX, $perPage)) {
+            throw new \InvalidArgumentException('page is too large: the offset of its last hit does not fit in an integer.');
+        }
+
         $builder = clone $this;
         $builder->clearSearchAfter();
         $builder->from(($page - 1) * $perPage);

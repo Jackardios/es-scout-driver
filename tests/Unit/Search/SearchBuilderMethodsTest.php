@@ -1509,6 +1509,17 @@ final class SearchBuilderMethodsTest extends TestCase
     }
 
     #[Test]
+    public function paginate_throws_for_a_page_whose_offset_overflows(): void
+    {
+        $builder = $this->createBuilder();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('page is too large');
+
+        $builder->paginate(perPage: 10, page: intdiv(PHP_INT_MAX, 10) + 1);
+    }
+
+    #[Test]
     public function get_query_returns_defensive_copy(): void
     {
         $builder = $this->createBuilder();
