@@ -8,7 +8,7 @@ This document covers version-specific features and compatibility notes for Elast
 |-----------|-------------------|
 | Elasticsearch | 8.x, 9.x |
 | PHP | 8.1+ |
-| Laravel | 10, 11, 12 |
+| Laravel | 10, 11, 12, 13 |
 | elasticsearch-php client | ^8.0 \|\| ^9.0 |
 
 ## Feature Availability by Version
@@ -37,9 +37,10 @@ This document covers version-specific features and compatibility notes for Elast
 
 #### 1. random_score Default Field Changed
 
-In ES 9.x, the default field for `random_score` changed from `_id` to `_seq_no`.
+With a `seed` and no `field`, ES 8.x reads `_id`, whose fielddata is disabled by default, and fails; ES 9.x reads
+`_seq_no`.
 
-**Recommendation:** Always specify the `field` explicitly for consistent behavior:
+**Recommendation:** Always specify the `field` with a seed. Use `_seq_no` or a unique field with doc values, not `_id`:
 
 ```php
 Query::functionScore(Query::matchAll())
