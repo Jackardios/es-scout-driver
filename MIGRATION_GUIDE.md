@@ -355,7 +355,7 @@ use Jackardios\EsScoutDriver\Aggregations\Agg;
 ->aggregate('by_category',
     Agg::terms('category')
         ->size(10)
-        ->subAggregation('avg_price', Agg::avg('price'))
+        ->agg('avg_price', Agg::avg('price'))
 )
 ```
 
@@ -405,7 +405,7 @@ Query::queryString('title:laravel AND status:published')
 Query::simpleQueryString('laravel | php')
 
 // Compound
-Query::functionScore(Query::matchAll())->addScriptScore([...])
+Query::functionScore(Query::matchAll())->addFunction(['script_score' => ['script' => [...]]])
 Query::disMax([Query::match('title', 'a'), Query::match('body', 'a')])
 Query::boosting(positive: Query::match('title', 'a'), negative: Query::term('status', 'draft'))
 Query::constantScore(Query::term('status', 'active'))
@@ -717,7 +717,7 @@ interface QueryInterface {
 | **FunctionScoreQuery** | `scoreMode()` → `functionScoreMode()` |
 | **Namespace** | `Elastic\ScoutDriverPlus` → `Jackardios\EsScoutDriver` |
 | **Query construction** | `Query::match()->field()->query()` → `Query::match(field, query)` |
-| **BoolQuery methods** | `must()` → `addMust()` |
+| **BoolQuery methods** | `must()` etc. keep their names; `addMust()` etc. add one query under an optional key |
 | **SearchBuilder** | `load()` → `with()`, `setEloquentQueryCallback()` → `modifyQuery()` |
 | **Rescore** | 3 methods → 1 combined method |
 | **Hit access** | Methods (`->document()->id()`) → Properties (`->documentId`) |
