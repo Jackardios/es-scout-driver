@@ -29,7 +29,8 @@ The 1.x line requires Laravel 12 or 13. Laravel 10 and 11 stay on 0.x.
 
 ### Fixed
 
-- `SearchBuilder::clearBoolQuery()` no longer resets the soft-delete mode to excluding trashed documents.
+- `SearchBuilder::clearBoolQuery()` no longer resets the soft-delete mode to excluding trashed documents;
+  `clearAll()` still does.
 
 ### Changed
 

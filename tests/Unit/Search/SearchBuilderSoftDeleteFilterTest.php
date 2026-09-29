@@ -74,6 +74,60 @@ final class SearchBuilderSoftDeleteFilterTest extends TestCase
     }
 
     #[Test]
+    public function a_bool_of_should_clauses_alone_still_requires_one_of_them(): void
+    {
+        $query = NonSoftDeleteModel::searchQuery()
+            ->should(Query::term('tag', 'a'))
+            ->should(Query::term('tag', 'b'))
+            ->toArray()['body']['query'];
+
+        $this->assertSame(
+            [['bool' => ['should' => [
+                ['term' => ['tag' => ['value' => 'a']]],
+                ['term' => ['tag' => ['value' => 'b']]],
+            ]]]],
+            $query['bool']['must'],
+        );
+        $this->assertCount(1, $query['bool']['filter']);
+        $this->assertStringContainsString('__soft_deleted', json_encode($query['bool']['filter'], JSON_THROW_ON_ERROR));
+        $this->assertArrayNotHasKey('should', $query['bool']);
+    }
+
+    #[Test]
+    public function a_bool_with_a_required_clause_takes_the_soft_delete_filter_beside_it(): void
+    {
+        $query = NonSoftDeleteModel::searchQuery(Query::match('title', 'x'))
+            ->should(Query::term('tag', 'a'))
+            ->filter(Query::term('status', 'active'))
+            ->toArray()['body']['query'];
+
+        $this->assertSame([['match' => ['title' => ['query' => 'x']]]], $query['bool']['must']);
+        $this->assertSame([['term' => ['tag' => ['value' => 'a']]]], $query['bool']['should']);
+        $this->assertCount(2, $query['bool']['filter']);
+        $this->assertSame(['term' => ['status' => ['value' => 'active']]], $query['bool']['filter'][0]);
+    }
+
+    #[Test]
+    public function building_leaves_the_bool_query_unchanged(): void
+    {
+        $builder = NonSoftDeleteModel::searchQuery()->should(Query::term('tag', 'a'));
+        $builder->toArray();
+
+        $this->assertSame(
+            ['bool' => ['should' => [['term' => ['tag' => ['value' => 'a']]]]]],
+            $builder->boolQuery()->toArray(),
+        );
+    }
+
+    #[Test]
+    public function clear_all_resets_the_soft_delete_mode(): void
+    {
+        $builder = NonSoftDeleteModel::searchQuery()->onlyTrashed()->clearAll();
+
+        $this->assertSame(SoftDeleteMode::ExcludeTrashed, $builder->getSoftDeleteMode());
+    }
+
+    #[Test]
     public function soft_delete_mode_setters_return_the_builder(): void
     {
         $builder = NonSoftDeleteModel::searchQuery();

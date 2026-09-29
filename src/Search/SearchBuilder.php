@@ -946,6 +946,7 @@ class SearchBuilder
         $this->queryModifiers = [];
         $this->modelModifiers = [];
         $this->relations = [];
+        $this->softDeleteMode = SoftDeleteMode::ExcludeTrashed;
         return $this;
     }
 
