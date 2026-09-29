@@ -322,7 +322,7 @@ final class BoolQuery implements QueryInterface
     /**
      * @param array<int|string, QueryInterface|array> $clauses
      * @param-out array<int|string, QueryInterface|array> $clauses
-     * @param QueryInterface|Closure(BoolQuery):QueryInterface|array<string, mixed> $query
+     * @param QueryInterface|Closure():(QueryInterface|array<string, mixed>)|array<string, mixed> $query
      * @throws DuplicateKeyedClauseException
      */
     private function addClause(
@@ -333,7 +333,7 @@ final class BoolQuery implements QueryInterface
         bool $ignoreIfKeyExists,
     ): void {
         /** @var QueryInterface|array<string, mixed> $resolved */
-        $resolved = $query instanceof Closure ? $query($this) : $query;
+        $resolved = $query instanceof Closure ? $query() : $query;
 
         if ($key !== null) {
             if (isset($clauses[$key])) {

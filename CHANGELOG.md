@@ -17,6 +17,9 @@ The 1.x line requires Laravel 12 or 13. Laravel 10 and 11 stay on 0.x.
 - `SearchBuilder::__construct()`, `query()`, `rescore()`, `postFilter()` and `Searchable::searchQuery()` type their
   `$query` parameter as `QueryInterface|Closure|array` (nullable in the constructor and `searchQuery()`). Other values
   throw a `TypeError` at the call.
+- A closure given to `BoolQuery`'s `addMust()`, `must()` and the other clause methods, or to the same `SearchBuilder`
+  methods, is called without arguments, like every other query closure. It used to receive the bool query itself,
+  and returning it made the query contain itself.
 - Classes and methods marked `@internal` are outside the compatibility promise; see "Backward Compatibility" in the
   README.
 

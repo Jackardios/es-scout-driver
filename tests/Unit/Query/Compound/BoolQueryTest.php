@@ -737,4 +737,18 @@ final class BoolQueryTest extends TestCase
 
         (new BoolQuery())->hasClause('mustNot', 'status');
     }
+
+    #[Test]
+    public function a_clause_closure_is_called_without_arguments(): void
+    {
+        $received = null;
+
+        (new BoolQuery())->addMust(function (...$arguments) use (&$received) {
+            $received = $arguments;
+
+            return new TermQuery('status', 'active');
+        });
+
+        $this->assertSame([], $received);
+    }
 }
