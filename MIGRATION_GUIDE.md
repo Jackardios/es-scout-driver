@@ -127,7 +127,7 @@ Book::searchQuery($query)->onlyTrashed()
 Book::searchQuery($query)->excludeTrashed()  // NEW: explicit exclude (the default)
 ```
 
-### Nested Query with Closure
+### Nested Query
 
 ```php
 // OLD
@@ -135,8 +135,8 @@ Query::nested()->path('comments')->query(
     Query::bool()->must(Query::term()->field('comments.user')->value('john'))
 )
 
-// NEW - closure receives BoolQuery
-Query::nested('comments', fn(BoolQuery $q) => $q
+// NEW
+Query::nested('comments', Query::bool()
     ->addMust(Query::term('comments.user', 'john'))
 )
 
@@ -604,7 +604,7 @@ Product::searchQuery(
 )->execute();
 // NEW
 Product::searchQuery(
-    Query::nested('variants', fn(BoolQuery $q) => $q
+    Query::nested('variants', Query::bool()
         ->addMust(Query::term('variants.color', 'red'))
         ->addMust(Query::range('variants.price')->lte(50))
     )
