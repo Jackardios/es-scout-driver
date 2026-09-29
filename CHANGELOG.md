@@ -10,6 +10,9 @@ First tagged release, cut from `bb72a59`. Supports Laravel 10â€“13 and Scout 10â
   custom driver closures to the manager.
 - Scout 11: `where()` clauses, including the `__soft_deleted` constraint Scout adds for soft-deleting models, build
   valid queries again. Scout 11 stores them as `field`/`operator`/`value` entries.
+- The soft-delete filter no longer turns off the should clauses of a bool query that has no must or filter clause: such
+  a query matched every document that was not trashed, and `deleteByQuery()`/`updateByQuery()` acted on all of them.
+  The bool is wrapped in a must clause when a filter beside it would change what it matches.
 
 ### Added
 

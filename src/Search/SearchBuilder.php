@@ -1329,26 +1329,20 @@ class SearchBuilder
         $boolQuery = $this->boolQuery?->hasClauses() ? $this->boolQuery : null;
         $softDeleteFilter = $this->buildSoftDeleteFilter();
 
-        if ($this->query !== null && $boolQuery !== null) {
-            // Both set: wrap $this->query into must of a cloned BoolQuery to avoid mutation
-            $merged = clone $boolQuery;
-            $merged->addMust($this->query);
-            if ($softDeleteFilter !== null) {
-                $merged->addFilter($softDeleteFilter);
-            }
-            return $merged->toArray();
-        }
-
         if ($boolQuery !== null) {
-            if ($softDeleteFilter !== null) {
-                $merged = clone $boolQuery;
-                $merged->addFilter($softDeleteFilter);
-                return $merged->toArray();
+            if ($this->query === null && $softDeleteFilter === null) {
+                return $boolQuery->toArray();
             }
-            return $boolQuery->toArray();
+
+            $merged = clone $boolQuery;
+
+            if ($this->query !== null) {
+                $merged->addMust($this->query);
+            }
+
+            return ($softDeleteFilter !== null ? $this->withSoftDeleteFilter($merged, $softDeleteFilter) : $merged)->toArray();
         }
 
-        // If we have a soft delete filter but no bool query, wrap the query in a bool query
         if ($softDeleteFilter !== null) {
             $bool = new BoolQuery();
             if ($this->query !== null) {
@@ -1359,6 +1353,20 @@ class SearchBuilder
         }
 
         return $this->query;
+    }
+
+    /**
+     * Adds the soft delete filter without changing what the query matches: a
+     * bool of should clauses alone requires one of them to match, which a
+     * filter clause beside them would turn off, so such a bool is wrapped.
+     */
+    private function withSoftDeleteFilter(BoolQuery $bool, QueryInterface|array $softDeleteFilter): BoolQuery
+    {
+        if ($bool->getShouldClauses() !== [] && $bool->getMustClauses() === [] && $bool->getFilterClauses() === []) {
+            return (new BoolQuery())->addMust($bool)->addFilter($softDeleteFilter);
+        }
+
+        return $bool->addFilter($softDeleteFilter);
     }
 
     private function buildSoftDeleteFilter(): QueryInterface|array|null
