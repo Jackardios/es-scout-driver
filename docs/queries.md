@@ -360,7 +360,7 @@ Query::functionScore(Query::match('title', 'elasticsearch'))
             'script' => ['source' => "_score * doc['popularity'].value"],
         ],
     ])
-    ->scoreMode('multiply')     // multiply, sum, avg, first, max, min
+    ->functionScoreMode('multiply') // multiply, sum, avg, first, max, min
     ->boostMode('multiply')     // multiply, replace, sum, avg, max, min
     ->maxBoost(10)
     ->minScore(1)
