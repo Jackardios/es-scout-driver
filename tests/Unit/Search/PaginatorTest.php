@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\EsScoutDriver\Tests\Unit\Search;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Pagination\AbstractPaginator;
 use Jackardios\EsScoutDriver\Exceptions\InvalidSearchResultException;
 use Jackardios\EsScoutDriver\Search\Hit;
 use Jackardios\EsScoutDriver\Search\Paginator;
@@ -14,6 +15,19 @@ use PHPUnit\Framework\TestCase;
 
 final class PaginatorTest extends TestCase
 {
+    /**
+     * A Testbench test run before this one leaves resolvers that read the
+     * request of an application that no longer exists.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        AbstractPaginator::currentPageResolver(static fn() => 1);
+        AbstractPaginator::currentPathResolver(static fn() => '/');
+        AbstractPaginator::queryStringResolver(static fn() => []);
+    }
+
     #[Test]
     public function it_returns_search_result(): void
     {
