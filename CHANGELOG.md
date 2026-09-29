@@ -20,6 +20,8 @@ First tagged release, cut from `bb72a59`. Supports Laravel 10–13 and Scout 10�
 
 ### Changed
 
+- The Illuminate components in use are required at Laravel 10–13, so Composer no longer installs the package on
+  Laravel 9.
 - `where($field, null)` matches documents without the field (`!=` matches documents with it) instead of sending a
   `term` query for `null`. Other operators, such as `like`, throw `InvalidArgumentException`.
 - `laravel/scout` no longer allows the unreleased `^12.0`.
