@@ -132,6 +132,15 @@ final class SearchBuilderMethodsTest extends TestCase
     }
 
     #[Test]
+    public function query_closure_must_return_a_query(): void
+    {
+        $this->expectException(InvalidQueryException::class);
+        $this->expectExceptionMessage('A query closure must return a Jackardios\\EsScoutDriver\\Query\\QueryInterface or an array, string returned');
+
+        $this->createBuilder()->query(fn() => 'match_all');
+    }
+
+    #[Test]
     public function clear_query(): void
     {
         $builder = $this->createBuilder();

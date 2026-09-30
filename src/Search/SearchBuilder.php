@@ -25,6 +25,7 @@ use Jackardios\EsScoutDriver\Aggregations\AggregationInterface;
 use Jackardios\EsScoutDriver\Query\Compound\BoolQuery;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
 use Jackardios\EsScoutDriver\Query\Specialized\KnnQuery;
+use Jackardios\EsScoutDriver\Query\SubQuery;
 use Jackardios\EsScoutDriver\Query\Term\TermQuery;
 use Jackardios\EsScoutDriver\Searchable;
 use Jackardios\EsScoutDriver\Sort\FieldSort;
@@ -1285,11 +1286,7 @@ class SearchBuilder
      */
     private function resolveQueryToArray(QueryInterface|Closure|array $query, string $name): array
     {
-        if ($query instanceof Closure) {
-            $query = $query();
-        }
-
-        $resolved = $query instanceof QueryInterface ? $query->toArray() : $query;
+        $resolved = SubQuery::toArray(SubQuery::resolve($query));
 
         if ($resolved === []) {
             throw new InvalidQueryException("$name cannot be empty");
