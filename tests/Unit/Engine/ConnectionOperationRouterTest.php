@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\EsScoutDriver\Tests\Unit\Engine;
 
 use Illuminate\Container\Container;
+use InvalidArgumentException;
 use Jackardios\EsScoutDriver\Engine\ConnectionOperationRouter;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -98,5 +99,16 @@ final class ConnectionOperationRouterTest extends TestCase
         $resolved = $router->resolveClientForConnection('analytics', $defaultClient);
 
         $this->assertSame($analyticsClient, $resolved);
+    }
+
+    #[Test]
+    public function resolve_client_refuses_an_unknown_connection(): void
+    {
+        $router = new ConnectionOperationRouter();
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Elasticsearch connection [missing] is not configured in elastic.client.connections.');
+
+        $router->resolveClientForConnection('missing', (new FakeHttpClient())->client());
     }
 }

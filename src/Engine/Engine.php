@@ -236,7 +236,7 @@ final class Engine extends ScoutEngine implements EngineInterface
     public function connection(string $connection): static
     {
         $clone = clone $this;
-        $clone->client = app("elastic.client.connection.$connection");
+        $clone->client = $this->connectionRouter->client($connection);
         $clone->connectionName = $connection;
         return $clone;
     }

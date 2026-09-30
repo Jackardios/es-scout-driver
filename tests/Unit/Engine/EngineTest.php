@@ -115,6 +115,24 @@ final class EngineTest extends TestCase
     }
 
     #[Test]
+    public function connection_switches_to_a_configured_client(): void
+    {
+        $analytics = (new FakeHttpClient())->client();
+        Container::getInstance()->instance('elastic.client.connection.analytics', $analytics);
+
+        $this->assertSame($analytics, $this->createEngineWithMockTransport()->connection('analytics')->getClient());
+    }
+
+    #[Test]
+    public function connection_refuses_an_unknown_connection(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Elasticsearch connection [missing] is not configured in elastic.client.connections.');
+
+        $this->createEngineWithMockTransport()->connection('missing');
+    }
+
+    #[Test]
     public function search_uses_the_configured_scout_query_type(): void
     {
         $engine = $this->createEngineWithMockTransport();

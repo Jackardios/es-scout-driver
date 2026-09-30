@@ -55,7 +55,7 @@ trait Searchable
 
         $connection = $this->searchableConnection();
 
-        return $connection !== null ? $engine->connection($connection) : $engine;
+        return $connection !== null && $connection !== '' ? $engine->connection($connection) : $engine;
     }
 
     public static function openPointInTime(?string $keepAlive = null): string

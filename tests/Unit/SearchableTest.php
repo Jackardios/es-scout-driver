@@ -125,6 +125,26 @@ final class SearchableTest extends TestCase
         $this->assertInstanceOf(SearchableTestEngine::class, $engine);
         $this->assertSame('analytics', $engine->resolvedConnection);
     }
+
+    #[Test]
+    public function searchable_using_keeps_the_default_connection_for_an_empty_name(): void
+    {
+        $model = new class {
+            use Searchable;
+
+            public function baseSearchableUsing(): EngineInterface
+            {
+                return new SearchableTestEngine();
+            }
+
+            public function searchableConnection(): ?string
+            {
+                return '';
+            }
+        };
+
+        $this->assertNull($model->searchableUsing()->resolvedConnection);
+    }
 }
 
 final class SearchableTestEngine implements EngineInterface

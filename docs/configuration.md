@@ -166,6 +166,8 @@ class AnalyticsEvent extends Model
 ```
 
 When using multiple connections:
+- `null` or `''` from `searchableConnection()` means the default connection; a name missing from `connections` throws
+  an `InvalidArgumentException`.
 - `searchQuery()->join(...)` supports only models that share the same `searchableConnection()`.
 - Indexing and delete bulk operations are grouped per model connection automatically.
 

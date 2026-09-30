@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\EsScoutDriver\Engine;
 
 use Elastic\Elasticsearch\Client;
+use InvalidArgumentException;
 
 /** @internal */
 final class ConnectionOperationRouter
@@ -42,6 +43,20 @@ final class ConnectionOperationRouter
             return $defaultClient;
         }
 
-        return app("elastic.client.connection.$connection");
+        return $this->client($connection);
+    }
+
+    public function client(string $connection): Client
+    {
+        $binding = "elastic.client.connection.$connection";
+
+        if (!app()->bound($binding)) {
+            throw new InvalidArgumentException(sprintf(
+                'Elasticsearch connection [%s] is not configured in elastic.client.connections.',
+                $connection,
+            ));
+        }
+
+        return app($binding);
     }
 }
