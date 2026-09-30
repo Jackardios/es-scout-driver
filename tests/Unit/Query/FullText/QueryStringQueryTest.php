@@ -87,8 +87,8 @@ final class QueryStringQueryTest extends TestCase
     {
         $query = (new QueryStringQuery('search text'))
             ->fuzziness('AUTO')
-            ->maxExpansions(50)
-            ->prefixLength(2)
+            ->fuzzyMaxExpansions(50)
+            ->fuzzyPrefixLength(2)
             ->fuzzyTranspositions(true)
             ->fuzzyRewrite('constant_score');
 
@@ -96,12 +96,21 @@ final class QueryStringQueryTest extends TestCase
             'query_string' => [
                 'query' => 'search text',
                 'fuzziness' => 'AUTO',
-                'max_expansions' => 50,
-                'prefix_length' => 2,
+                'fuzzy_prefix_length' => 2,
+                'fuzzy_max_expansions' => 50,
                 'fuzzy_transpositions' => true,
                 'fuzzy_rewrite' => 'constant_score',
             ],
         ], $query->toArray());
+    }
+
+    #[Test]
+    public function it_has_no_match_style_expansion_setters(): void
+    {
+        $query = new QueryStringQuery('search text');
+
+        $this->assertFalse(method_exists($query, 'maxExpansions'));
+        $this->assertFalse(method_exists($query, 'prefixLength'));
     }
 
     #[Test]
@@ -205,8 +214,8 @@ final class QueryStringQueryTest extends TestCase
         $this->assertSame($query, $query->autoGenerateSynonymsPhraseQuery(true));
         $this->assertSame($query, $query->tieBreaker(0.3));
         $this->assertSame($query, $query->fuzziness('AUTO'));
-        $this->assertSame($query, $query->maxExpansions(50));
-        $this->assertSame($query, $query->prefixLength(2));
+        $this->assertSame($query, $query->fuzzyMaxExpansions(50));
+        $this->assertSame($query, $query->fuzzyPrefixLength(2));
         $this->assertSame($query, $query->fuzzyTranspositions(true));
         $this->assertSame($query, $query->fuzzyRewrite('constant_score'));
         $this->assertSame($query, $query->phraseSlop(2));

@@ -9,9 +9,9 @@ use Jackardios\EsScoutDriver\Query\Concerns\HasAnalyzeWildcard;
 use Jackardios\EsScoutDriver\Query\Concerns\HasAutoGenerateSynonymsPhraseQuery;
 use Jackardios\EsScoutDriver\Query\Concerns\HasBoost;
 use Jackardios\EsScoutDriver\Query\Concerns\HasDefaultOperator;
-use Jackardios\EsScoutDriver\Query\Concerns\HasFuzziness;
 use Jackardios\EsScoutDriver\Query\Concerns\HasLenient;
 use Jackardios\EsScoutDriver\Query\Concerns\HasMinimumShouldMatch;
+use Jackardios\EsScoutDriver\Query\Concerns\HasQueryStringFuzziness;
 use Jackardios\EsScoutDriver\Query\Concerns\HasRewrite;
 use Jackardios\EsScoutDriver\Query\Concerns\HasTieBreaker;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
@@ -23,9 +23,9 @@ final class QueryStringQuery implements QueryInterface
     use HasAutoGenerateSynonymsPhraseQuery;
     use HasBoost;
     use HasDefaultOperator;
-    use HasFuzziness;
     use HasLenient;
     use HasMinimumShouldMatch;
+    use HasQueryStringFuzziness;
     use HasRewrite;
     use HasTieBreaker;
 
@@ -38,6 +38,8 @@ final class QueryStringQuery implements QueryInterface
     private ?string $quoteAnalyzer = null;
     private ?bool $enablePositionIncrements = null;
     private ?bool $escape = null;
+    private string|int|null $fuzziness = null;
+    private ?string $fuzzyRewrite = null;
 
     public function __construct(
         private string $query,
@@ -53,6 +55,18 @@ final class QueryStringQuery implements QueryInterface
     public function fields(array $fields): self
     {
         $this->fields = $fields;
+        return $this;
+    }
+
+    public function fuzziness(string|int $fuzziness): self
+    {
+        $this->fuzziness = $fuzziness;
+        return $this;
+    }
+
+    public function fuzzyRewrite(string $fuzzyRewrite): self
+    {
+        $this->fuzzyRewrite = $fuzzyRewrite;
         return $this;
     }
 
@@ -117,7 +131,17 @@ final class QueryStringQuery implements QueryInterface
         }
 
         $this->applyAutoGenerateSynonymsPhraseQuery($params);
-        $this->applyFuzziness($params);
+
+        if ($this->fuzziness !== null) {
+            $params['fuzziness'] = $this->fuzziness;
+        }
+
+        $this->applyQueryStringFuzziness($params);
+
+        if ($this->fuzzyRewrite !== null) {
+            $params['fuzzy_rewrite'] = $this->fuzzyRewrite;
+        }
+
         $this->applyRewrite($params);
         $this->applyTieBreaker($params);
 
