@@ -8,6 +8,7 @@ use Closure;
 use Jackardios\EsScoutDriver\Query\Concerns\HasIgnoreUnmapped;
 use Jackardios\EsScoutDriver\Query\Concerns\HasInnerHits;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
+use Jackardios\EsScoutDriver\Query\SubQuery;
 
 final class HasParentQuery implements QueryInterface
 {
@@ -17,12 +18,11 @@ final class HasParentQuery implements QueryInterface
     private QueryInterface|array $query;
     private ?bool $score = null;
 
-    /** @param QueryInterface|Closure|array $query */
     public function __construct(
         private string $parentType,
         QueryInterface|Closure|array $query,
     ) {
-        $this->query = $query instanceof Closure ? $query() : $query;
+        $this->query = SubQuery::resolve($query);
     }
 
     public function score(bool $score = true): self
@@ -36,7 +36,7 @@ final class HasParentQuery implements QueryInterface
     {
         $params = [
             'parent_type' => $this->parentType,
-            'query' => $this->query instanceof QueryInterface ? $this->query->toArray() : $this->query,
+            'query' => SubQuery::toArray($this->query),
         ];
 
         if ($this->score !== null) {

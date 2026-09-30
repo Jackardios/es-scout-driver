@@ -40,4 +40,12 @@ final class IdsQueryTest extends TestCase
         $query = new IdsQuery([]);
         $query->toArray();
     }
+
+    #[Test]
+    public function it_serializes_keyed_values_as_a_list(): void
+    {
+        $query = new IdsQuery([3 => '1', 7 => '2']);
+
+        $this->assertSame(['ids' => ['values' => ['1', '2']]], $query->toArray());
+    }
 }

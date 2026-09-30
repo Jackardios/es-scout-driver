@@ -6,6 +6,7 @@ namespace Jackardios\EsScoutDriver\Tests\Unit\Query\Joining;
 
 use Jackardios\EsScoutDriver\Query\Joining\HasParentQuery;
 use Jackardios\EsScoutDriver\Query\Term\TermQuery;
+use Jackardios\EsScoutDriver\Exceptions\InvalidQueryException;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -178,5 +179,14 @@ final class HasParentQueryTest extends TestCase
         $cloned = clone $query;
 
         $this->assertEquals($query->toArray(), $cloned->toArray());
+    }
+
+    #[Test]
+    public function a_closure_returning_something_else_is_refused(): void
+    {
+        $this->expectException(InvalidQueryException::class);
+        $this->expectExceptionMessage('A query closure must return');
+
+        new HasParentQuery('post', fn() => null);
     }
 }

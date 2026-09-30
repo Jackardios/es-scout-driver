@@ -6,6 +6,7 @@ namespace Jackardios\EsScoutDriver\Query\Specialized;
 
 use Jackardios\EsScoutDriver\Query\Concerns\HasBoost;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
+use Jackardios\EsScoutDriver\Query\SubQuery;
 
 final class PinnedQuery implements QueryInterface
 {
@@ -45,17 +46,15 @@ final class PinnedQuery implements QueryInterface
     public function toArray(): array
     {
         $params = [
-            'organic' => $this->organic instanceof QueryInterface
-                ? $this->organic->toArray()
-                : $this->organic,
+            'organic' => SubQuery::toArray($this->organic),
         ];
 
         if ($this->ids !== null) {
-            $params['ids'] = $this->ids;
+            $params['ids'] = array_values($this->ids);
         }
 
         if ($this->docs !== null) {
-            $params['docs'] = $this->docs;
+            $params['docs'] = array_values($this->docs);
         }
 
         $this->applyBoost($params);

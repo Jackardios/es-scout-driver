@@ -40,4 +40,12 @@ final class TermsQueryTest extends TestCase
 
         $this->assertSame($query, $query->boost(1.5));
     }
+
+    #[Test]
+    public function it_serializes_keyed_values_as_a_list(): void
+    {
+        $query = new TermsQuery('status', [5 => 'published', 9 => 'draft']);
+
+        $this->assertSame(['terms' => ['status' => ['published', 'draft']]], $query->toArray());
+    }
 }

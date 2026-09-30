@@ -57,7 +57,7 @@ final class SimpleQueryStringQuery implements QueryInterface
         $params = ['query' => $this->query];
 
         if ($this->fields !== null) {
-            $params['fields'] = $this->fields;
+            $params['fields'] = array_values($this->fields);
         }
 
         $this->applyDefaultOperator($params);

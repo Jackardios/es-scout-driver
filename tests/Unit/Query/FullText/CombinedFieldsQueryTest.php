@@ -142,4 +142,12 @@ final class CombinedFieldsQueryTest extends TestCase
         $this->assertSame($query, $query->zeroTermsQuery('none'));
         $this->assertSame($query, $query->autoGenerateSynonymsPhraseQuery(false));
     }
+
+    #[Test]
+    public function it_serializes_keyed_fields_as_a_list(): void
+    {
+        $query = new CombinedFieldsQuery([1 => 'title', 2 => 'body'], 'search');
+
+        $this->assertSame(['title', 'body'], $query->toArray()['combined_fields']['fields']);
+    }
 }

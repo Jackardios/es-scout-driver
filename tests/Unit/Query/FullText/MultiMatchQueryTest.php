@@ -117,4 +117,12 @@ final class MultiMatchQueryTest extends TestCase
 
         new MultiMatchQuery([], 'search text');
     }
+
+    #[Test]
+    public function it_serializes_keyed_fields_as_a_list(): void
+    {
+        $query = new MultiMatchQuery([1 => 'title', 2 => 'body'], 'search');
+
+        $this->assertSame(['title', 'body'], $query->toArray()['multi_match']['fields']);
+    }
 }

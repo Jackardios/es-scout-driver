@@ -51,7 +51,7 @@ final class MultiMatchQuery implements QueryInterface
     public function toArray(): array
     {
         $params = [
-            'fields' => $this->fields,
+            'fields' => array_values($this->fields),
             'query' => $this->query,
         ];
 

@@ -179,4 +179,15 @@ final class MoreLikeThisQueryTest extends TestCase
         $this->assertSame($query, $query->failOnUnsupportedField(false));
         $this->assertSame($query, $query->minimumShouldMatch('75%'));
     }
+
+    #[Test]
+    public function it_serializes_keyed_fields_and_stop_words_as_lists(): void
+    {
+        $query = (new MoreLikeThisQuery([1 => 'title', 2 => 'body'], 'text'))->stopWords([4 => 'the', 8 => 'a']);
+
+        $result = $query->toArray()['more_like_this'];
+
+        $this->assertSame(['title', 'body'], $result['fields']);
+        $this->assertSame(['the', 'a'], $result['stop_words']);
+    }
 }

@@ -7,6 +7,7 @@ namespace Jackardios\EsScoutDriver\Query\Compound;
 use Closure;
 use Jackardios\EsScoutDriver\Query\Concerns\HasBoost;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
+use Jackardios\EsScoutDriver\Query\SubQuery;
 
 final class ConstantScoreQuery implements QueryInterface
 {
@@ -14,17 +15,16 @@ final class ConstantScoreQuery implements QueryInterface
 
     private QueryInterface|array $filter;
 
-    /** @param QueryInterface|Closure|array $filter */
     public function __construct(QueryInterface|Closure|array $filter)
     {
-        $this->filter = $filter instanceof Closure ? $filter() : $filter;
+        $this->filter = SubQuery::resolve($filter);
     }
 
     /** @return array<string, mixed> */
     public function toArray(): array
     {
         $params = [
-            'filter' => $this->filter instanceof QueryInterface ? $this->filter->toArray() : $this->filter,
+            'filter' => SubQuery::toArray($this->filter),
         ];
 
         $this->applyBoost($params);

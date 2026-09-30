@@ -7,6 +7,7 @@ namespace Jackardios\EsScoutDriver\Query\Specialized;
 use Jackardios\EsScoutDriver\Exceptions\InvalidQueryException;
 use Jackardios\EsScoutDriver\Query\Concerns\HasBoost;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
+use Jackardios\EsScoutDriver\Query\SubQuery;
 
 /**
  * K-nearest neighbors (kNN) vector search query.
@@ -74,7 +75,7 @@ final class KnnQuery implements QueryInterface
     {
         $params = [
             'field' => $this->field,
-            'query_vector' => $this->queryVector,
+            'query_vector' => array_values($this->queryVector),
             'k' => $this->k,
         ];
 
@@ -87,9 +88,7 @@ final class KnnQuery implements QueryInterface
         }
 
         if ($this->filter !== null) {
-            $params['filter'] = $this->filter instanceof QueryInterface
-                ? $this->filter->toArray()
-                : $this->filter;
+            $params['filter'] = SubQuery::toArray($this->filter);
         }
 
         $this->applyBoost($params);

@@ -140,4 +140,12 @@ final class SimpleQueryStringQueryTest extends TestCase
         $this->assertSame($query, $query->fuzzyTranspositions(false));
         $this->assertSame($query, $query->quoteFieldSuffix('.exact'));
     }
+
+    #[Test]
+    public function it_serializes_keyed_fields_as_a_list(): void
+    {
+        $query = (new SimpleQueryStringQuery('search'))->fields([1 => 'title', 2 => 'body']);
+
+        $this->assertSame(['title', 'body'], $query->toArray()['simple_query_string']['fields']);
+    }
 }

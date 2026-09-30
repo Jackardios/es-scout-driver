@@ -8,6 +8,7 @@ use Jackardios\EsScoutDriver\Exceptions\InvalidQueryException;
 use Jackardios\EsScoutDriver\Query\Concerns\HasBoost;
 use Jackardios\EsScoutDriver\Query\Concerns\HasTieBreaker;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
+use Jackardios\EsScoutDriver\Query\SubQuery;
 
 final class DisMaxQuery implements QueryInterface
 {
@@ -23,7 +24,6 @@ final class DisMaxQuery implements QueryInterface
         $this->queries = $queries;
     }
 
-    /** @param QueryInterface|array ...$queries */
     public function queries(QueryInterface|array ...$queries): self
     {
         $this->queries = array_values($queries);
@@ -44,10 +44,7 @@ final class DisMaxQuery implements QueryInterface
         }
 
         $params = [
-            'queries' => array_map(
-                static fn(QueryInterface|array $q) => $q instanceof QueryInterface ? $q->toArray() : $q,
-                $this->queries,
-            ),
+            'queries' => array_map(SubQuery::toArray(...), array_values($this->queries)),
         ];
 
         $this->applyTieBreaker($params);

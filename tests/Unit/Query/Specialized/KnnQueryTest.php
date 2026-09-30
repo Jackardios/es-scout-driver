@@ -190,4 +190,12 @@ final class KnnQueryTest extends TestCase
 
         new KnnQuery('embedding', [], 10);
     }
+
+    #[Test]
+    public function it_serializes_a_keyed_query_vector_as_a_list(): void
+    {
+        $query = new KnnQuery('embedding', [1 => 0.1, 2 => 0.2], 1);
+
+        $this->assertSame([0.1, 0.2], $query->toArray()['knn']['query_vector']);
+    }
 }

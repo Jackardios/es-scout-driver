@@ -9,6 +9,7 @@ use Jackardios\EsScoutDriver\Query\Concerns\HasIgnoreUnmapped;
 use Jackardios\EsScoutDriver\Query\Concerns\HasInnerHits;
 use Jackardios\EsScoutDriver\Query\Concerns\HasScoreMode;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
+use Jackardios\EsScoutDriver\Query\SubQuery;
 
 final class NestedQuery implements QueryInterface
 {
@@ -18,12 +19,11 @@ final class NestedQuery implements QueryInterface
 
     private QueryInterface|array $query;
 
-    /** @param QueryInterface|Closure|array $query */
     public function __construct(
         private string $path,
         QueryInterface|Closure|array $query,
     ) {
-        $this->query = $query instanceof Closure ? $query() : $query;
+        $this->query = SubQuery::resolve($query);
     }
 
     /** @return array<string, mixed> */
@@ -31,7 +31,7 @@ final class NestedQuery implements QueryInterface
     {
         $params = [
             'path' => $this->path,
-            'query' => $this->query instanceof QueryInterface ? $this->query->toArray() : $this->query,
+            'query' => SubQuery::toArray($this->query),
         ];
 
         $this->applyScoreMode($params);

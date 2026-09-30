@@ -185,4 +185,19 @@ final class DisMaxQueryTest extends TestCase
         $this->assertSame($query, $query->tieBreaker(0.5));
         $this->assertSame($query, $query->boost(1.0));
     }
+
+    #[Test]
+    public function it_serializes_keyed_queries_as_a_list(): void
+    {
+        $query = new DisMaxQuery(['a' => new TermQuery('status', 'draft'), 'b' => ['match_all' => []]]);
+
+        $this->assertSame([
+            'dis_max' => [
+                'queries' => [
+                    ['term' => ['status' => ['value' => 'draft']]],
+                    ['match_all' => []],
+                ],
+            ],
+        ], $query->toArray());
+    }
 }

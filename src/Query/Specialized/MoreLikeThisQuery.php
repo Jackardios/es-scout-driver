@@ -110,7 +110,7 @@ final class MoreLikeThisQuery implements QueryInterface
     public function toArray(): array
     {
         $params = [
-            'fields' => $this->fields,
+            'fields' => array_values($this->fields),
             'like' => $this->like,
         ];
 
@@ -143,7 +143,7 @@ final class MoreLikeThisQuery implements QueryInterface
         }
 
         if ($this->stopWords !== null) {
-            $params['stop_words'] = $this->stopWords;
+            $params['stop_words'] = array_values($this->stopWords);
         }
 
         if ($this->include !== null) {

@@ -225,4 +225,12 @@ final class QueryStringQueryTest extends TestCase
         $this->assertSame($query, $query->escape(true));
         $this->assertSame($query, $query->rewrite('constant_score'));
     }
+
+    #[Test]
+    public function it_serializes_keyed_fields_as_a_list(): void
+    {
+        $query = (new QueryStringQuery('search'))->fields([1 => 'title', 2 => 'body']);
+
+        $this->assertSame(['title', 'body'], $query->toArray()['query_string']['fields']);
+    }
 }

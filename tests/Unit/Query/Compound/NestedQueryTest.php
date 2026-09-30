@@ -6,6 +6,7 @@ namespace Jackardios\EsScoutDriver\Tests\Unit\Query\Compound;
 
 use Jackardios\EsScoutDriver\Query\Compound\NestedQuery;
 use Jackardios\EsScoutDriver\Query\Term\TermQuery;
+use Jackardios\EsScoutDriver\Exceptions\InvalidQueryException;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -134,5 +135,14 @@ final class NestedQueryTest extends TestCase
         $this->assertSame($query, $query->scoreMode('avg'));
         $this->assertSame($query, $query->ignoreUnmapped(true));
         $this->assertSame($query, $query->innerHits());
+    }
+
+    #[Test]
+    public function a_closure_returning_something_else_is_refused(): void
+    {
+        $this->expectException(InvalidQueryException::class);
+        $this->expectExceptionMessage('A query closure must return');
+
+        new NestedQuery('comments', fn() => 'term');
     }
 }

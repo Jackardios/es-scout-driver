@@ -21,6 +21,6 @@ final class IdsQuery implements QueryInterface
             throw new InvalidQueryException('IdsQuery requires at least one value');
         }
 
-        return ['ids' => ['values' => $this->values]];
+        return ['ids' => ['values' => array_values($this->values)]];
     }
 }

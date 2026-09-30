@@ -6,6 +6,7 @@ namespace Jackardios\EsScoutDriver\Query\Specialized;
 
 use Jackardios\EsScoutDriver\Query\Concerns\HasBoost;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
+use Jackardios\EsScoutDriver\Query\SubQuery;
 
 final class ScriptScoreQuery implements QueryInterface
 {
@@ -29,7 +30,7 @@ final class ScriptScoreQuery implements QueryInterface
     public function toArray(): array
     {
         $params = [
-            'query' => $this->query instanceof QueryInterface ? $this->query->toArray() : $this->query,
+            'query' => SubQuery::toArray($this->query),
             'script' => $this->script,
         ];
 

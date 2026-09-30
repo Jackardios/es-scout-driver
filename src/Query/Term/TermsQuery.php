@@ -25,7 +25,7 @@ final class TermsQuery implements QueryInterface
             throw new InvalidQueryException('TermsQuery requires at least one value');
         }
 
-        $query = [$this->field => $this->values];
+        $query = [$this->field => array_values($this->values)];
 
         $this->applyBoost($query);
 

@@ -9,6 +9,7 @@ use Jackardios\EsScoutDriver\Query\Concerns\HasIgnoreUnmapped;
 use Jackardios\EsScoutDriver\Query\Concerns\HasInnerHits;
 use Jackardios\EsScoutDriver\Query\Concerns\HasScoreMode;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
+use Jackardios\EsScoutDriver\Query\SubQuery;
 
 final class HasChildQuery implements QueryInterface
 {
@@ -20,12 +21,11 @@ final class HasChildQuery implements QueryInterface
     private ?int $minChildren = null;
     private ?int $maxChildren = null;
 
-    /** @param QueryInterface|Closure|array $query */
     public function __construct(
         private string $type,
         QueryInterface|Closure|array $query,
     ) {
-        $this->query = $query instanceof Closure ? $query() : $query;
+        $this->query = SubQuery::resolve($query);
     }
 
     public function minChildren(int $minChildren): self
@@ -45,7 +45,7 @@ final class HasChildQuery implements QueryInterface
     {
         $params = [
             'type' => $this->type,
-            'query' => $this->query instanceof QueryInterface ? $this->query->toArray() : $this->query,
+            'query' => SubQuery::toArray($this->query),
         ];
 
         $this->applyScoreMode($params);

@@ -133,4 +133,20 @@ final class PinnedQueryTest extends TestCase
         $this->assertSame($query, $query->doc('idx', 'id'));
         $this->assertSame($query, $query->boost(2.0));
     }
+
+    #[Test]
+    public function it_serializes_keyed_ids_as_a_list(): void
+    {
+        $query = (new PinnedQuery(['match_all' => []]))->ids([3 => '1', 5 => '2']);
+
+        $this->assertSame(['1', '2'], $query->toArray()['pinned']['ids']);
+    }
+
+    #[Test]
+    public function it_serializes_keyed_docs_as_a_list(): void
+    {
+        $query = (new PinnedQuery(['match_all' => []]))->docs(['a' => ['_index' => 'books', '_id' => '1']]);
+
+        $this->assertSame([['_index' => 'books', '_id' => '1']], $query->toArray()['pinned']['docs']);
+    }
 }

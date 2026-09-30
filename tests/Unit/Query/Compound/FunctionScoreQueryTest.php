@@ -6,6 +6,8 @@ namespace Jackardios\EsScoutDriver\Tests\Unit\Query\Compound;
 
 use Jackardios\EsScoutDriver\Query\Compound\FunctionScoreQuery;
 use Jackardios\EsScoutDriver\Query\Specialized\MatchAllQuery;
+use Jackardios\EsScoutDriver\Exceptions\InvalidQueryException;
+use Jackardios\EsScoutDriver\Query\Term\TermQuery;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -230,5 +232,44 @@ final class FunctionScoreQueryTest extends TestCase
         $this->assertSame($query, $query->maxBoost(10.0));
         $this->assertSame($query, $query->minScore(1.0));
         $this->assertSame($query, $query->boost(1.0));
+    }
+
+    #[Test]
+    public function a_closure_returning_something_else_is_refused(): void
+    {
+        $this->expectException(InvalidQueryException::class);
+        $this->expectExceptionMessage('A query closure must return');
+
+        (new FunctionScoreQuery())->query(fn() => null);
+    }
+
+    #[Test]
+    public function it_serializes_a_query_object_in_a_function_filter(): void
+    {
+        $query = (new FunctionScoreQuery())
+            ->addFunction(['weight' => 2, 'filter' => new TermQuery('status', 'draft')]);
+
+        $this->assertSame([
+            'function_score' => [
+                'functions' => [
+                    ['weight' => 2, 'filter' => ['term' => ['status' => ['value' => 'draft']]]],
+                ],
+            ],
+        ], $query->toArray());
+    }
+
+    #[Test]
+    public function it_deep_clones_a_query_object_in_a_function_filter(): void
+    {
+        $filter = new TermQuery('status', 'draft');
+        $original = (new FunctionScoreQuery())->addFunction(['weight' => 2, 'filter' => $filter]);
+
+        $cloned = clone $original;
+        $filter->boost(3.0);
+
+        $this->assertSame(
+            ['term' => ['status' => ['value' => 'draft']]],
+            $cloned->toArray()['function_score']['functions'][0]['filter'],
+        );
     }
 }

@@ -6,6 +6,7 @@ namespace Jackardios\EsScoutDriver\Tests\Unit\Query\Compound;
 
 use Jackardios\EsScoutDriver\Query\Compound\ConstantScoreQuery;
 use Jackardios\EsScoutDriver\Query\Term\TermQuery;
+use Jackardios\EsScoutDriver\Exceptions\InvalidQueryException;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -96,5 +97,14 @@ final class ConstantScoreQueryTest extends TestCase
         $cloned = clone $query;
 
         $this->assertEquals($query->toArray(), $cloned->toArray());
+    }
+
+    #[Test]
+    public function a_closure_returning_something_else_is_refused(): void
+    {
+        $this->expectException(InvalidQueryException::class);
+        $this->expectExceptionMessage('A query closure must return');
+
+        new ConstantScoreQuery(fn() => null);
     }
 }

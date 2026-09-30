@@ -9,6 +9,7 @@ use Jackardios\EsScoutDriver\Enums\BoostMode;
 use Jackardios\EsScoutDriver\Query\Concerns\HasBoost;
 use Jackardios\EsScoutDriver\Query\Concerns\HasFunctionScoreMode;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
+use Jackardios\EsScoutDriver\Query\SubQuery;
 
 final class FunctionScoreQuery implements QueryInterface
 {
@@ -26,10 +27,9 @@ final class FunctionScoreQuery implements QueryInterface
         $this->query = $query;
     }
 
-    /** @param QueryInterface|Closure|array $query */
     public function query(QueryInterface|Closure|array $query): self
     {
-        $this->query = $query instanceof Closure ? $query() : $query;
+        $this->query = SubQuery::resolve($query);
         return $this;
     }
 
@@ -69,11 +69,20 @@ final class FunctionScoreQuery implements QueryInterface
         $params = [];
 
         if ($this->query !== null) {
-            $params['query'] = $this->query instanceof QueryInterface ? $this->query->toArray() : $this->query;
+            $params['query'] = SubQuery::toArray($this->query);
         }
 
         if ($this->functions !== []) {
-            $params['functions'] = $this->functions;
+            $params['functions'] = array_map(
+                static function (array $function): array {
+                    if (($function['filter'] ?? null) instanceof QueryInterface) {
+                        $function['filter'] = $function['filter']->toArray();
+                    }
+
+                    return $function;
+                },
+                $this->functions,
+            );
         }
 
         $this->applyFunctionScoreMode($params);
@@ -99,6 +108,12 @@ final class FunctionScoreQuery implements QueryInterface
     {
         if ($this->query instanceof QueryInterface) {
             $this->query = clone $this->query;
+        }
+
+        foreach ($this->functions as $index => $function) {
+            if (($function['filter'] ?? null) instanceof QueryInterface) {
+                $this->functions[$index]['filter'] = clone $function['filter'];
+            }
         }
     }
 }

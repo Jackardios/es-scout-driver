@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\EsScoutDriver\Query\Compound;
 
 use Jackardios\EsScoutDriver\Query\QueryInterface;
+use Jackardios\EsScoutDriver\Query\SubQuery;
 
 final class BoostingQuery implements QueryInterface
 {
@@ -25,12 +26,8 @@ final class BoostingQuery implements QueryInterface
     public function toArray(): array
     {
         $params = [
-            'positive' => $this->positive instanceof QueryInterface
-                ? $this->positive->toArray()
-                : $this->positive,
-            'negative' => $this->negative instanceof QueryInterface
-                ? $this->negative->toArray()
-                : $this->negative,
+            'positive' => SubQuery::toArray($this->positive),
+            'negative' => SubQuery::toArray($this->negative),
         ];
 
         if ($this->negativeBoost !== null) {
