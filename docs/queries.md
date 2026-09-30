@@ -370,8 +370,8 @@ Query::functionScore(Query::match('title', 'elasticsearch'))
 
 // With weight function
 Query::functionScore(Query::matchAll())
-    ->addFunction(['weight' => 2.0, 'filter' => Query::term('featured', true)->toArray()])
-    ->addFunction(['weight' => 1.5, 'filter' => Query::term('premium', true)->toArray()])
+    ->addFunction(['weight' => 2.0, 'filter' => Query::term('featured', true)])
+    ->addFunction(['weight' => 1.5, 'filter' => Query::term('premium', true)])
 
 // With field value factor
 Query::functionScore(Query::matchAll())

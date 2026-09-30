@@ -34,12 +34,14 @@ final class FunctionScoreQuery implements QueryInterface
         return $this;
     }
 
+    /** @param array<string, mixed> ...$functions functions whose `filter` may be a QueryInterface */
     public function functions(array ...$functions): self
     {
         $this->functions = array_values($functions);
         return $this;
     }
 
+    /** @param array<string, mixed> $function a function whose `filter` may be a QueryInterface */
     public function addFunction(array $function): self
     {
         $this->functions[] = $function;
