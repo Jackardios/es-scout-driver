@@ -30,6 +30,19 @@ $result->maxScore;   // ?float - Highest relevance score
 $result->raw;        // array - Raw Elasticsearch response
 ```
 
+### Partial Shard Failures
+
+When some shards fail, Elasticsearch still answers with the hits of the other shards. The driver does not throw or
+log in that case; check the `_shards` section of the raw response when a partial result matters:
+
+```php
+if (($result->raw['_shards']['failed'] ?? 0) > 0) {
+    $failures = $result->raw['_shards']['failures'] ?? [];
+}
+
+$result->raw['timed_out']; // true when timeout() cut the search short
+```
+
 ### Getting Hits
 
 ```php
@@ -144,6 +157,10 @@ $count = $result->aggregationValue('stats_agg', 'count');
 // Buckets
 $buckets = $result->buckets('by_category');
 // Collection of ['key' => 'Fiction', 'doc_count' => 42, ...]
+// Keyed by bucket name for keyed range aggregations and named filters aggregations
+
+// The after_key of a composite aggregation, for the next page
+$afterKey = $result->aggregationValue('by_author', 'after_key');
 ```
 
 ### Iteration
@@ -236,6 +253,10 @@ $paginator = Book::searchQuery(Query::matchAll())
 
 `perPage` must be greater than `0`, and `page` must be greater than or equal to `1`.
 
+The total is exact unless the builder sets `trackTotalHits()`. With `trackTotalHits(int)` Elasticsearch stops counting
+at that number: `total()`, `lastPage()` and `hasMorePages()` then use a lower bound, and
+`$paginator->searchResult()->raw['hits']['total']['relation']` is `gte`.
+
 ### Basic Usage
 
 ```php
@@ -302,7 +323,6 @@ For efficient iteration over large result sets:
 
 ```php
 $cursor = Book::searchQuery(Query::matchAll())
-    ->sort('_id')  // Optional: explicit deterministic order
     ->cursor(chunkSize: 1000, keepAlive: '5m');
 
 foreach ($cursor as $hit) {
@@ -317,14 +337,15 @@ foreach ($cursor as $hit) {
 
 The cursor uses Point-in-Time (PIT) and `search_after` for efficient pagination:
 
-1. Opens a Point-in-Time snapshot
+1. Opens a Point-in-Time snapshot, with the builder's `routing()` and `preference()`
 2. Fetches results in chunks using `search_after`
 3. Automatically closes the PIT when done
 
 ### Requirements
 
-- **Sort is optional** - If not provided, the driver adds `_shard_doc` automatically for PIT pagination
-- **Stable custom order** - If you need deterministic business ordering, specify explicit sort fields and include `_id`
+- **Sort is optional** - The driver ends the sort with `_shard_doc` unless it already contains it, so the order is
+  always deterministic; do not sort on `_id`, which Elasticsearch refuses by default
+- **No rescore** - `rescore()` cannot be combined with a sort, so `cursor()` and `chunk()` throw `LogicException`
 
 ### Memory efficient processing
 
@@ -332,7 +353,6 @@ The cursor uses Point-in-Time (PIT) and `search_after` for efficient pagination:
 // Process millions of documents without loading all into memory
 $cursor = Book::searchQuery(Query::term('status', 'pending'))
     ->sort('created_at')
-    ->sort('_id')
     ->cursor(chunkSize: 500);
 
 foreach ($cursor as $hit) {
@@ -347,7 +367,6 @@ Alternative using `chunk()`:
 
 ```php
 Book::searchQuery(Query::matchAll())
-    ->sort('_id')
     ->chunk(1000, function (array $hits) {
         foreach ($hits as $hit) {
             // Process hit
@@ -412,3 +431,4 @@ $count = Book::searchQuery(
 ```
 
 This runs a search request with `size(0)` and `track_total_hits(true)` to keep counting semantics consistent with the builder options.
+Aggregations, suggesters, highlight, sort, rescore and collapse are left out of that request: they do not change the total.

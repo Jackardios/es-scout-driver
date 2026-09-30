@@ -47,6 +47,9 @@ $builder->must(Query::match('title', 'laravel'), Query::match('author', 'john'))
 
 Adds clauses that should match. Increases the score if matched.
 
+Without `query()`, `must()` or `filter()` on the builder, Elasticsearch requires at least one `should` clause to match,
+so `should()` alone narrows the results. Beside a required clause, `should` clauses are optional and only raise the score.
+
 ```php
 $builder->should(Query::term('featured', true));
 $builder->should(Query::match('title', 'php'), Query::match('title', 'laravel'));
@@ -95,6 +98,9 @@ $paginator = Book::searchQuery(Query::matchAll())
 
 > `perPage` must be greater than `0`, and `page` must be greater than or equal to `1`.
 > `paginate()` automatically resets any previously set `searchAfter()` cursor state.
+> `paginate()` tracks the exact total unless you call `trackTotalHits()`. With `trackTotalHits(int)`, Elasticsearch
+> stops counting at that number, so `total()`, `lastPage()` and `hasMorePages()` are based on a lower bound
+> (`searchResult()->raw['hits']['total']['relation']` is `gte`). `trackTotalHits(false)` throws.
 
 ### cursor()
 
@@ -102,7 +108,6 @@ For efficient iteration over large result sets using Point-in-Time:
 
 ```php
 $cursor = Book::searchQuery(Query::matchAll())
-    ->sort('_id')
     ->cursor(chunkSize: 1000, keepAlive: '5m');
 
 foreach ($cursor as $hit) {
@@ -122,7 +127,6 @@ Process results in chunks:
 
 ```php
 Book::searchQuery(Query::matchAll())
-    ->sort('_id')
     ->chunk(1000, function (array $hits) {
         foreach ($hits as $hit) {
             // Process hit
@@ -465,6 +469,8 @@ Get total count without loading results:
 $count = $builder->count();
 ```
 
+`count()` leaves out aggregations, suggesters, highlight, sort, rescore and collapse, which do not change the total.
+
 ### deleteByQuery()
 
 Delete documents matching the query:
@@ -615,7 +621,7 @@ $pitId = Book::openPointInTime('5m');
 // Use PIT
 $result = Book::searchQuery(Query::matchAll())
     ->pointInTime($pitId)
-    ->sort('_id')
+    ->sort('_shard_doc')
     ->size(100)
     ->execute();
 
@@ -625,13 +631,16 @@ $nextResult = Book::searchQuery(Query::matchAll())
     ->pointInTime($pitId)
     ->searchAfter($lastHit->sort)
     ->from(0) // search_after is only valid with from=0
-    ->sort('_id')
+    ->sort('_shard_doc')
     ->size(100)
     ->execute();
 
 // Close PIT when done
 Book::closePointInTime($pitId);
 ```
+
+Sort a point-in-time search by `_shard_doc` (or end a custom sort with it) for a stable order: Elasticsearch refuses
+to sort on `_id` by default.
 
 A search with `pointInTime()` cannot also use `routing()` or `preference()` (`LogicException`): Elasticsearch takes them
 only when the point in time is opened. To open a routed one, call the engine:

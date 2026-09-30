@@ -147,7 +147,7 @@ final class SearchResult implements IteratorAggregate
         return $this->raw['aggregations'][$name] ?? null;
     }
 
-    /** @return Collection<int, array<string, mixed>> */
+    /** @return Collection<int|string, array<string, mixed>> keyed by bucket name for keyed aggregations */
     public function buckets(string $aggregationName): Collection
     {
         $agg = $this->aggregation($aggregationName);
