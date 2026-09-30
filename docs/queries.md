@@ -632,7 +632,8 @@ Query::knn('embedding', [0.12, -0.34, 0.56, 0.78], k: 10)
     ->boost(5.0)
 ```
 
-`numCandidates()` takes 1 to 10000 and at least `k`. Without it, Elasticsearch picks the number of candidates itself.
+`numCandidates()` takes 1 to 10000 and at least `k`. Without it, the query sends twice `k`, at least 100 and at most
+10000; for a `k` above 10000 it sends none and Elasticsearch picks the number itself.
 
 ### semantic
 

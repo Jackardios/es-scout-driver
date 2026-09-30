@@ -21,6 +21,8 @@ final class KnnQuery implements QueryInterface
 {
     use HasBoost;
 
+    private const MAX_NUM_CANDIDATES = 10000;
+
     private ?int $numCandidates = null;
     private ?float $similarity = null;
     private QueryInterface|array|null $filter = null;
@@ -46,7 +48,7 @@ final class KnnQuery implements QueryInterface
             throw new InvalidQueryException('KnnQuery requires numCandidates to be greater than 0');
         }
 
-        if ($numCandidates > 10000) {
+        if ($numCandidates > self::MAX_NUM_CANDIDATES) {
             throw new InvalidQueryException('KnnQuery requires numCandidates to be at most 10000');
         }
 
@@ -79,8 +81,9 @@ final class KnnQuery implements QueryInterface
             'k' => $this->k,
         ];
 
-        if ($this->numCandidates !== null) {
-            $params['num_candidates'] = $this->numCandidates;
+        $numCandidates = $this->numCandidates ?? $this->defaultNumCandidates();
+        if ($numCandidates !== null) {
+            $params['num_candidates'] = $numCandidates;
         }
 
         if ($this->similarity !== null) {
@@ -94,6 +97,16 @@ final class KnnQuery implements QueryInterface
         $this->applyBoost($params);
 
         return ['knn' => $params];
+    }
+
+    /** Twice k and at least 100, within the 10000 Elasticsearch allows; none for a k above that. */
+    private function defaultNumCandidates(): ?int
+    {
+        if ($this->k > self::MAX_NUM_CANDIDATES) {
+            return null;
+        }
+
+        return min(max($this->k * 2, 100), self::MAX_NUM_CANDIDATES);
     }
 
     public function __clone(): void

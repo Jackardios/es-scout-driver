@@ -7,13 +7,14 @@ namespace Jackardios\EsScoutDriver\Tests\Unit\Query\Specialized;
 use Jackardios\EsScoutDriver\Exceptions\InvalidQueryException;
 use Jackardios\EsScoutDriver\Query\Specialized\KnnQuery;
 use Jackardios\EsScoutDriver\Query\Term\TermQuery;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 final class KnnQueryTest extends TestCase
 {
     #[Test]
-    public function it_builds_basic_knn_query_without_num_candidates(): void
+    public function it_builds_basic_knn_query(): void
     {
         $query = new KnnQuery('embedding', [0.1, 0.2, 0.3], 10);
 
@@ -22,16 +23,28 @@ final class KnnQueryTest extends TestCase
                 'field' => 'embedding',
                 'query_vector' => [0.1, 0.2, 0.3],
                 'k' => 10,
+                'num_candidates' => 100,
             ],
         ], $query->toArray());
     }
 
-    #[Test]
-    public function it_leaves_num_candidates_to_elasticsearch_for_a_large_k(): void
+    /** @return iterable<string, array{int, int|null}> */
+    public static function defaultNumCandidates(): iterable
     {
-        $query = new KnnQuery('embedding', [0.1, 0.2, 0.3], 6000);
+        yield 'at least 100' => [10, 100];
+        yield 'twice k' => [60, 120];
+        yield 'at most 10000' => [6000, 10000];
+        yield 'k of 10000' => [10000, 10000];
+        yield 'none above 10000' => [10001, null];
+    }
 
-        $this->assertArrayNotHasKey('num_candidates', $query->toArray()['knn']);
+    #[Test]
+    #[DataProvider('defaultNumCandidates')]
+    public function it_defaults_num_candidates_to_twice_k_within_the_elasticsearch_limits(int $k, ?int $expected): void
+    {
+        $knn = (new KnnQuery('embedding', [0.1, 0.2, 0.3], $k))->toArray()['knn'];
+
+        $this->assertSame($expected, $knn['num_candidates'] ?? null);
     }
 
     #[Test]
