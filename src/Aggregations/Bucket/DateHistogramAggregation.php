@@ -11,7 +11,8 @@ final class DateHistogramAggregation implements AggregationInterface
 {
     use HasSubAggregations;
 
-    private ?string $fixedInterval = null;
+    private string $interval;
+    private string $intervalType = 'calendar_interval';
     private ?string $format = null;
     private ?string $timeZone = null;
     private ?int $minDocCount = null;
@@ -24,12 +25,24 @@ final class DateHistogramAggregation implements AggregationInterface
 
     public function __construct(
         private string $field,
-        private string $calendarInterval,
-    ) {}
+        string $calendarInterval,
+    ) {
+        $this->interval = $calendarInterval;
+    }
 
+    /** Replaces the fixed interval, if one was set. */
+    public function calendarInterval(string $interval): self
+    {
+        $this->interval = $interval;
+        $this->intervalType = 'calendar_interval';
+        return $this;
+    }
+
+    /** Replaces the calendar interval passed to the constructor. */
     public function fixedInterval(string $interval): self
     {
-        $this->fixedInterval = $interval;
+        $this->interval = $interval;
+        $this->intervalType = 'fixed_interval';
         return $this;
     }
 
@@ -93,12 +106,8 @@ final class DateHistogramAggregation implements AggregationInterface
     {
         $params = [
             'field' => $this->field,
-            'calendar_interval' => $this->calendarInterval,
+            $this->intervalType => $this->interval,
         ];
-
-        if ($this->fixedInterval !== null) {
-            $params['fixed_interval'] = $this->fixedInterval;
-        }
 
         if ($this->format !== null) {
             $params['format'] = $this->format;

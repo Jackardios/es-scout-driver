@@ -251,6 +251,9 @@ Agg::dateHistogram('created_at', '1M')  // Monthly buckets
 // Calendar intervals: minute, hour, day, week, month, quarter, year
 Agg::dateHistogram('created_at', '1d')
 
+// Fixed intervals: fixedInterval() replaces the calendar interval, calendarInterval() switches back
+Agg::dateHistogram('created_at', 'day')->fixedInterval('30d')
+
 // With options
 Agg::dateHistogram('created_at', '1M')
     ->minDocCount(0)

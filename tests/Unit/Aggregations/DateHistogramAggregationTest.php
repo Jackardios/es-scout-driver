@@ -68,7 +68,7 @@ final class DateHistogramAggregationTest extends TestCase
     }
 
     #[Test]
-    public function it_builds_date_histogram_with_fixed_interval(): void
+    public function it_replaces_the_calendar_interval_with_a_fixed_interval(): void
     {
         $agg = (new DateHistogramAggregation('created_at', 'day'))
             ->fixedInterval('1h');
@@ -76,8 +76,22 @@ final class DateHistogramAggregationTest extends TestCase
         $this->assertSame([
             'date_histogram' => [
                 'field' => 'created_at',
-                'calendar_interval' => 'day',
                 'fixed_interval' => '1h',
+            ],
+        ], $agg->toArray());
+    }
+
+    #[Test]
+    public function it_replaces_the_fixed_interval_with_a_calendar_interval(): void
+    {
+        $agg = (new DateHistogramAggregation('created_at', 'day'))
+            ->fixedInterval('1h')
+            ->calendarInterval('week');
+
+        $this->assertSame([
+            'date_histogram' => [
+                'field' => 'created_at',
+                'calendar_interval' => 'week',
             ],
         ], $agg->toArray());
     }
@@ -221,6 +235,7 @@ final class DateHistogramAggregationTest extends TestCase
         $agg = new DateHistogramAggregation('created_at', 'month');
 
         $this->assertSame($agg, $agg->fixedInterval('1h'));
+        $this->assertSame($agg, $agg->calendarInterval('day'));
         $this->assertSame($agg, $agg->extendedBounds('2024-01-01', '2024-12-31'));
         $this->assertSame($agg, $agg->hardBounds('2024-01-01', '2024-12-31'));
         $this->assertSame($agg, $agg->keyed());
@@ -248,7 +263,7 @@ final class DateHistogramAggregationTest extends TestCase
         $result = $agg->toArray();
 
         $this->assertSame('created_at', $result['date_histogram']['field']);
-        $this->assertSame('month', $result['date_histogram']['calendar_interval']);
+        $this->assertArrayNotHasKey('calendar_interval', $result['date_histogram']);
         $this->assertSame('30d', $result['date_histogram']['fixed_interval']);
         $this->assertSame('yyyy-MM-dd', $result['date_histogram']['format']);
         $this->assertSame('Europe/London', $result['date_histogram']['time_zone']);
