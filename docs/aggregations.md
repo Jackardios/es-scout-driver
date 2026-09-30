@@ -4,6 +4,7 @@ Aggregations allow you to group and extract statistics from your data. They are 
 
 ```php
 use Jackardios\EsScoutDriver\Aggregations\Agg;
+use Jackardios\EsScoutDriver\Enums\SortOrder;
 use Jackardios\EsScoutDriver\Sort\Sort;
 use Jackardios\EsScoutDriver\Support\Query;
 ```
@@ -46,6 +47,10 @@ $value = $result->aggregationValue('avg_price'); // Returns the 'value' key
 // Get buckets
 $buckets = $result->buckets('by_category');
 ```
+
+Values Elasticsearch would reject throw an `InvalidArgumentException` when you set them: a terms or composite size
+below 1, a histogram interval of 0 or less, empty percents or percents outside 0..100, a negative precision threshold
+or sigma, a `range()` without `from` and `to`, and a duplicate composite source name.
 
 To get only aggregations without hits:
 
@@ -221,7 +226,7 @@ Agg::terms('category')
     ->shardSize(100)            // Candidates per shard
     ->orderByCount('desc')      // Order by document count
     ->orderByKey('asc')         // Order alphabetically
-    ->order('_count', 'asc')    // Custom order
+    ->order('_count', 'asc')    // Custom order ('asc'/'desc' or SortOrder::Asc/Desc)
     ->missing('Unknown')        // Value for missing field
     ->include(['Electronics', 'Books'])  // Include only these exact values
     ->exclude(['Other'])        // Exclude these exact values
@@ -244,8 +249,8 @@ Agg::histogram('price', 10)
     ->minDocCount(1)
     ->extendedBounds(0, 100)    // Force bucket range
     ->hardBounds(0, 1000)       // Limit bucket range
-    ->offset(5)                 // Bucket offset
-    ->order('_key', 'desc')
+    ->offset(5)                 // Bucket offset (int or float)
+    ->order('_key', SortOrder::Desc)
     ->missing(0)
 ```
 
@@ -291,6 +296,11 @@ Agg::range('price')
     ->range(to: 20, key: 'cheap')
     ->range(from: 20, to: 50, key: 'medium')
     ->range(from: 50, key: 'expensive')
+
+// Dates and date math on a date field
+Agg::range('created_at')
+    ->range(to: '2024-01-01', key: 'old')
+    ->range(from: 'now-1M/d', key: 'last_month')
 ```
 
 ### filter
@@ -434,7 +444,8 @@ Agg::composite()
 
 ## Sub-Aggregations
 
-Nest aggregations within bucket aggregations:
+Nest aggregations within bucket aggregations. A name such as `'0'` that would turn the sub-aggregations (or the named
+filters of `filters()`) into a JSON list throws an `InvalidArgumentException`:
 
 ```php
 // Single level

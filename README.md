@@ -17,7 +17,9 @@ Advanced Elasticsearch driver for Laravel Scout with full Query DSL support.
 - Geo queries: `geo_distance`, `geo_bounding_box`, `geo_shape`
 - Compound queries: `bool`, `nested`, `function_score`, `dis_max`, `boosting`, `constant_score`
 - Joining queries: `has_child`, `has_parent`, `parent_id`
-- Aggregations: `terms`, `avg`, `sum`, `min`, `max`, `stats`, `cardinality`, `histogram`, `date_histogram`, `range`
+- Aggregations: `terms`, `histogram`, `date_histogram`, `range`, `geo_distance`, `filter`, `filters`, `global`, `nested`,
+  `reverse_nested`, `composite`, `avg`, `sum`, `min`, `max`, `stats`, `extended_stats`, `cardinality`, `percentiles`,
+  `top_hits`, `geo_bounds`, `geo_centroid`
 - Sorting with multiple options
 - Highlighting
 - Suggestions

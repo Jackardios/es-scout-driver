@@ -3,6 +3,7 @@
 This document covers sorting options for search results.
 
 ```php
+use Jackardios\EsScoutDriver\Enums\DistanceType;
 use Jackardios\EsScoutDriver\Enums\SortOrder;
 use Jackardios\EsScoutDriver\Sort\Sort;
 use Jackardios\EsScoutDriver\Support\Query;
@@ -165,7 +166,7 @@ Sort::geoDistance('location', 52.3676, 4.9041)
     ->desc()                        // Farthest first
     ->unit('km')                    // km, m, mi, yd, ft
     ->mode('min')                   // min, max, avg, median (for multi-valued)
-    ->distanceType('arc')           // arc (accurate) or plane (fast)
+    ->distanceType('arc')           // arc (accurate) or plane (fast), or DistanceType::Arc/Plane
     ->ignoreUnmapped(true)
 ```
 
