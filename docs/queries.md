@@ -223,14 +223,17 @@ Search using Lucene query syntax:
 Query::queryString('title:elasticsearch AND status:published')
 
 Query::queryString('(quick OR brown) AND fox')
-    ->defaultField('title')
+    ->defaultField('title')     // Or ->fields(['title^2', 'description']), not both
+
+Query::queryString('(quick OR brown) AND fox')
     ->fields(['title^2', 'description'])
     ->defaultOperator('AND')
     ->analyzer('english')
     ->fuzziness('AUTO')
-    ->maxExpansions(50)
-    ->prefixLength(0)
+    ->fuzzyMaxExpansions(50)
+    ->fuzzyPrefixLength(0)
     ->fuzzyTranspositions(true)
+    ->fuzzyRewrite('constant_score')
     ->allowLeadingWildcard(true)
     ->analyzeWildcard(true)
     ->autoGenerateSynonymsPhraseQuery(true)
