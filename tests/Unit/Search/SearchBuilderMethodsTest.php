@@ -280,6 +280,28 @@ final class SearchBuilderMethodsTest extends TestCase
         $this->assertSame([['title' => 'asc']], $builder->getSort());
     }
 
+    /** @return iterable<string, array{array<string, mixed>}> */
+    public static function sortOptions(): iterable
+    {
+        yield 'direction' => [['direction' => 'desc']];
+        yield 'default direction' => [['direction' => 'asc']];
+        yield 'missing' => [['missing' => '_last']];
+        yield 'mode' => [['mode' => 'avg']];
+        yield 'unmapped type' => [['unmappedType' => 'long']];
+    }
+
+    #[Test]
+    #[DataProvider('sortOptions')]
+    public function sort_with_sort_interface_refuses_direction_and_options(array $options): void
+    {
+        $builder = $this->createBuilder();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('sort() takes no direction or options with a SortInterface');
+
+        $builder->sort(new FieldSort('title'), ...$options);
+    }
+
     #[Test]
     public function sort_with_sort_order_enum(): void
     {

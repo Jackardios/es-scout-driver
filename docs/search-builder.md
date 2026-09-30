@@ -158,6 +158,9 @@ $builder
     ->sort(Sort::geoDistance('location', 52.3676, 4.9041)->asc());
 ```
 
+A sort object carries its own direction and options: passing `direction`, `missing`, `mode` or `unmappedType` beside it
+throws `InvalidArgumentException`.
+
 ### Raw sort
 
 ```php

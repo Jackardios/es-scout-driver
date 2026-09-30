@@ -25,7 +25,9 @@ use Jackardios\EsScoutDriver\Query\Compound\BoolQuery;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
 use Jackardios\EsScoutDriver\Query\Specialized\KnnQuery;
 use Jackardios\EsScoutDriver\Query\Term\TermQuery;
+use Jackardios\EsScoutDriver\Sort\FieldSort;
 use Jackardios\EsScoutDriver\Sort\SortInterface;
+use InvalidArgumentException;
 use LogicException;
 use stdClass;
 use Throwable;
@@ -299,36 +301,40 @@ class SearchBuilder
         return $this;
     }
 
+    /**
+     * @param SortOrder|string|null $direction asc when null; set it on the sort object for a SortInterface
+     */
     public function sort(
         string|SortInterface $field,
-        SortOrder|string $direction = 'asc',
+        SortOrder|string|null $direction = null,
         string|int|float|bool|null $missing = null,
         ?string $mode = null,
         ?string $unmappedType = null,
     ): static {
         if ($field instanceof SortInterface) {
+            if ($direction !== null || $missing !== null || $mode !== null || $unmappedType !== null) {
+                throw new InvalidArgumentException(
+                    'sort() takes no direction or options with a SortInterface; set them on the sort object.',
+                );
+            }
+
             $this->sort[] = $field->toArray();
             return $this;
         }
 
-        $order = $direction instanceof SortOrder ? $direction->value : $direction;
+        $sort = (new FieldSort($field))->order($direction ?? SortOrder::Asc);
 
-        if ($missing === null && $mode === null && $unmappedType === null) {
-            $this->sort[] = [$field => $order];
-            return $this;
-        }
-
-        $sortConfig = ['order' => $order];
         if ($missing !== null) {
-            $sortConfig['missing'] = $missing;
+            $sort->missing($missing);
         }
         if ($mode !== null) {
-            $sortConfig['mode'] = $mode;
+            $sort->mode($mode);
         }
         if ($unmappedType !== null) {
-            $sortConfig['unmapped_type'] = $unmappedType;
+            $sort->unmappedType($unmappedType);
         }
-        $this->sort[] = [$field => $sortConfig];
+
+        $this->sort[] = $sort->toArray();
         return $this;
     }
 
@@ -1018,17 +1024,17 @@ class SearchBuilder
         ?int $page = null,
     ): Paginator {
         if ($perPage < 1) {
-            throw new \InvalidArgumentException('perPage must be greater than 0.');
+            throw new InvalidArgumentException('perPage must be greater than 0.');
         }
 
         $page ??= Paginator::resolveCurrentPage($pageName);
 
         if ($page < 1) {
-            throw new \InvalidArgumentException('page must be greater than or equal to 1.');
+            throw new InvalidArgumentException('page must be greater than or equal to 1.');
         }
 
         if ($page > intdiv(PHP_INT_MAX, $perPage)) {
-            throw new \InvalidArgumentException('page is too large: the offset of its last hit does not fit in an integer.');
+            throw new InvalidArgumentException('page is too large: the offset of its last hit does not fit in an integer.');
         }
 
         $builder = clone $this;

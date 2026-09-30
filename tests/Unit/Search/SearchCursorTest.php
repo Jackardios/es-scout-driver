@@ -455,7 +455,7 @@ final class SearchCursorTestBuilder extends SearchBuilder
 
     public function sort(
         string|SortInterface $field,
-        SortOrder|string $direction = 'asc',
+        SortOrder|string|null $direction = null,
         string|int|float|bool|null $missing = null,
         ?string $mode = null,
         ?string $unmappedType = null,
@@ -467,7 +467,7 @@ final class SearchCursorTestBuilder extends SearchBuilder
             return $this;
         }
 
-        $order = $direction instanceof SortOrder ? $direction->value : $direction;
+        $order = $direction instanceof SortOrder ? $direction->value : ($direction ?? 'asc');
         $this->sort[] = [$field => $order];
 
         return $this;
