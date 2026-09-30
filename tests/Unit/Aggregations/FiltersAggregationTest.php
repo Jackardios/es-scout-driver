@@ -124,4 +124,26 @@ final class FiltersAggregationTest extends TestCase
         $this->assertSame($agg, $agg->otherBucketKey('other'));
         $this->assertSame($agg, $agg->agg('avg', new AvgAggregation('price')));
     }
+
+    #[Test]
+    public function it_refuses_a_filter_name_that_would_make_the_filters_an_anonymous_list(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('FiltersAggregation filter name [0] would send the filters as an anonymous list');
+
+        (new FiltersAggregation())->filter('0', ['match_all' => new \stdClass()]);
+    }
+
+    #[Test]
+    public function it_keeps_integer_filter_names_that_do_not_form_a_list(): void
+    {
+        $agg = (new FiltersAggregation())
+            ->filter('2024', ['term' => ['year' => 2024]])
+            ->filter('0', ['term' => ['year' => 0]]);
+
+        $this->assertSame(
+            '{"filters":{"filters":{"2024":{"term":{"year":2024}},"0":{"term":{"year":0}}}}}',
+            json_encode($agg->toArray()),
+        );
+    }
 }

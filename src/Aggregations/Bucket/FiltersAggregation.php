@@ -13,18 +13,29 @@ final class FiltersAggregation implements AggregationInterface
 {
     use HasSubAggregations;
 
-    /** @var array<string, QueryInterface|array> */
+    /** @var array<int|string, QueryInterface|array> */
     private array $filters = [];
     private ?bool $otherBucket = null;
     private ?string $otherBucketKey = null;
 
+    /** @throws InvalidArgumentException when an integer name would turn the filters into a JSON list */
     public function filter(string $name, QueryInterface|array $filter): self
     {
-        $this->filters[$name] = $filter;
+        $filters = $this->filters;
+        $filters[$name] = $filter;
+
+        if (array_is_list($filters)) {
+            throw new InvalidArgumentException(sprintf(
+                'FiltersAggregation filter name [%s] would send the filters as an anonymous list; use a name that is not an integer.',
+                $name,
+            ));
+        }
+
+        $this->filters = $filters;
         return $this;
     }
 
-    /** @param array<string, QueryInterface|array> $filters */
+    /** @param array<int|string, QueryInterface|array> $filters Named filters, or a list of anonymous filters */
     public function filters(array $filters): self
     {
         $this->filters = $filters;

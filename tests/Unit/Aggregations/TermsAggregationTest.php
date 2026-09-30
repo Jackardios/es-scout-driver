@@ -135,4 +135,23 @@ final class TermsAggregationTest extends TestCase
 
         (new TermsAggregation('category'))->size(0);
     }
+
+    #[Test]
+    public function it_refuses_a_sub_aggregation_name_that_would_make_the_sub_aggregations_a_list(): void
+    {
+        $agg = new TermsAggregation('category');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Sub-aggregation name [0] would send the sub-aggregations as a JSON list');
+
+        $agg->agg('0', new AvgAggregation('price'));
+    }
+
+    #[Test]
+    public function it_keeps_integer_sub_aggregation_names_that_do_not_form_a_list(): void
+    {
+        $agg = (new TermsAggregation('category'))->agg('2024', new AvgAggregation('price'));
+
+        $this->assertSame('{"terms":{"field":"category"},"aggs":{"2024":{"avg":{"field":"price"}}}}', json_encode($agg->toArray()));
+    }
 }
