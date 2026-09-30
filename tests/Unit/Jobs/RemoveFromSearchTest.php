@@ -137,6 +137,20 @@ final class RemoveFromSearchTest extends TestCase
     }
 
     #[Test]
+    public function it_takes_the_job_options_from_scout_config(): void
+    {
+        /** @var ConfigRepository $config */
+        $config = $this->container->make('config');
+        $config->set('scout.jobs', ['tries' => 5, 'backoff' => 7, 'max_exceptions' => 2]);
+
+        $job = new RemoveFromSearch(new Collection([$this->createModelWithScout('1', 'books')]));
+
+        $this->assertSame(5, $job->tries);
+        $this->assertSame(7, $job->backoff);
+        $this->assertSame(2, $job->maxExceptions);
+    }
+
+    #[Test]
     public function handle_routes_operations_to_named_connections_in_separate_batches(): void
     {
         $model1 = $this->createModelWithConnection('1', 'books', 'secondary');

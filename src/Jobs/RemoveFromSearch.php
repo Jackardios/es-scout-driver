@@ -13,9 +13,11 @@ use Illuminate\Support\Collection;
 use InvalidArgumentException;
 use Jackardios\EsScoutDriver\Engine\ConnectionOperationRouter;
 use Jackardios\EsScoutDriver\Engine\HandlesBulkResponse;
+use Laravel\Scout\Traits\ConfiguresJobOptions;
 
 final class RemoveFromSearch implements ShouldQueue
 {
+    use ConfiguresJobOptions;
     use Queueable;
     use HandlesBulkResponse;
 
@@ -52,6 +54,8 @@ final class RemoveFromSearch implements ShouldQueue
                 'routing' => $routing,
             ];
         }
+
+        $this->configureJob();
     }
 
     public function handle(Client $client): void
