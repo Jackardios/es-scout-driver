@@ -5,41 +5,30 @@ declare(strict_types=1);
 namespace Jackardios\EsScoutDriver\Engine;
 
 use Elastic\Elasticsearch\Client;
+use Elastic\Elasticsearch\Exception\ClientResponseException;
+use Elastic\Elasticsearch\Response\Elasticsearch as ElasticsearchResponse;
 
 /**
- * Registry for Elasticsearch index aliases with TTL caching.
- * Shared between SearchBuilder clones to prevent N+1 HTTP requests.
+ * Maps the concrete index of a hit to the registered index (an index, alias, data stream, pattern or comma list)
+ * it was searched through. Each registered name is resolved by Elasticsearch once per registry.
  *
  * @internal
  */
-class AliasRegistry
+final class AliasRegistry
 {
-    private const DEFAULT_TTL_SECONDS = 300; // 5 minutes
-
-    /** @var array<string, string> alias/real index -> registered index */
-    private array $aliasMap = [];
-
-    /** @var array<string, bool> registered indices */
+    /** @var array<string, bool> registered index => resolved */
     private array $registeredIndices = [];
 
-    private ?int $lastFetchTime = null;
-    private bool $fetched = false;
-    private bool $fetchInProgress = false;
+    /** @var array<string, string> concrete index => registered index */
+    private array $concreteIndices = [];
 
     public function __construct(
-        private ?Client $client = null,
-        private int $ttlSeconds = self::DEFAULT_TTL_SECONDS,
+        private readonly ?Client $client = null,
     ) {}
 
     public function registerIndex(string $indexName): void
     {
-        if (!isset($this->registeredIndices[$indexName])) {
-            $this->fetched = false;
-            $this->lastFetchTime = null;
-            $this->aliasMap = [];
-        }
-
-        $this->registeredIndices[$indexName] = true;
+        $this->registeredIndices[$indexName] ??= false;
     }
 
     public function resolve(string $indexName): string
@@ -48,90 +37,36 @@ class AliasRegistry
             return $indexName;
         }
 
-        $this->ensureFetched();
+        $this->resolveRegisteredIndices();
 
-        return $this->aliasMap[$indexName] ?? $indexName;
+        return $this->concreteIndices[$indexName] ?? $indexName;
     }
 
-    private function ensureFetched(): void
+    private function resolveRegisteredIndices(): void
     {
         if ($this->client === null) {
             return;
         }
 
-        // Guard against recursive calls during fetch
-        if ($this->fetchInProgress) {
-            return;
-        }
-
-        $now = time();
-
-        // Check if cache is still valid
-        if ($this->fetched && $this->lastFetchTime !== null) {
-            if (($now - $this->lastFetchTime) < $this->ttlSeconds) {
-                return;
+        foreach ($this->registeredIndices as $registeredIndex => $resolved) {
+            if ($resolved) {
+                continue;
             }
-        }
 
-        $this->fetchInProgress = true;
-        try {
-            $this->fetchAliases();
-            $this->fetched = true;
-            $this->lastFetchTime = $now;
-        } finally {
-            $this->fetchInProgress = false;
-        }
-    }
+            try {
+                /** @var ElasticsearchResponse $response */
+                $response = $this->client->indices()->getSettings(['index' => $registeredIndex, 'name' => 'index.uuid']);
 
-    private function fetchAliases(): void
-    {
-        if ($this->client === null || $this->registeredIndices === []) {
-            return;
-        }
-
-        try {
-            // Single batch request for all registered indices
-            $indices = implode(',', array_keys($this->registeredIndices));
-            /** @var \Elastic\Elasticsearch\Response\Elasticsearch $response */
-            $response = $this->client->indices()->getAlias(['index' => $indices]);
-            /** @var array<string, array{aliases?: array<string, mixed>}> $responseArray */
-            $responseArray = $response->asArray();
-
-            foreach ($responseArray as $realIndex => $data) {
-                // Map real index to the first matching registered index
-                foreach (array_keys($this->registeredIndices) as $registeredIndex) {
-                    // Check if real index matches or is an alias of registered index
-                    if ($realIndex === $registeredIndex) {
-                        $this->aliasMap[$realIndex] = $registeredIndex;
-                        break;
-                    }
+                foreach (array_keys($response->asArray()) as $concreteIndex) {
+                    $this->concreteIndices[(string) $concreteIndex] ??= $registeredIndex;
                 }
-
-                // Map all aliases to their registered index
-                foreach (array_keys($data['aliases'] ?? []) as $alias) {
-                    $aliasName = (string) $alias;
-                    foreach (array_keys($this->registeredIndices) as $registeredIndex) {
-                        if ($aliasName === $registeredIndex || $realIndex === $registeredIndex) {
-                            $this->aliasMap[$aliasName] = $registeredIndex;
-                            $this->aliasMap[$realIndex] = $registeredIndex;
-                            break;
-                        }
-                    }
+            } catch (ClientResponseException $e) {
+                if ($e->getCode() !== 404) {
+                    throw $e;
                 }
             }
-        } catch (\Elastic\Elasticsearch\Exception\ClientResponseException $e) {
-            // 404 - indices don't exist yet, that's okay
-            if ($e->getCode() !== 404) {
-                throw $e;
-            }
-        }
-    }
 
-    public function invalidate(): void
-    {
-        $this->fetched = false;
-        $this->lastFetchTime = null;
-        $this->aliasMap = [];
-        $this->fetchInProgress = false;
+            $this->registeredIndices[$registeredIndex] = true;
+        }
     }
 }

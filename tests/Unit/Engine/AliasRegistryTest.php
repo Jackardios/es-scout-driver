@@ -4,166 +4,107 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Tests\Unit\Engine;
 
+use Elastic\Elasticsearch\Exception\ClientResponseException;
 use Jackardios\EsScoutDriver\Engine\AliasRegistry;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-use ReflectionProperty;
 
 final class AliasRegistryTest extends TestCase
 {
     #[Test]
-    public function it_can_be_constructed_with_null_client(): void
+    public function resolve_returns_registered_indices_as_is_without_requests(): void
     {
-        $registry = new AliasRegistry();
-
-        $this->assertInstanceOf(AliasRegistry::class, $registry);
-    }
-
-    #[Test]
-    public function it_can_be_constructed_with_custom_ttl(): void
-    {
-        $registry = new AliasRegistry(null, 600);
-
-        $this->assertInstanceOf(AliasRegistry::class, $registry);
-    }
-
-    #[Test]
-    public function register_index_registers_an_index(): void
-    {
-        $registry = new AliasRegistry();
-
-        $registry->registerIndex('books');
-
-        $this->assertSame('books', $registry->resolve('books'));
-    }
-
-    #[Test]
-    public function resolve_returns_registered_index_as_is(): void
-    {
-        $registry = new AliasRegistry();
+        $http = new FakeHttpClient();
+        $registry = new AliasRegistry($http->client());
 
         $registry->registerIndex('books');
         $registry->registerIndex('authors');
 
         $this->assertSame('books', $registry->resolve('books'));
         $this->assertSame('authors', $registry->resolve('authors'));
+        $this->assertSame([], $http->requests);
     }
 
     #[Test]
-    public function resolve_returns_fallback_for_unknown_indices(): void
-    {
-        $registry = new AliasRegistry();
-
-        $registry->registerIndex('books');
-
-        $this->assertSame('unknown-index', $registry->resolve('unknown-index'));
-    }
-
-    #[Test]
-    public function resolve_returns_index_name_itself_when_not_registered_and_no_client(): void
-    {
-        $registry = new AliasRegistry();
-
-        $this->assertSame('some-index', $registry->resolve('some-index'));
-    }
-
-    #[Test]
-    public function invalidate_clears_the_cache(): void
-    {
-        $registry = new AliasRegistry();
-
-        $registry->registerIndex('books');
-        $this->assertSame('books', $registry->resolve('books'));
-
-        $registry->invalidate();
-
-        $registry->registerIndex('authors');
-        $this->assertSame('authors', $registry->resolve('authors'));
-        $this->assertSame('books', $registry->resolve('books'));
-    }
-
-    #[Test]
-    public function multiple_indices_can_be_registered(): void
-    {
-        $registry = new AliasRegistry();
-
-        $registry->registerIndex('books');
-        $registry->registerIndex('authors');
-        $registry->registerIndex('stores');
-
-        $this->assertSame('books', $registry->resolve('books'));
-        $this->assertSame('authors', $registry->resolve('authors'));
-        $this->assertSame('stores', $registry->resolve('stores'));
-    }
-
-    #[Test]
-    public function registering_same_index_twice_does_not_duplicate(): void
-    {
-        $registry = new AliasRegistry();
-
-        $registry->registerIndex('books');
-        $registry->registerIndex('books');
-
-        $this->assertSame('books', $registry->resolve('books'));
-    }
-
-    #[Test]
-    public function invalidate_allows_re_registration(): void
-    {
-        $registry = new AliasRegistry();
-
-        $registry->registerIndex('books');
-        $this->assertSame('books', $registry->resolve('books'));
-
-        $registry->invalidate();
-
-        $this->assertSame('books', $registry->resolve('books'));
-    }
-
-    #[Test]
-    public function register_index_invalidates_alias_cache_for_new_indices(): void
+    public function resolve_returns_the_index_name_without_a_client(): void
     {
         $registry = new AliasRegistry();
         $registry->registerIndex('books');
 
-        $this->setPrivateProperty($registry, 'fetched', true);
-        $this->setPrivateProperty($registry, 'lastFetchTime', time());
-        $this->setPrivateProperty($registry, 'aliasMap', ['books_v1' => 'books']);
+        $this->assertSame('books_v1', $registry->resolve('books_v1'));
+    }
 
+    #[Test]
+    public function resolve_maps_the_concrete_indices_of_each_registered_name_once(): void
+    {
+        $http = new FakeHttpClient([
+            [200, ['books_v2' => self::settings()]],
+            [200, ['logs-2024' => self::settings(), 'logs-2025' => self::settings()]],
+        ]);
+        $registry = new AliasRegistry($http->client());
+        $registry->registerIndex('books');
+        $registry->registerIndex('logs-*,-logs-old');
+
+        $this->assertSame('books', $registry->resolve('books_v2'));
+        $this->assertSame('logs-*,-logs-old', $registry->resolve('logs-2024'));
+        $this->assertSame('logs-*,-logs-old', $registry->resolve('logs-2025'));
+        $this->assertSame('unknown', $registry->resolve('unknown'));
+
+        $this->assertCount(2, $http->requests);
+        $this->assertSame('/books/_settings/index.uuid', $http->requests[0]->getUri()->getPath());
+        $this->assertSame('/logs-%2A%2C-logs-old/_settings/index.uuid', $http->requests[1]->getUri()->getPath());
+    }
+
+    #[Test]
+    public function resolve_fetches_only_indices_registered_after_the_last_fetch(): void
+    {
+        $http = new FakeHttpClient([
+            [200, ['books_v2' => self::settings()]],
+            [200, ['authors_v3' => self::settings()]],
+        ]);
+        $registry = new AliasRegistry($http->client());
+        $registry->registerIndex('books');
+        $this->assertSame('books', $registry->resolve('books_v2'));
+
+        $registry->registerIndex('books');
         $registry->registerIndex('authors');
 
-        $this->assertFalse($this->getPrivateProperty($registry, 'fetched'));
-        $this->assertNull($this->getPrivateProperty($registry, 'lastFetchTime'));
-        $this->assertSame([], $this->getPrivateProperty($registry, 'aliasMap'));
+        $this->assertSame('authors', $registry->resolve('authors_v3'));
+        $this->assertSame('books', $registry->resolve('books_v2'));
+        $this->assertCount(2, $http->requests);
     }
 
     #[Test]
-    public function register_index_does_not_invalidate_cache_for_existing_index(): void
+    public function resolve_ignores_a_missing_registered_index(): void
     {
-        $registry = new AliasRegistry();
+        $http = new FakeHttpClient([
+            [404, ['error' => ['type' => 'index_not_found_exception'], 'status' => 404]],
+        ]);
+        $registry = new AliasRegistry($http->client());
         $registry->registerIndex('books');
 
-        $timestamp = time();
-        $this->setPrivateProperty($registry, 'fetched', true);
-        $this->setPrivateProperty($registry, 'lastFetchTime', $timestamp);
-        $this->setPrivateProperty($registry, 'aliasMap', ['books_v1' => 'books']);
+        $this->assertSame('books_v1', $registry->resolve('books_v1'));
+        $this->assertSame('books_v1', $registry->resolve('books_v1'));
+        $this->assertCount(1, $http->requests);
+    }
 
+    #[Test]
+    public function resolve_rethrows_other_client_errors(): void
+    {
+        $http = new FakeHttpClient([
+            [403, ['error' => ['type' => 'security_exception'], 'status' => 403]],
+        ]);
+        $registry = new AliasRegistry($http->client());
         $registry->registerIndex('books');
 
-        $this->assertTrue($this->getPrivateProperty($registry, 'fetched'));
-        $this->assertSame($timestamp, $this->getPrivateProperty($registry, 'lastFetchTime'));
-        $this->assertSame(['books_v1' => 'books'], $this->getPrivateProperty($registry, 'aliasMap'));
+        $this->expectException(ClientResponseException::class);
+
+        $registry->resolve('books_v1');
     }
 
-    private function setPrivateProperty(AliasRegistry $registry, string $property, mixed $value): void
+    /** @return array<string, mixed> */
+    private static function settings(): array
     {
-        $reflection = new ReflectionProperty($registry, $property);
-        $reflection->setValue($registry, $value);
-    }
-
-    private function getPrivateProperty(AliasRegistry $registry, string $property): mixed
-    {
-        $reflection = new ReflectionProperty($registry, $property);
-        return $reflection->getValue($registry);
+        return ['settings' => ['index' => ['uuid' => 'uuid']]];
     }
 }

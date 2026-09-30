@@ -284,6 +284,10 @@ public function searchableAs(): string
 }
 ```
 
+The name may also be an alias, a data stream, a wildcard pattern or a comma-separated list. When a hit comes from
+another index name, `searchQuery()` asks Elasticsearch once per search which indices the name covers (the get settings
+API, which needs the `view_index_metadata` privilege) to map the hit to its model.
+
 ### Custom Document ID
 
 ```php
