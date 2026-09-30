@@ -10,6 +10,7 @@ use Jackardios\EsScoutDriver\Query\Concerns\HasBoost;
 use Jackardios\EsScoutDriver\Query\Concerns\HasFunctionScoreMode;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
 use Jackardios\EsScoutDriver\Query\SubQuery;
+use stdClass;
 
 final class FunctionScoreQuery implements QueryInterface
 {
@@ -101,7 +102,7 @@ final class FunctionScoreQuery implements QueryInterface
 
         $this->applyBoost($params);
 
-        return ['function_score' => $params];
+        return ['function_score' => $params === [] ? new stdClass() : $params];
     }
 
     public function __clone(): void

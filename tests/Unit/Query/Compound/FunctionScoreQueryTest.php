@@ -18,7 +18,7 @@ final class FunctionScoreQueryTest extends TestCase
     {
         $query = new FunctionScoreQuery();
 
-        $this->assertSame(['function_score' => []], $query->toArray());
+        $this->assertEquals(['function_score' => new \stdClass()], $query->toArray());
     }
 
     #[Test]
