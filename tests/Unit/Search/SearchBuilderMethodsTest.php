@@ -1618,6 +1618,21 @@ final class SearchBuilderMethodsTest extends TestCase
     }
 
     #[Test]
+    public function with_merges_relations_and_keeps_keyed_constraints(): void
+    {
+        $constraint = static function (): void {};
+        $builder = $this->createBuilder();
+
+        $builder->with(['author', 'comments' => $constraint]);
+        $builder->with(['author', 'tags', 'reviews' => 'reviews:id']);
+
+        $this->assertSame(
+            ['test_index' => ['author', 'comments' => $constraint, 'tags', 'reviews' => 'reviews:id']],
+            $this->getPrivateProperty($builder, 'relations'),
+        );
+    }
+
+    #[Test]
     public function with_requires_model_class_when_multiple_indices_joined(): void
     {
         $builder = $this->createBuilder();

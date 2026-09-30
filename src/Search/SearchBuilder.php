@@ -96,7 +96,7 @@ class SearchBuilder
     /** @var array<string, array<int, Closure>> index => callbacks */
     private array $modelModifiers = [];
 
-    /** @var array<string, array> index => relations */
+    /** @var array<string, array<int|string, string|Closure>> index => relations */
     private array $relations = [];
 
     public function __construct(Model $model, QueryInterface|Closure|array|null $query = null)
@@ -733,15 +733,23 @@ class SearchBuilder
     /**
      * Eager load relations on the models.
      *
-     * @param array<string> $relations Relations to eager load
+     * @param array<int|string, string|Closure> $relations Relations to eager load, as for Eloquent's with()
      * @param string|null $modelClass Model class to apply relations to (for multi-index searches)
      */
     public function with(array $relations, ?string $modelClass = null): static
     {
         $indexName = $this->resolveJoinedIndexName($modelClass);
-        $this->relations[$indexName] = array_values(array_unique(
-            array_merge($this->relations[$indexName] ?? [], $relations)
-        ));
+        $merged = $this->relations[$indexName] ?? [];
+
+        foreach ($relations as $key => $relation) {
+            if (is_string($key)) {
+                $merged[$key] = $relation;
+            } elseif (!in_array($relation, $merged, true)) {
+                $merged[] = $relation;
+            }
+        }
+
+        $this->relations[$indexName] = $merged;
         return $this;
     }
 
