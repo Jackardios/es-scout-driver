@@ -19,13 +19,13 @@ use Jackardios\EsScoutDriver\Aggregations\Bucket\TermsAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Metric\AvgAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Metric\CardinalityAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Metric\ExtendedStatsAggregation;
+use Jackardios\EsScoutDriver\Aggregations\Metric\GeoBoundsAggregation;
+use Jackardios\EsScoutDriver\Aggregations\Metric\GeoCentroidAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Metric\MaxAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Metric\MinAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Metric\PercentilesAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Metric\StatsAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Metric\SumAggregation;
-use Jackardios\EsScoutDriver\Aggregations\Metric\GeoBoundsAggregation;
-use Jackardios\EsScoutDriver\Aggregations\Metric\GeoCentroidAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Metric\TopHitsAggregation;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
 
