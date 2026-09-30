@@ -24,7 +24,6 @@ final class TextExpansionQuery implements QueryInterface
     use HasBoost;
 
     private ?string $modelText = null;
-    private ?bool $prune = null;
     /** @var array<string, mixed>|null */
     private ?array $pruningConfig = null;
 
@@ -36,12 +35,6 @@ final class TextExpansionQuery implements QueryInterface
     public function modelText(string $modelText): self
     {
         $this->modelText = $modelText;
-        return $this;
-    }
-
-    public function prune(bool $prune = true): self
-    {
-        $this->prune = $prune;
         return $this;
     }
 
@@ -75,10 +68,6 @@ final class TextExpansionQuery implements QueryInterface
             'model_id' => $this->modelId,
             'model_text' => $this->modelText,
         ];
-
-        if ($this->prune !== null) {
-            $params['prune'] = $this->prune;
-        }
 
         if ($this->pruningConfig !== null) {
             $params['pruning_config'] = $this->pruningConfig;

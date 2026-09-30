@@ -39,14 +39,9 @@ final class TextExpansionQueryTest extends TestCase
     }
 
     #[Test]
-    public function it_builds_text_expansion_query_with_prune(): void
+    public function it_has_no_prune_setter(): void
     {
-        $query = (new TextExpansionQuery('ml.tokens', '.elser_model_2'))
-            ->modelText('search query')
-            ->prune(true);
-
-        $result = $query->toArray();
-        $this->assertTrue($result['text_expansion']['ml.tokens']['prune']);
+        $this->assertFalse(method_exists(TextExpansionQuery::class, 'prune'));
     }
 
     #[Test]
@@ -54,7 +49,6 @@ final class TextExpansionQueryTest extends TestCase
     {
         $query = (new TextExpansionQuery('ml.tokens', '.elser_model_2'))
             ->modelText('search query')
-            ->prune(true)
             ->pruningConfig(
                 tokensFreqRatioThreshold: 5.0,
                 tokensWeightThreshold: 0.4,
@@ -98,7 +92,6 @@ final class TextExpansionQueryTest extends TestCase
     {
         $query = (new TextExpansionQuery('ml.tokens', '.elser_model_2'))
             ->modelText('What is Elasticsearch?')
-            ->prune(true)
             ->pruningConfig(tokensFreqRatioThreshold: 5.0)
             ->boost(1.5);
 
@@ -107,7 +100,6 @@ final class TextExpansionQueryTest extends TestCase
                 'ml.tokens' => [
                     'model_id' => '.elser_model_2',
                     'model_text' => 'What is Elasticsearch?',
-                    'prune' => true,
                     'pruning_config' => [
                         'tokens_freq_ratio_threshold' => 5.0,
                     ],
@@ -123,7 +115,6 @@ final class TextExpansionQueryTest extends TestCase
         $query = new TextExpansionQuery('ml.tokens', '.elser_model_2');
 
         $this->assertSame($query, $query->modelText('text'));
-        $this->assertSame($query, $query->prune(true));
         $this->assertSame($query, $query->pruningConfig(tokensWeightThreshold: 0.5));
         $this->assertSame($query, $query->boost(1.0));
     }
