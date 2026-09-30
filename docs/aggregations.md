@@ -4,6 +4,7 @@ Aggregations allow you to group and extract statistics from your data. They are 
 
 ```php
 use Jackardios\EsScoutDriver\Aggregations\Agg;
+use Jackardios\EsScoutDriver\Sort\Sort;
 use Jackardios\EsScoutDriver\Support\Query;
 ```
 
@@ -173,6 +174,11 @@ Agg::topHits()
     ->sort('created_at', 'desc')
     ->source(['title', 'author'])
     ->highlight(['fields' => ['title' => new \stdClass()]])
+
+// Sort objects work too (set their order on the sort itself)
+Agg::topHits()
+    ->sort(Sort::field('price')->desc()->missingLast())
+    ->sort(Sort::score())
 ```
 
 ### geoBounds

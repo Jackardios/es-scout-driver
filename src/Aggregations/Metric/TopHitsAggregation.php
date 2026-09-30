@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Aggregations\Metric;
 
+use InvalidArgumentException;
 use Jackardios\EsScoutDriver\Aggregations\AggregationInterface;
+use Jackardios\EsScoutDriver\Enums\SortOrder;
+use Jackardios\EsScoutDriver\Sort\SortInterface;
 use stdClass;
 
 final class TopHitsAggregation implements AggregationInterface
@@ -29,10 +32,20 @@ final class TopHitsAggregation implements AggregationInterface
         return $this;
     }
 
-    /** @param 'asc'|'desc' $order */
-    public function sort(string $field, string $order = 'asc'): self
+    /** @throws InvalidArgumentException when an order is given with a SortInterface */
+    public function sort(string|SortInterface $field, SortOrder|string|null $order = null): self
     {
-        $this->sort[] = [$field => ['order' => $order]];
+        if ($field instanceof SortInterface) {
+            if ($order !== null) {
+                throw new InvalidArgumentException('TopHitsAggregation::sort() takes no order with a SortInterface; set it on the sort.');
+            }
+
+            $this->sort[] = $field->toArray();
+            return $this;
+        }
+
+        $order ??= 'asc';
+        $this->sort[] = [$field => ['order' => $order instanceof SortOrder ? $order->value : $order]];
         return $this;
     }
 

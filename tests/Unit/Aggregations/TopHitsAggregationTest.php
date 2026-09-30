@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Tests\Unit\Aggregations;
 
+use InvalidArgumentException;
 use Jackardios\EsScoutDriver\Aggregations\Metric\TopHitsAggregation;
+use Jackardios\EsScoutDriver\Enums\SortOrder;
+use Jackardios\EsScoutDriver\Sort\Sort;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -161,5 +164,29 @@ final class TopHitsAggregationTest extends TestCase
         $this->assertSame($agg, $agg->highlight([]));
         $this->assertSame($agg, $agg->explain());
         $this->assertSame($agg, $agg->version());
+    }
+
+    #[Test]
+    public function it_accepts_sort_objects_and_sort_order_enums(): void
+    {
+        $agg = (new TopHitsAggregation())
+            ->sort(Sort::field('price')->desc())
+            ->sort(Sort::score())
+            ->sort('created_at', SortOrder::Desc);
+
+        $this->assertSame([
+            ['price' => 'desc'],
+            ['_score' => 'desc'],
+            ['created_at' => ['order' => 'desc']],
+        ], $agg->toArray()['top_hits']['sort']);
+    }
+
+    #[Test]
+    public function it_refuses_an_order_with_a_sort_object(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('TopHitsAggregation::sort() takes no order with a SortInterface; set it on the sort.');
+
+        (new TopHitsAggregation())->sort(Sort::field('price'), 'desc');
     }
 }
