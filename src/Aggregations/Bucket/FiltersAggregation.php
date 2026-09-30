@@ -11,7 +11,9 @@ use Jackardios\EsScoutDriver\Query\QueryInterface;
 
 final class FiltersAggregation implements AggregationInterface
 {
-    use HasSubAggregations;
+    use HasSubAggregations {
+        __clone as private cloneSubAggregations;
+    }
 
     /** @var array<int|string, QueryInterface|array> */
     private array $filters = [];
@@ -52,6 +54,15 @@ final class FiltersAggregation implements AggregationInterface
     {
         $this->otherBucketKey = $key;
         return $this;
+    }
+
+    public function __clone(): void
+    {
+        $this->cloneSubAggregations();
+        $this->filters = array_map(
+            static fn(QueryInterface|array $filter): QueryInterface|array => $filter instanceof QueryInterface ? clone $filter : $filter,
+            $this->filters,
+        );
     }
 
     /** @return array<string, mixed> */

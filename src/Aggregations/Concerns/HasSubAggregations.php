@@ -33,6 +33,16 @@ trait HasSubAggregations
         return $this;
     }
 
+    public function __clone(): void
+    {
+        $this->subAggregations = array_map(
+            static fn(AggregationInterface|array $aggregation): AggregationInterface|array => $aggregation instanceof AggregationInterface
+                ? clone $aggregation
+                : $aggregation,
+            $this->subAggregations,
+        );
+    }
+
     /** @param array<string, mixed> $result */
     protected function applySubAggregations(array &$result): void
     {

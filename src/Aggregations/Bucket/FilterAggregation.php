@@ -10,9 +10,20 @@ use Jackardios\EsScoutDriver\Query\QueryInterface;
 
 final class FilterAggregation implements AggregationInterface
 {
-    use HasSubAggregations;
+    use HasSubAggregations {
+        __clone as private cloneSubAggregations;
+    }
 
     public function __construct(private QueryInterface|array $filter) {}
+
+    public function __clone(): void
+    {
+        $this->cloneSubAggregations();
+
+        if ($this->filter instanceof QueryInterface) {
+            $this->filter = clone $this->filter;
+        }
+    }
 
     /** @return array<string, mixed> */
     public function toArray(): array

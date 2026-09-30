@@ -488,6 +488,25 @@ final class SearchBuilderMethodsTest extends TestCase
     }
 
     #[Test]
+    public function clone_copies_the_nested_aggregation_objects_and_filters(): void
+    {
+        $builder = $this->createBuilder();
+        $status = new TermQuery('status', 'active');
+        $avg = Agg::avg('price');
+        $builder->aggregate('active', Agg::filter($status)->agg('avg_price', $avg));
+        $builder->aggregate('buckets', Agg::filters()->filter('active', $status));
+
+        $clone = clone $builder;
+        $status->boost(2.0);
+        $avg->missing(0);
+
+        $this->assertSame([
+            'active' => ['filter' => ['term' => ['status' => ['value' => 'active']]], 'aggs' => ['avg_price' => ['avg' => ['field' => 'price']]]],
+            'buckets' => ['filters' => ['filters' => ['active' => ['term' => ['status' => ['value' => 'active']]]]]],
+        ], $clone->getAggregations());
+    }
+
+    #[Test]
     public function aggregate_refuses_a_name_that_would_send_the_aggregations_as_a_list(): void
     {
         $builder = $this->createBuilder();
