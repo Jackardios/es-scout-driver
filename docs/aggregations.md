@@ -217,9 +217,12 @@ Agg::terms('category')
     ->orderByKey('asc')         // Order alphabetically
     ->order('_count', 'asc')    // Custom order
     ->missing('Unknown')        // Value for missing field
-    ->include(['Electronics', 'Books'])  // Include only these
-    ->exclude(['Other'])        // Exclude these
+    ->include(['Electronics', 'Books'])  // Include only these exact values
+    ->exclude(['Other'])        // Exclude these exact values
     ->showTermDocCountError(true)
+
+// A string is a regular expression, an array (even of one value) lists exact values
+Agg::terms('version')->include('v1\\..*')->exclude(['v1.0'])
 ```
 
 ### histogram

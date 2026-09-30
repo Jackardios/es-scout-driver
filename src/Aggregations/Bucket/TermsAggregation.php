@@ -17,8 +17,10 @@ final class TermsAggregation implements AggregationInterface
     private ?bool $showTermDocCountError = null;
     private ?array $order = null;
     private ?string $missing = null;
-    private ?array $include = null;
-    private ?array $exclude = null;
+    /** @var array<int|string, mixed>|string|null */
+    private array|string|null $include = null;
+    /** @var array<int|string, mixed>|string|null */
+    private array|string|null $exclude = null;
     private ?string $collectMode = null;
 
     public function __construct(private string $field) {}
@@ -72,17 +74,25 @@ final class TermsAggregation implements AggregationInterface
         return $this;
     }
 
-    /** @param array<string>|string $patterns */
+    /**
+     * A string is a regular expression, an array lists exact values.
+     *
+     * @param array<int|string, mixed>|string $patterns
+     */
     public function include(array|string $patterns): self
     {
-        $this->include = is_array($patterns) ? $patterns : [$patterns];
+        $this->include = $patterns;
         return $this;
     }
 
-    /** @param array<string>|string $patterns */
+    /**
+     * A string is a regular expression, an array lists exact values.
+     *
+     * @param array<int|string, mixed>|string $patterns
+     */
     public function exclude(array|string $patterns): self
     {
-        $this->exclude = is_array($patterns) ? $patterns : [$patterns];
+        $this->exclude = $patterns;
         return $this;
     }
 
@@ -129,11 +139,11 @@ final class TermsAggregation implements AggregationInterface
         }
 
         if ($this->include !== null) {
-            $params['include'] = count($this->include) === 1 ? reset($this->include) : $this->include;
+            $params['include'] = $this->include;
         }
 
         if ($this->exclude !== null) {
-            $params['exclude'] = count($this->exclude) === 1 ? reset($this->exclude) : $this->exclude;
+            $params['exclude'] = $this->exclude;
         }
 
         if ($this->collectMode !== null) {

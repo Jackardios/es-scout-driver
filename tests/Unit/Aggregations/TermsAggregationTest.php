@@ -85,6 +85,38 @@ final class TermsAggregationTest extends TestCase
     }
 
     #[Test]
+    public function it_keeps_a_one_element_include_or_exclude_list_as_a_list_of_exact_values(): void
+    {
+        $agg = (new TermsAggregation('version'))
+            ->include(['v1.0'])
+            ->exclude([3]);
+
+        $this->assertSame([
+            'terms' => [
+                'field' => 'version',
+                'include' => ['v1.0'],
+                'exclude' => [3],
+            ],
+        ], $agg->toArray());
+    }
+
+    #[Test]
+    public function it_sends_an_include_or_exclude_string_as_a_regular_expression(): void
+    {
+        $agg = (new TermsAggregation('version'))
+            ->include('v1.*')
+            ->exclude('v1\\.0');
+
+        $this->assertSame([
+            'terms' => [
+                'field' => 'version',
+                'include' => 'v1.*',
+                'exclude' => 'v1\\.0',
+            ],
+        ], $agg->toArray());
+    }
+
+    #[Test]
     public function it_returns_fluent_interface(): void
     {
         $agg = new TermsAggregation('author');
