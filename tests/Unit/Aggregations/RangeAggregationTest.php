@@ -119,12 +119,11 @@ final class RangeAggregationTest extends TestCase
     }
 
     #[Test]
-    public function it_refuses_a_range_without_bounds(): void
+    public function a_range_without_bounds_covers_every_value(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('RangeAggregation::range() requires from or to.');
+        $agg = (new RangeAggregation('price'))->range(key: 'all');
 
-        (new RangeAggregation('price'))->range(key: 'all');
+        $this->assertSame(['range' => ['field' => 'price', 'ranges' => [['key' => 'all']]]], $agg->toArray());
     }
 
     #[Test]
