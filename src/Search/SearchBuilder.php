@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\EsScoutDriver\Search;
 
 use Closure;
+use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Traits\Conditionable;
@@ -27,6 +28,7 @@ use Jackardios\EsScoutDriver\Query\Specialized\KnnQuery;
 use Jackardios\EsScoutDriver\Query\Term\TermQuery;
 use Jackardios\EsScoutDriver\Sort\FieldSort;
 use Jackardios\EsScoutDriver\Sort\SortInterface;
+use Jackardios\EsScoutDriver\Support\ConfigOption;
 use InvalidArgumentException;
 use LogicException;
 use stdClass;
@@ -1618,14 +1620,16 @@ class SearchBuilder
     private function resolveModelHydrationMismatchMode(): string
     {
         try {
-            $mode = strtolower((string) config('elastic.scout.model_hydration_mismatch', SearchResult::HYDRATION_MISMATCH_IGNORE));
-
-            return match ($mode) {
-                SearchResult::HYDRATION_MISMATCH_LOG,
-                SearchResult::HYDRATION_MISMATCH_EXCEPTION => $mode,
-                default => SearchResult::HYDRATION_MISMATCH_IGNORE,
-            };
-        } catch (Throwable) {
+            return ConfigOption::oneOf(
+                'elastic.scout.model_hydration_mismatch',
+                [
+                    SearchResult::HYDRATION_MISMATCH_IGNORE,
+                    SearchResult::HYDRATION_MISMATCH_LOG,
+                    SearchResult::HYDRATION_MISMATCH_EXCEPTION,
+                ],
+                SearchResult::HYDRATION_MISMATCH_IGNORE,
+            );
+        } catch (BindingResolutionException) {
             return SearchResult::HYDRATION_MISMATCH_IGNORE;
         }
     }

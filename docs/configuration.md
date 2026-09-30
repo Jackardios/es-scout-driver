@@ -199,8 +199,8 @@ return [
 ];
 ```
 
-`bulk_failure_mode` and `scout_query_type` are trimmed and case-insensitive; any other value throws an
-`InvalidArgumentException` naming the key.
+`model_hydration_mismatch`, `bulk_failure_mode` and `scout_query_type` are trimmed and case-insensitive; any other
+value throws an `InvalidArgumentException` naming the key.
 
 ### Refresh Documents
 

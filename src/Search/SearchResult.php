@@ -47,7 +47,7 @@ final class SearchResult implements IteratorAggregate
         string $modelHydrationMismatchMode = self::HYDRATION_MISMATCH_IGNORE,
     ) {
         $this->modelResolver = $modelResolver;
-        $this->modelHydrationMismatchMode = $this->normalizeHydrationMismatchMode($modelHydrationMismatchMode);
+        $this->modelHydrationMismatchMode = $modelHydrationMismatchMode;
         $this->total = $raw['hits']['total']['value'] ?? 0;
         $this->maxScore = $raw['hits']['max_score'] ?? null;
     }
@@ -203,16 +203,5 @@ final class SearchResult implements IteratorAggregate
         } catch (Throwable) {
             // Logging is best-effort and should never break result consumption.
         }
-    }
-
-    private function normalizeHydrationMismatchMode(string $mode): string
-    {
-        $normalized = strtolower(trim($mode));
-
-        return match ($normalized) {
-            self::HYDRATION_MISMATCH_LOG,
-            self::HYDRATION_MISMATCH_EXCEPTION => $normalized,
-            default => self::HYDRATION_MISMATCH_IGNORE,
-        };
     }
 }
