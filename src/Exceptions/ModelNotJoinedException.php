@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Exceptions;
 
-class ModelNotJoinedException extends \InvalidArgumentException
+final class ModelNotJoinedException extends \InvalidArgumentException
 {
     public function __construct(string $modelClass)
     {

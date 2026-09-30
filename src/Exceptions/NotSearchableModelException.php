@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Exceptions;
 
-class NotSearchableModelException extends \InvalidArgumentException
+final class NotSearchableModelException extends \InvalidArgumentException
 {
     public function __construct(string $modelClass)
     {

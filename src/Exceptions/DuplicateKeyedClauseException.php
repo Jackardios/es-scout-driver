@@ -11,7 +11,7 @@ final class DuplicateKeyedClauseException extends InvalidArgumentException
     public function __construct(string $section, string $key)
     {
         parent::__construct(sprintf(
-            'Clause with key "%s" already exists in %s section',
+            'Clause with key "%s" already exists in %s section.',
             $key,
             $section,
         ));

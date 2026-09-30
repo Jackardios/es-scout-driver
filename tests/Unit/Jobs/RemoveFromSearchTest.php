@@ -49,7 +49,7 @@ final class RemoveFromSearchTest extends TestCase
     public function it_throws_exception_for_empty_collection(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Cannot create RemoveFromSearch job with empty collection');
+        $this->expectExceptionMessage('Cannot create RemoveFromSearch job with empty collection.');
 
         new RemoveFromSearch(new Collection());
     }

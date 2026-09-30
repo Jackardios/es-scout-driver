@@ -34,7 +34,7 @@ final class RemoveFromSearch implements ShouldQueue
     public function __construct(Collection $models)
     {
         if ($models->isEmpty()) {
-            throw new InvalidArgumentException('Cannot create RemoveFromSearch job with empty collection');
+            throw new InvalidArgumentException('Cannot create RemoveFromSearch job with empty collection.');
         }
 
         $this->operations = [];
