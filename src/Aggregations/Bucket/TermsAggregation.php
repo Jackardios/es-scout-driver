@@ -9,6 +9,7 @@ use Jackardios\EsScoutDriver\Aggregations\AggregationInterface;
 use Jackardios\EsScoutDriver\Aggregations\Concerns\HasBucketOrder;
 use Jackardios\EsScoutDriver\Aggregations\Concerns\HasMissing;
 use Jackardios\EsScoutDriver\Aggregations\Concerns\HasSubAggregations;
+use Jackardios\EsScoutDriver\Enums\SortOrder;
 
 final class TermsAggregation implements AggregationInterface
 {
@@ -56,14 +57,12 @@ final class TermsAggregation implements AggregationInterface
         return $this;
     }
 
-    /** @param 'asc'|'desc' $direction */
-    public function orderByCount(string $direction = 'desc'): self
+    public function orderByCount(SortOrder|string $direction = 'desc'): self
     {
         return $this->order('_count', $direction);
     }
 
-    /** @param 'asc'|'desc' $direction */
-    public function orderByKey(string $direction = 'asc'): self
+    public function orderByKey(SortOrder|string $direction = 'asc'): self
     {
         return $this->order('_key', $direction);
     }
@@ -90,10 +89,7 @@ final class TermsAggregation implements AggregationInterface
         return $this;
     }
 
-    /**
-     * @param string $mode breadth_first or depth_first
-     * @return TermsAggregation
-     */
+    /** @param string $mode breadth_first or depth_first */
     public function collectMode(string $mode): self
     {
         if (!in_array($mode, ['breadth_first', 'depth_first'], true)) {

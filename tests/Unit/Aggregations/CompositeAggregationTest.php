@@ -6,6 +6,7 @@ namespace Jackardios\EsScoutDriver\Tests\Unit\Aggregations;
 
 use Jackardios\EsScoutDriver\Aggregations\Bucket\CompositeAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Metric\SumAggregation;
+use Jackardios\EsScoutDriver\Enums\SortOrder;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -234,5 +235,16 @@ final class CompositeAggregationTest extends TestCase
         $this->expectExceptionMessage('CompositeAggregation histogram source interval must be greater than 0.');
 
         (new CompositeAggregation())->histogramSource('p', 'price', 0);
+    }
+
+    #[Test]
+    public function it_accepts_a_sort_order_enum_for_a_terms_source(): void
+    {
+        $agg = (new CompositeAggregation())->termsSource('c', 'category', SortOrder::Desc);
+
+        $this->assertSame(
+            [['c' => ['terms' => ['field' => 'category', 'order' => 'desc']]]],
+            $agg->toArray()['composite']['sources'],
+        );
     }
 }

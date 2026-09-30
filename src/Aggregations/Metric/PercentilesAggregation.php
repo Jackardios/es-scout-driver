@@ -8,12 +8,12 @@ use InvalidArgumentException;
 
 final class PercentilesAggregation extends FieldMetricAggregation
 {
-    /** @var array<float>|null */
+    /** @var array<int|float>|null */
     private ?array $percents = null;
-    private ?int $compression = null;
+    private int|float|null $compression = null;
     private ?bool $keyed = null;
 
-    /** @param array<float> $percents */
+    /** @param array<int|float> $percents */
     public function percents(array $percents): self
     {
         if ($percents === []) {
@@ -30,7 +30,7 @@ final class PercentilesAggregation extends FieldMetricAggregation
         return $this;
     }
 
-    public function compression(int $compression): self
+    public function compression(int|float $compression): self
     {
         $this->compression = $compression;
         return $this;

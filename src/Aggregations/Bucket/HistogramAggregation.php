@@ -19,7 +19,7 @@ final class HistogramAggregation implements AggregationInterface
     private ?int $minDocCount = null;
     private ?array $extendedBounds = null;
     private ?array $hardBounds = null;
-    private ?int $offset = null;
+    private int|float|null $offset = null;
     private ?bool $keyed = null;
 
     public function __construct(
@@ -49,7 +49,7 @@ final class HistogramAggregation implements AggregationInterface
         return $this;
     }
 
-    public function offset(int $offset): self
+    public function offset(int|float $offset): self
     {
         $this->offset = $offset;
         return $this;

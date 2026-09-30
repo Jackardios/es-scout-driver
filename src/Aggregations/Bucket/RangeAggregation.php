@@ -22,7 +22,10 @@ final class RangeAggregation implements AggregationInterface
 
     public function __construct(private string $field) {}
 
-    public function range(int|float|null $from = null, int|float|null $to = null, ?string $key = null): self
+    /**
+     * Bounds may be numbers, or dates and date math on a date field.
+     */
+    public function range(int|float|string|null $from = null, int|float|string|null $to = null, ?string $key = null): self
     {
         return $this->addRange($from, $to, $key);
     }

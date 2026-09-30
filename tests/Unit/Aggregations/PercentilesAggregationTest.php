@@ -136,4 +136,12 @@ final class PercentilesAggregationTest extends TestCase
 
         $this->assertSame([0, 100], $agg->toArray()['percentiles']['percents']);
     }
+
+    #[Test]
+    public function it_accepts_a_float_compression(): void
+    {
+        $agg = (new PercentilesAggregation('price'))->compression(150.5);
+
+        $this->assertSame(['compression' => 150.5], $agg->toArray()['percentiles']['tdigest']);
+    }
 }

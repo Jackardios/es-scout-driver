@@ -6,6 +6,7 @@ namespace Jackardios\EsScoutDriver\Tests\Unit\Aggregations;
 
 use Jackardios\EsScoutDriver\Aggregations\Bucket\TermsAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Metric\AvgAggregation;
+use Jackardios\EsScoutDriver\Enums\SortOrder;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -153,5 +154,13 @@ final class TermsAggregationTest extends TestCase
         $agg = (new TermsAggregation('category'))->agg('2024', new AvgAggregation('price'));
 
         $this->assertSame('{"terms":{"field":"category"},"aggs":{"2024":{"avg":{"field":"price"}}}}', json_encode($agg->toArray()));
+    }
+
+    #[Test]
+    public function it_accepts_sort_order_enums(): void
+    {
+        $this->assertSame(['_count' => 'asc'], (new TermsAggregation('f'))->orderByCount(SortOrder::Asc)->toArray()['terms']['order']);
+        $this->assertSame(['_key' => 'desc'], (new TermsAggregation('f'))->orderByKey(SortOrder::Desc)->toArray()['terms']['order']);
+        $this->assertSame(['m' => 'desc'], (new TermsAggregation('f'))->order('m', SortOrder::Desc)->toArray()['terms']['order']);
     }
 }

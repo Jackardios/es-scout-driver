@@ -7,6 +7,7 @@ namespace Jackardios\EsScoutDriver\Aggregations\Bucket;
 use InvalidArgumentException;
 use Jackardios\EsScoutDriver\Aggregations\AggregationInterface;
 use Jackardios\EsScoutDriver\Aggregations\Concerns\HasSubAggregations;
+use Jackardios\EsScoutDriver\Enums\SortOrder;
 
 final class CompositeAggregation implements AggregationInterface
 {
@@ -28,12 +29,11 @@ final class CompositeAggregation implements AggregationInterface
         return $this;
     }
 
-    /** @param 'asc'|'desc'|null $order */
-    public function termsSource(string $name, string $field, ?string $order = null): self
+    public function termsSource(string $name, string $field, SortOrder|string|null $order = null): self
     {
         $source = ['terms' => ['field' => $field]];
         if ($order !== null) {
-            $source['terms']['order'] = $order;
+            $source['terms']['order'] = $order instanceof SortOrder ? $order->value : $order;
         }
         return $this->addSource($name, $source);
     }

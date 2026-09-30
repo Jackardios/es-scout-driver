@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Tests\Unit\Sort;
 
+use Jackardios\EsScoutDriver\Enums\DistanceType;
 use Jackardios\EsScoutDriver\Sort\GeoDistanceSort;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -70,5 +71,13 @@ final class GeoDistanceSortTest extends TestCase
         $this->assertSame($sort, $sort->unit('mi'));
         $this->assertSame($sort, $sort->mode('min'));
         $this->assertSame($sort, $sort->distanceType('plane'));
+    }
+
+    #[Test]
+    public function it_accepts_a_distance_type_enum(): void
+    {
+        $sort = (new GeoDistanceSort('location', 52.37, 4.89))->distanceType(DistanceType::Plane);
+
+        $this->assertSame('plane', $sort->toArray()['_geo_distance']['distance_type']);
     }
 }

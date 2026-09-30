@@ -6,6 +6,7 @@ namespace Jackardios\EsScoutDriver\Tests\Unit\Aggregations;
 
 use Jackardios\EsScoutDriver\Aggregations\Bucket\HistogramAggregation;
 use Jackardios\EsScoutDriver\Aggregations\Metric\AvgAggregation;
+use Jackardios\EsScoutDriver\Enums\SortOrder;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -210,5 +211,22 @@ final class HistogramAggregationTest extends TestCase
         $this->expectExceptionMessage('HistogramAggregation interval must be greater than 0.');
 
         new HistogramAggregation('price', -0.5);
+    }
+
+    #[Test]
+    public function it_accepts_a_sort_order_enum_and_a_float_offset(): void
+    {
+        $agg = (new HistogramAggregation('price', 10))
+            ->order('_key', SortOrder::Desc)
+            ->offset(2.5);
+
+        $this->assertSame([
+            'histogram' => [
+                'field' => 'price',
+                'interval' => 10,
+                'offset' => 2.5,
+                'order' => ['_key' => 'desc'],
+            ],
+        ], $agg->toArray());
     }
 }

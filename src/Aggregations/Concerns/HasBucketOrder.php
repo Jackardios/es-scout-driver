@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Aggregations\Concerns;
 
+use Jackardios\EsScoutDriver\Enums\SortOrder;
+
 trait HasBucketOrder
 {
     /** @var array<string, string>|null */
     private ?array $order = null;
 
-    /** @param 'asc'|'desc' $direction */
-    public function order(string $key, string $direction = 'asc'): static
+    public function order(string $key, SortOrder|string $direction = 'asc'): static
     {
-        $this->order = [$key => $direction];
+        $this->order = [$key => $direction instanceof SortOrder ? $direction->value : $direction];
         return $this;
     }
 

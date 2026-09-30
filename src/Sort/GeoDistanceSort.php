@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Sort;
 
+use Jackardios\EsScoutDriver\Enums\DistanceType;
 use Jackardios\EsScoutDriver\Sort\Concerns\HasOrder;
 
 final class GeoDistanceSort implements SortInterface
@@ -33,9 +34,9 @@ final class GeoDistanceSort implements SortInterface
         return $this;
     }
 
-    public function distanceType(string $type): self
+    public function distanceType(DistanceType|string $type): self
     {
-        $this->distanceType = $type;
+        $this->distanceType = $type instanceof DistanceType ? $type->value : $type;
         return $this;
     }
 

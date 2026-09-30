@@ -126,4 +126,17 @@ final class RangeAggregationTest extends TestCase
 
         (new RangeAggregation('price'))->range(key: 'all');
     }
+
+    #[Test]
+    public function it_accepts_date_bounds(): void
+    {
+        $agg = (new RangeAggregation('created_at'))
+            ->range(to: '2024-02-01')
+            ->range(from: '2024-02-01', to: 'now/d', key: 'recent');
+
+        $this->assertSame([
+            ['to' => '2024-02-01'],
+            ['from' => '2024-02-01', 'to' => 'now/d', 'key' => 'recent'],
+        ], $agg->toArray()['range']['ranges']);
+    }
 }
