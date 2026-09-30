@@ -196,7 +196,6 @@ final class Query
         return new BoolQuery();
     }
 
-    /** @param QueryInterface|Closure|array $query */
     public static function nested(string $path, QueryInterface|Closure|array $query): NestedQuery
     {
         return new NestedQuery($path, $query);
@@ -218,19 +217,16 @@ final class Query
         return new BoostingQuery($positive, $negative);
     }
 
-    /** @param QueryInterface|Closure|array $filter */
     public static function constantScore(QueryInterface|Closure|array $filter): ConstantScoreQuery
     {
         return new ConstantScoreQuery($filter);
     }
 
-    /** @param QueryInterface|Closure|array $query */
     public static function hasChild(string $type, QueryInterface|Closure|array $query): HasChildQuery
     {
         return new HasChildQuery($type, $query);
     }
 
-    /** @param QueryInterface|Closure|array $query */
     public static function hasParent(string $parentType, QueryInterface|Closure|array $query): HasParentQuery
     {
         return new HasParentQuery($parentType, $query);
