@@ -54,10 +54,6 @@ final class ModelResolverTest extends TestCase
             ['field' => 'fake_book_models.id', 'ids' => ['1', '2']],
         ], FakeBookModel::$whereInCalls);
         $this->assertSame([['author']], FakeBookModel::$withCalls);
-
-        $cachedModels = $resolver->getCachedModels('books');
-        $this->assertArrayHasKey('1', $cachedModels);
-        $this->assertArrayHasKey('2', $cachedModels);
     }
 
     #[Test]
@@ -130,7 +126,7 @@ final class ModelResolverTest extends TestCase
     }
 
     #[Test]
-    public function preload_all_collects_ids_from_hits_and_suggestions(): void
+    public function resolve_loads_the_models_of_hits_and_suggestions_of_an_index_in_one_query(): void
     {
         FakeBookModel::seedRecords(['1', '2', '3']);
         FakeAuthorModel::seedRecords(['10']);
@@ -155,15 +151,12 @@ final class ModelResolverTest extends TestCase
         $resolver->registerIndex('books', FakeBookModel::class);
         $resolver->registerIndex('authors', FakeAuthorModel::class);
 
-        $resolver->preloadAll();
+        $resolve = $resolver->createResolver();
 
-        $cachedBooks = $resolver->getCachedModels('books');
-        $cachedAuthors = $resolver->getCachedModels('authors');
-
-        $this->assertArrayHasKey('1', $cachedBooks);
-        $this->assertArrayHasKey('2', $cachedBooks);
-        $this->assertArrayNotHasKey('3', $cachedBooks);
-        $this->assertArrayHasKey('10', $cachedAuthors);
+        $this->assertInstanceOf(FakeBookModel::class, $resolve('books', '1'));
+        $this->assertInstanceOf(FakeBookModel::class, $resolve('books', '2'));
+        $this->assertNull($resolve('books', '3'));
+        $this->assertInstanceOf(FakeAuthorModel::class, $resolve('authors', '10'));
 
         $this->assertSame(1, FakeBookModel::$newQueryCalls);
         $this->assertSame(1, FakeAuthorModel::$newQueryCalls);
@@ -173,21 +166,6 @@ final class ModelResolverTest extends TestCase
         $this->assertSame([
             ['field' => 'fake_author_models.id', 'ids' => ['10']],
         ], FakeAuthorModel::$whereInCalls);
-    }
-
-    #[Test]
-    public function with_raw_data_preserves_registered_indices(): void
-    {
-        FakeBookModel::seedRecords(['42']);
-
-        $resolver = new ModelResolver(new AliasRegistry());
-        $resolver->registerIndex('books', FakeBookModel::class);
-
-        $newResolver = $resolver->withRawData([['_index' => 'books', '_id' => '42']]);
-        $resolved = $newResolver->createResolver()('books', '42');
-
-        $this->assertInstanceOf(FakeBookModel::class, $resolved);
-        $this->assertSame('42', (string) $resolved?->getScoutKey());
     }
 
     #[Test]

@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 final class ModelResolver
 {
     use ExtractsHitMetadata;
+
     /** @var array<string, IndexConfig> */
     private array $indices = [];
 
@@ -39,11 +40,7 @@ final class ModelResolver
         private readonly array $rawResult = [],
     ) {}
 
-    /**
-     * Register an index configuration.
-     *
-     * @param class-string<Model> $modelClass
-     */
+    /** @param class-string<Model> $modelClass */
     public function registerIndex(
         string $indexName,
         string $modelClass,
@@ -65,24 +62,6 @@ final class ModelResolver
         return $this;
     }
 
-    /**
-     * Create a new resolver with different raw data but same configuration.
-     *
-     * @param list<array<string, mixed>> $rawHits
-     * @param array<string, list<array<string, mixed>>> $rawSuggestions
-     * @param array<string, mixed> $rawResult
-     */
-    public function withRawData(array $rawHits, array $rawSuggestions = [], array $rawResult = []): self
-    {
-        $resolver = new self($this->aliasRegistry, $rawHits, $rawSuggestions, $rawResult);
-        $resolver->indices = $this->indices;
-
-        return $resolver;
-    }
-
-    /**
-     * Create a resolver closure for Hit objects.
-     */
     public function createResolver(): Closure
     {
         return function (string $indexName, string $documentId): ?Model {
@@ -90,9 +69,6 @@ final class ModelResolver
         };
     }
 
-    /**
-     * Resolve a model by index name and document ID.
-     */
     public function resolve(string $indexName, string $documentId): ?Model
     {
         $resolvedIndex = $this->aliasRegistry->resolve($indexName);
@@ -106,31 +82,6 @@ final class ModelResolver
         return $this->cache[$resolvedIndex][$documentId] ?? null;
     }
 
-    /**
-     * Preload all models for all indices.
-     * Call this if you know you'll need all models.
-     */
-    public function preloadAll(): void
-    {
-        $this->collectAllIds();
-
-        foreach (array_keys($this->pendingIds) as $indexName) {
-            $this->loadModelsForIndex($indexName);
-        }
-    }
-
-    /**
-     * Get all cached models for an index.
-     *
-     * @return array<string, Model>
-     */
-    public function getCachedModels(string $indexName): array
-    {
-        $resolvedIndex = $this->aliasRegistry->resolve($indexName);
-
-        return $this->cache[$resolvedIndex] ?? [];
-    }
-
     private function ensureModelsLoaded(string $indexName): void
     {
         if (isset($this->cache[$indexName])) {
@@ -141,9 +92,6 @@ final class ModelResolver
         $this->loadModelsForIndex($indexName);
     }
 
-    /**
-     * Collect all document IDs from raw hits and suggestions in one pass.
-     */
     private function collectAllIds(): void
     {
         if ($this->idsCollected) {
@@ -209,10 +157,6 @@ final class ModelResolver
 
     private function loadModelsForIndex(string $indexName): void
     {
-        if (isset($this->cache[$indexName])) {
-            return;
-        }
-
         $documentIds = array_unique($this->pendingIds[$indexName] ?? []);
 
         if ($documentIds === []) {
