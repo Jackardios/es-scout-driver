@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\EsScoutDriver\Tests\Unit\Search;
 
 use Closure;
+use Jackardios\EsScoutDriver\Aggregations\Agg;
 use Jackardios\EsScoutDriver\Aggregations\AggregationInterface;
 use Jackardios\EsScoutDriver\Engine\AliasRegistry;
 use Jackardios\EsScoutDriver\Engine\EngineInterface;
@@ -447,6 +448,54 @@ final class SearchBuilderMethodsTest extends TestCase
 
         $this->assertSame($builder, $result);
         $this->assertSame(['by_status' => ['terms' => ['field' => 'status']]], $builder->getAggregations());
+    }
+
+    #[Test]
+    public function aggregate_serializes_the_aggregation_when_the_body_is_built(): void
+    {
+        $builder = $this->createBuilder();
+        $terms = Agg::terms('status');
+        $builder->aggregate('by_status', $terms);
+        $terms->agg('avg_price', Agg::avg('price'));
+
+        $this->assertSame(
+            ['by_status' => ['terms' => ['field' => 'status'], 'aggs' => ['avg_price' => ['avg' => ['field' => 'price']]]]],
+            $builder->buildParams()['body']['aggs'],
+        );
+    }
+
+    #[Test]
+    public function clone_copies_the_aggregation_objects(): void
+    {
+        $builder = $this->createBuilder();
+        $terms = Agg::terms('status');
+        $builder->aggregate('by_status', $terms);
+
+        $clone = clone $builder;
+        $terms->size(5);
+
+        $this->assertSame(['by_status' => ['terms' => ['field' => 'status']]], $clone->getAggregations());
+        $this->assertSame(['by_status' => ['terms' => ['field' => 'status', 'size' => 5]]], $builder->getAggregations());
+    }
+
+    #[Test]
+    public function aggregate_refuses_a_name_that_would_send_the_aggregations_as_a_list(): void
+    {
+        $builder = $this->createBuilder();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Aggregation name [0] would send the aggregations as a JSON list');
+
+        $builder->aggregate('0', Agg::avg('price'));
+    }
+
+    #[Test]
+    public function aggregate_accepts_an_integer_name_after_a_named_aggregation(): void
+    {
+        $builder = $this->createBuilder();
+        $builder->aggregate('a', Agg::avg('price'))->aggregate('0', Agg::avg('price'));
+
+        $this->assertSame(['a', 0], array_keys($builder->getAggregations()));
     }
 
     #[Test]

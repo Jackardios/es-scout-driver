@@ -66,7 +66,7 @@ class SearchBuilder
     private bool|string|array|null $source = null;
     /** @var array<string, mixed> */
     private array $collapse = [];
-    /** @var array<string, array<string, mixed>> */
+    /** @var array<int|string, AggregationInterface|array<string, mixed>> Integer-like names become integer keys */
     private array $aggregations = [];
     private ?array $postFilter = null;
     private int|bool|null $trackTotalHits = null;
@@ -471,11 +471,24 @@ class SearchBuilder
         return $this;
     }
 
+    /**
+     * @param AggregationInterface|array<string, mixed> $definition serialized when the request is built
+     *
+     * @throws InvalidArgumentException when an integer name would turn the aggregations into a JSON list
+     */
     public function aggregate(string $name, AggregationInterface|array $definition): static
     {
-        $this->aggregations[$name] = $definition instanceof AggregationInterface
-            ? $definition->toArray()
-            : $definition;
+        $aggregations = $this->aggregations;
+        $aggregations[$name] = $definition;
+
+        if (array_is_list($aggregations)) {
+            throw new InvalidArgumentException(sprintf(
+                'Aggregation name [%s] would send the aggregations as a JSON list; use a name that is not an integer.',
+                $name,
+            ));
+        }
+
+        $this->aggregations = $aggregations;
         return $this;
     }
 
@@ -838,10 +851,15 @@ class SearchBuilder
         return $this->highlight;
     }
 
-    /** @return array<string, array<string, mixed>> */
+    /** @return array<int|string, array<string, mixed>> */
     public function getAggregations(): array
     {
-        return $this->aggregations;
+        return array_map(
+            static fn(AggregationInterface|array $aggregation): array => $aggregation instanceof AggregationInterface
+                ? $aggregation->toArray()
+                : $aggregation,
+            $this->aggregations,
+        );
     }
 
     public function getPostFilter(): ?array
@@ -1350,7 +1368,7 @@ class SearchBuilder
         }
 
         if ($this->aggregations !== []) {
-            $body['aggs'] = $this->aggregations;
+            $body['aggs'] = $this->getAggregations();
         }
 
         if ($this->postFilter !== null) {
