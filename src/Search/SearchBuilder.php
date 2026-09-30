@@ -22,7 +22,6 @@ use Jackardios\EsScoutDriver\Exceptions\ModelNotJoinedException;
 use Jackardios\EsScoutDriver\Exceptions\NotSearchableModelException;
 use Jackardios\EsScoutDriver\Aggregations\AggregationInterface;
 use Jackardios\EsScoutDriver\Query\Compound\BoolQuery;
-use Jackardios\EsScoutDriver\Query\Concerns\ResolvesQueries;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
 use Jackardios\EsScoutDriver\Query\Specialized\KnnQuery;
 use Jackardios\EsScoutDriver\Query\Term\TermQuery;
@@ -36,7 +35,6 @@ class SearchBuilder
     use Conditionable;
     use Macroable;
     use Tappable;
-    use ResolvesQueries;
 
     public const DEFAULT_PAGE_SIZE = 10;
 
@@ -115,13 +113,7 @@ class SearchBuilder
 
     public function query(QueryInterface|Closure|array $query): static
     {
-        $resolved = $this->resolveQueryToArray($query);
-
-        if ($resolved === []) {
-            throw new InvalidQueryException('Search query cannot be empty');
-        }
-
-        $this->query = $resolved;
+        $this->query = $this->resolveQueryToArray($query, 'Search query');
         return $this;
     }
 
@@ -136,28 +128,32 @@ class SearchBuilder
     /** @param QueryInterface|Closure|array ...$queries */
     public function must(QueryInterface|Closure|array ...$queries): static
     {
-        $this->boolQuery()->must(...array_map(fn($q) => $this->resolveQueryObject($q), $queries));
+        $this->refuseEmptyClauses('must', $queries);
+        $this->boolQuery()->must(...$queries);
         return $this;
     }
 
     /** @param QueryInterface|Closure|array ...$queries */
     public function mustNot(QueryInterface|Closure|array ...$queries): static
     {
-        $this->boolQuery()->mustNot(...array_map(fn($q) => $this->resolveQueryObject($q), $queries));
+        $this->refuseEmptyClauses('mustNot', $queries);
+        $this->boolQuery()->mustNot(...$queries);
         return $this;
     }
 
     /** @param QueryInterface|Closure|array ...$queries */
     public function should(QueryInterface|Closure|array ...$queries): static
     {
-        $this->boolQuery()->should(...array_map(fn($q) => $this->resolveQueryObject($q), $queries));
+        $this->refuseEmptyClauses('should', $queries);
+        $this->boolQuery()->should(...$queries);
         return $this;
     }
 
     /** @param QueryInterface|Closure|array ...$queries */
     public function filter(QueryInterface|Closure|array ...$queries): static
     {
-        $this->boolQuery()->filter(...array_map(fn($q) => $this->resolveQueryObject($q), $queries));
+        $this->refuseEmptyClauses('filter', $queries);
+        $this->boolQuery()->filter(...$queries);
         return $this;
     }
 
@@ -352,7 +348,7 @@ class SearchBuilder
 
     public function rescore(QueryInterface|Closure|array $query, ?int $windowSize = null, ?float $queryWeight = null, ?float $rescoreQueryWeight = null): static
     {
-        $rescore = ['query' => ['rescore_query' => $this->resolveQueryToArray($query)]];
+        $rescore = ['query' => ['rescore_query' => $this->resolveQueryToArray($query, 'Rescore query')]];
 
         if ($queryWeight !== null) {
             $rescore['query']['query_weight'] = $queryWeight;
@@ -487,7 +483,7 @@ class SearchBuilder
 
     public function postFilter(QueryInterface|Closure|array $query): static
     {
-        $this->postFilter = $this->resolveQueryToArray($query);
+        $this->postFilter = $this->resolveQueryToArray($query, 'Post filter');
         return $this;
     }
 
@@ -1270,6 +1266,33 @@ class SearchBuilder
     }
 
     // ---- Private helpers ----
+
+    /**
+     * @param QueryInterface|Closure():(QueryInterface|array<string, mixed>)|array<string, mixed> $query
+     * @return array<string, mixed>
+     */
+    private function resolveQueryToArray(QueryInterface|Closure|array $query, string $name): array
+    {
+        if ($query instanceof Closure) {
+            $query = $query();
+        }
+
+        $resolved = $query instanceof QueryInterface ? $query->toArray() : $query;
+
+        if ($resolved === []) {
+            throw new InvalidQueryException("$name cannot be empty");
+        }
+
+        return $resolved;
+    }
+
+    /** @param array<QueryInterface|Closure|array<string, mixed>> $queries */
+    private function refuseEmptyClauses(string $method, array $queries): void
+    {
+        if (in_array([], $queries, true)) {
+            throw new InvalidQueryException("$method() clause cannot be empty");
+        }
+    }
 
     private function buildBody(): array
     {

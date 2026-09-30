@@ -18,6 +18,7 @@ use Jackardios\EsScoutDriver\Query\Term\TermQuery;
 use Jackardios\EsScoutDriver\Search\SearchBuilder;
 use Jackardios\EsScoutDriver\Sort\FieldSort;
 use Jackardios\EsScoutDriver\Sort\SortInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use LogicException;
@@ -79,6 +80,34 @@ final class SearchBuilderMethodsTest extends TestCase
         $this->expectExceptionMessage('Search query cannot be empty');
 
         $builder->query([]);
+    }
+
+    /** @return iterable<string, array{Closure(SearchBuilder): mixed, string}> */
+    public static function emptyQueryCalls(): iterable
+    {
+        yield 'postFilter' => [static fn(SearchBuilder $b) => $b->postFilter([]), 'Post filter cannot be empty'];
+        yield 'postFilter closure' => [static fn(SearchBuilder $b) => $b->postFilter(static fn() => []), 'Post filter cannot be empty'];
+        yield 'rescore' => [static fn(SearchBuilder $b) => $b->rescore([]), 'Rescore query cannot be empty'];
+        yield 'must' => [static fn(SearchBuilder $b) => $b->must([]), 'must() clause cannot be empty'];
+        yield 'mustNot' => [static fn(SearchBuilder $b) => $b->mustNot(['term' => ['a' => 1]], []), 'mustNot() clause cannot be empty'];
+        yield 'should' => [static fn(SearchBuilder $b) => $b->should([]), 'should() clause cannot be empty'];
+        yield 'filter' => [static fn(SearchBuilder $b) => $b->filter([]), 'filter() clause cannot be empty'];
+    }
+
+    #[Test]
+    #[DataProvider('emptyQueryCalls')]
+    public function empty_queries_are_refused(Closure $call, string $message): void
+    {
+        $builder = $this->createBuilder();
+
+        try {
+            $call($builder);
+            $this->fail('InvalidQueryException was not thrown');
+        } catch (InvalidQueryException $e) {
+            $this->assertSame($message, $e->getMessage());
+        }
+
+        $this->assertNull($builder->getBoolQuery());
     }
 
     #[Test]
