@@ -51,7 +51,7 @@ final class ModelResolverTest extends TestCase
         $this->assertSame(1, FakeBookModel::$newQueryCalls);
         $this->assertSame(1, FakeBookModel::$getCalls);
         $this->assertSame([
-            ['field' => 'id', 'ids' => ['1', '2']],
+            ['field' => 'fake_book_models.id', 'ids' => ['1', '2']],
         ], FakeBookModel::$whereInCalls);
         $this->assertSame([['author']], FakeBookModel::$withCalls);
 
@@ -168,10 +168,10 @@ final class ModelResolverTest extends TestCase
         $this->assertSame(1, FakeBookModel::$newQueryCalls);
         $this->assertSame(1, FakeAuthorModel::$newQueryCalls);
         $this->assertSame([
-            ['field' => 'id', 'ids' => ['1', '2']],
+            ['field' => 'fake_book_models.id', 'ids' => ['1', '2']],
         ], FakeBookModel::$whereInCalls);
         $this->assertSame([
-            ['field' => 'id', 'ids' => ['10']],
+            ['field' => 'fake_author_models.id', 'ids' => ['10']],
         ], FakeAuthorModel::$whereInCalls);
     }
 

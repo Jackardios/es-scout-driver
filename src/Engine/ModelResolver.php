@@ -246,7 +246,7 @@ final class ModelResolver
             ? $model->withTrashed()
             : $model->newQuery();
 
-        $query->whereIn($model->getScoutKeyName(), $documentIds);
+        $query->whereIn($model->qualifyColumn($model->getScoutKeyName()), $documentIds);
 
         if ($config->relations !== []) {
             $query->with($config->relations);
