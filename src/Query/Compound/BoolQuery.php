@@ -11,6 +11,7 @@ use Jackardios\EsScoutDriver\Exceptions\DuplicateKeyedClauseException;
 use Jackardios\EsScoutDriver\Query\Concerns\HasBoost;
 use Jackardios\EsScoutDriver\Query\Concerns\HasMinimumShouldMatch;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
+use Jackardios\EsScoutDriver\Query\SubQuery;
 use stdClass;
 
 final class BoolQuery implements QueryInterface
@@ -31,51 +32,62 @@ final class BoolQuery implements QueryInterface
     /** @var array<int|string, QueryInterface|array> */
     private array $filter = [];
 
+    /** @var array<string, array<int|string, true>> the keys of the keyed clauses, by section */
+    private array $keys = ['must' => [], 'must_not' => [], 'should' => [], 'filter' => []];
+
     public function setMust(QueryInterface|array ...$queries): self
     {
         $this->must = array_values($queries);
+        $this->keys['must'] = [];
         return $this;
     }
 
     public function setMustNot(QueryInterface|array ...$queries): self
     {
         $this->mustNot = array_values($queries);
+        $this->keys['must_not'] = [];
         return $this;
     }
 
     public function setShould(QueryInterface|array ...$queries): self
     {
         $this->should = array_values($queries);
+        $this->keys['should'] = [];
         return $this;
     }
 
     public function setFilter(QueryInterface|array ...$queries): self
     {
         $this->filter = array_values($queries);
+        $this->keys['filter'] = [];
         return $this;
     }
 
     public function clearMust(): self
     {
         $this->must = [];
+        $this->keys['must'] = [];
         return $this;
     }
 
     public function clearMustNot(): self
     {
         $this->mustNot = [];
+        $this->keys['must_not'] = [];
         return $this;
     }
 
     public function clearShould(): self
     {
         $this->should = [];
+        $this->keys['should'] = [];
         return $this;
     }
 
     public function clearFilter(): self
     {
         $this->filter = [];
+        $this->keys['filter'] = [];
         return $this;
     }
 
@@ -85,6 +97,7 @@ final class BoolQuery implements QueryInterface
         $this->mustNot = [];
         $this->should = [];
         $this->filter = [];
+        $this->keys = ['must' => [], 'must_not' => [], 'should' => [], 'filter' => []];
         return $this;
     }
 
@@ -170,25 +183,25 @@ final class BoolQuery implements QueryInterface
 
     public function removeMust(string $key): self
     {
-        unset($this->must[$key]);
+        $this->removeClause($this->must, 'must', $key);
         return $this;
     }
 
     public function removeMustNot(string $key): self
     {
-        unset($this->mustNot[$key]);
+        $this->removeClause($this->mustNot, 'must_not', $key);
         return $this;
     }
 
     public function removeShould(string $key): self
     {
-        unset($this->should[$key]);
+        $this->removeClause($this->should, 'should', $key);
         return $this;
     }
 
     public function removeFilter(string $key): self
     {
-        unset($this->filter[$key]);
+        $this->removeClause($this->filter, 'filter', $key);
         return $this;
     }
 
@@ -199,8 +212,8 @@ final class BoolQuery implements QueryInterface
      */
     public function hasClause(string $section, string $key): bool
     {
-        $clauses = $this->getSection($section);
-        return isset($clauses[$key]);
+        $this->getSection($section);
+        return isset($this->keys[$section][$key]);
     }
 
     /**
@@ -211,7 +224,7 @@ final class BoolQuery implements QueryInterface
     public function getClause(string $section, string $key): QueryInterface|array|null
     {
         $clauses = $this->getSection($section);
-        return $clauses[$key] ?? null;
+        return isset($this->keys[$section][$key]) ? $clauses[$key] : null;
     }
 
     /** @return array<int|string, QueryInterface|array> */
@@ -306,33 +319,43 @@ final class BoolQuery implements QueryInterface
         ?string $key,
         bool $ignoreIfKeyExists,
     ): void {
-        /** @var QueryInterface|array<string, mixed> $resolved */
-        $resolved = $query instanceof Closure ? $query() : $query;
+        $resolved = SubQuery::resolve($query);
 
-        if ($key !== null) {
-            if (isset($clauses[$key])) {
-                if (!$ignoreIfKeyExists) {
-                    throw new DuplicateKeyedClauseException($section, $key);
-                }
-                return;
-            }
-            $clauses[$key] = $resolved;
+        if ($key === null) {
+            $clauses[] = $resolved;
             return;
         }
 
-        $clauses[] = $resolved;
+        if (isset($this->keys[$section][$key])) {
+            if (!$ignoreIfKeyExists) {
+                throw new DuplicateKeyedClauseException($section, $key);
+            }
+            return;
+        }
+
+        if (array_key_exists($key, $clauses)) {
+            $clauses[] = $clauses[$key];
+        }
+
+        $clauses[$key] = $resolved;
+        $this->keys[$section][$key] = true;
+    }
+
+    /**
+     * @param array<int|string, QueryInterface|array> $clauses
+     * @param-out array<int|string, QueryInterface|array> $clauses
+     */
+    private function removeClause(array &$clauses, string $section, string $key): void
+    {
+        if (isset($this->keys[$section][$key])) {
+            unset($clauses[$key], $this->keys[$section][$key]);
+        }
     }
 
     /** @param array<int|string, QueryInterface|array> $clauses */
     private function clausesToArray(array $clauses): array
     {
-        $result = [];
-
-        foreach ($clauses as $clause) {
-            $result[] = $clause instanceof QueryInterface ? $clause->toArray() : $clause;
-        }
-
-        return $result;
+        return array_map(SubQuery::toArray(...), array_values($clauses));
     }
 
     /**

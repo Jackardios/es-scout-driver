@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\EsScoutDriver\Tests\Unit\Query\Compound;
 
 use Jackardios\EsScoutDriver\Exceptions\DuplicateKeyedClauseException;
+use Jackardios\EsScoutDriver\Exceptions\InvalidQueryException;
 use Jackardios\EsScoutDriver\Query\Compound\BoolQuery;
 use Jackardios\EsScoutDriver\Query\Term\TermQuery;
 use Jackardios\EsScoutDriver\Query\FullText\MatchQuery;
@@ -750,5 +751,74 @@ final class BoolQueryTest extends TestCase
         });
 
         $this->assertSame([], $received);
+    }
+
+    #[Test]
+    public function a_numeric_key_does_not_collide_with_a_positional_clause(): void
+    {
+        $query = (new BoolQuery())
+            ->addMust(new TermQuery('status', 'draft'))
+            ->addMust(new TermQuery('status', 'published'), '0');
+
+        $this->assertSame(['term' => ['status' => ['value' => 'published']]], $query->getClause('must', '0')?->toArray());
+        $this->assertSame([
+            'bool' => [
+                'must' => [
+                    ['term' => ['status' => ['value' => 'published']]],
+                    ['term' => ['status' => ['value' => 'draft']]],
+                ],
+            ],
+        ], $query->toArray());
+    }
+
+    #[Test]
+    public function a_numeric_key_names_no_positional_clause(): void
+    {
+        $query = (new BoolQuery())->addMust(new TermQuery('status', 'draft'));
+
+        $this->assertFalse($query->hasClause('must', '0'));
+        $this->assertNull($query->getClause('must', '0'));
+
+        $query->removeMust('0');
+
+        $this->assertCount(1, $query->getMustClauses());
+    }
+
+    #[Test]
+    public function a_positional_clause_added_after_a_numeric_key_is_kept(): void
+    {
+        $query = (new BoolQuery())
+            ->addFilter(new TermQuery('status', 'draft'), '0')
+            ->addFilter(new TermQuery('status', 'published'));
+
+        $query->removeFilter('0');
+
+        $this->assertSame([
+            'bool' => ['filter' => [['term' => ['status' => ['value' => 'published']]]]],
+        ], $query->toArray());
+    }
+
+    #[Test]
+    public function set_and_clear_forget_the_keys(): void
+    {
+        $query = (new BoolQuery())
+            ->addMust(new TermQuery('a', 'b'), 'key')
+            ->addShould(new TermQuery('a', 'b'), 'key');
+
+        $query->setMust(new TermQuery('c', 'd'));
+        $query->clear();
+        $query->addShould(new TermQuery('e', 'f'), 'key', ignoreIfKeyExists: false);
+
+        $this->assertFalse($query->hasClause('must', 'key'));
+        $this->assertTrue($query->hasClause('should', 'key'));
+    }
+
+    #[Test]
+    public function a_clause_closure_returning_something_else_is_refused(): void
+    {
+        $this->expectException(InvalidQueryException::class);
+        $this->expectExceptionMessage('A query closure must return a Jackardios\\EsScoutDriver\\Query\\QueryInterface or an array, null returned');
+
+        (new BoolQuery())->must(fn() => null);
     }
 }
