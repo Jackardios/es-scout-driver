@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Query\Specialized;
 
+use Jackardios\EsScoutDriver\Exceptions\InvalidQueryException;
 use Jackardios\EsScoutDriver\Query\Concerns\HasBoost;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
 use Jackardios\EsScoutDriver\Query\SubQuery;
@@ -45,6 +46,14 @@ final class PinnedQuery implements QueryInterface
     /** @return array<string, mixed> */
     public function toArray(): array
     {
+        if ($this->ids === null && $this->docs === null) {
+            throw new InvalidQueryException('PinnedQuery requires either ids or docs');
+        }
+
+        if ($this->ids !== null && $this->docs !== null) {
+            throw new InvalidQueryException('PinnedQuery accepts either ids or docs, not both');
+        }
+
         $params = [
             'organic' => SubQuery::toArray($this->organic),
         ];

@@ -6,6 +6,7 @@ namespace Jackardios\EsScoutDriver\Tests\Unit\Query\Specialized;
 
 use Jackardios\EsScoutDriver\Query\FullText\MatchQuery;
 use Jackardios\EsScoutDriver\Query\Specialized\PinnedQuery;
+use Jackardios\EsScoutDriver\Exceptions\InvalidQueryException;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -148,5 +149,23 @@ final class PinnedQueryTest extends TestCase
         $query = (new PinnedQuery(['match_all' => []]))->docs(['a' => ['_index' => 'books', '_id' => '1']]);
 
         $this->assertSame([['_index' => 'books', '_id' => '1']], $query->toArray()['pinned']['docs']);
+    }
+
+    #[Test]
+    public function it_requires_ids_or_docs(): void
+    {
+        $this->expectException(InvalidQueryException::class);
+        $this->expectExceptionMessage('PinnedQuery requires either ids or docs');
+
+        (new PinnedQuery(['match_all' => []]))->toArray();
+    }
+
+    #[Test]
+    public function it_refuses_ids_together_with_docs(): void
+    {
+        $this->expectException(InvalidQueryException::class);
+        $this->expectExceptionMessage('PinnedQuery accepts either ids or docs, not both');
+
+        (new PinnedQuery(['match_all' => []]))->ids(['1'])->doc('books', '2')->toArray();
     }
 }
