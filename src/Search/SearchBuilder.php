@@ -1268,13 +1268,15 @@ class SearchBuilder
 
         $body = [];
 
-        $query = $this->buildFinalQuery();
+        $query = $this->knn !== null && $this->query === null && !$this->boolQuery?->hasClauses()
+            ? null
+            : $this->buildFinalQuery();
         if ($query !== null) {
             $body['query'] = $query;
         }
 
         if ($this->knn !== null) {
-            $body['knn'] = $this->knn;
+            $body['knn'] = $this->buildKnn($this->knn);
         }
 
         if ($this->highlight !== []) {
@@ -1419,6 +1421,32 @@ class SearchBuilder
         }
 
         return $bool->addFilter($softDeleteFilter);
+    }
+
+    /**
+     * A top-level knn search is combined with the query as a disjunction, so
+     * the soft delete filter has to restrict every knn entry itself.
+     *
+     * @param array<mixed> $knn
+     * @return array<mixed>
+     */
+    private function buildKnn(array $knn): array
+    {
+        $softDeleteFilter = $this->buildSoftDeleteFilter();
+
+        if ($softDeleteFilter === null) {
+            return $knn;
+        }
+
+        $filter = $softDeleteFilter instanceof QueryInterface ? $softDeleteFilter->toArray() : $softDeleteFilter;
+        $withFilter = static function (array $entry) use ($filter): array {
+            $existing = $entry['filter'] ?? [];
+            $entry['filter'] = [...(is_array($existing) && array_is_list($existing) ? $existing : [$existing]), $filter];
+
+            return $entry;
+        };
+
+        return array_is_list($knn) ? array_map($withFilter, $knn) : $withFilter($knn);
     }
 
     private function buildSoftDeleteFilter(): QueryInterface|array|null

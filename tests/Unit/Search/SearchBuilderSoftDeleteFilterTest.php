@@ -120,6 +120,67 @@ final class SearchBuilderSoftDeleteFilterTest extends TestCase
     }
 
     #[Test]
+    public function knn_alone_takes_the_soft_delete_filter_and_sends_no_query(): void
+    {
+        $body = NonSoftDeleteModel::searchQuery()->knn('vector', [1.0, 0.0], 2)->toArray()['body'];
+
+        $this->assertArrayNotHasKey('query', $body);
+        $this->assertCount(1, $body['knn']['filter']);
+        $this->assertStringContainsString('__soft_deleted', json_encode($body['knn']['filter'][0], JSON_THROW_ON_ERROR));
+    }
+
+    #[Test]
+    public function knn_keeps_its_own_filter_beside_the_soft_delete_filter(): void
+    {
+        $body = NonSoftDeleteModel::searchQuery()
+            ->onlyTrashed()
+            ->knn('vector', [1.0, 0.0], 2, filter: Query::term('status', 'active'))
+            ->toArray()['body'];
+
+        $this->assertSame([
+            ['term' => ['status' => ['value' => 'active']]],
+            ['term' => ['__soft_deleted' => ['value' => 1]]],
+        ], $body['knn']['filter']);
+    }
+
+    #[Test]
+    public function every_raw_knn_entry_takes_the_soft_delete_filter(): void
+    {
+        $body = NonSoftDeleteModel::searchQuery()
+            ->onlyTrashed()
+            ->knnRaw([
+                ['field' => 'a', 'query_vector' => [1.0], 'k' => 1, 'filter' => [['term' => ['x' => 1]]]],
+                ['field' => 'b', 'query_vector' => [1.0], 'k' => 1],
+            ])
+            ->toArray()['body'];
+
+        $softDeleteFilter = ['term' => ['__soft_deleted' => ['value' => 1]]];
+        $this->assertSame([['term' => ['x' => 1]], $softDeleteFilter], $body['knn'][0]['filter']);
+        $this->assertSame([$softDeleteFilter], $body['knn'][1]['filter']);
+    }
+
+    #[Test]
+    public function knn_with_a_query_filters_both(): void
+    {
+        $body = NonSoftDeleteModel::searchQuery(Query::match('title', 'x'))
+            ->onlyTrashed()
+            ->knn('vector', [1.0, 0.0], 2)
+            ->toArray()['body'];
+
+        $this->assertSame([['term' => ['__soft_deleted' => ['value' => 1]]]], $body['query']['bool']['filter']);
+        $this->assertSame([['term' => ['__soft_deleted' => ['value' => 1]]]], $body['knn']['filter']);
+    }
+
+    #[Test]
+    public function knn_with_trashed_takes_no_filter(): void
+    {
+        $body = NonSoftDeleteModel::searchQuery()->withTrashed()->knn('vector', [1.0, 0.0], 2)->toArray()['body'];
+
+        $this->assertArrayNotHasKey('query', $body);
+        $this->assertArrayNotHasKey('filter', $body['knn']);
+    }
+
+    #[Test]
     public function clear_all_resets_the_soft_delete_mode(): void
     {
         $builder = NonSoftDeleteModel::searchQuery()->onlyTrashed()->clearAll();

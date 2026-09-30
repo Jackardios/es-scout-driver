@@ -335,6 +335,11 @@ $builder->knn(
 );
 ```
 
+Elasticsearch combines a top-level `knn` with the query as a disjunction: a hit matches the query or is one of the
+`k` nearest neighbours. `must()`, `filter()` and the other query methods therefore do not restrict the knn hits; pass
+`filter:` to `knn()` for that. With `scout.soft_delete` on, the soft delete filter is added to the `filter` of every
+knn entry, and a knn search without a query or bool clauses sends no `query`.
+
 ## Multi-Index Search
 
 ```php
