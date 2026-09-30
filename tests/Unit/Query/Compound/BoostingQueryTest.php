@@ -7,6 +7,7 @@ namespace Jackardios\EsScoutDriver\Tests\Unit\Query\Compound;
 use Jackardios\EsScoutDriver\Query\Compound\BoostingQuery;
 use Jackardios\EsScoutDriver\Query\Term\TermQuery;
 use Jackardios\EsScoutDriver\Query\Specialized\MatchAllQuery;
+use Jackardios\EsScoutDriver\Exceptions\InvalidQueryException;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -15,15 +16,16 @@ final class BoostingQueryTest extends TestCase
     #[Test]
     public function it_builds_boosting_query_with_query_interfaces(): void
     {
-        $query = new BoostingQuery(
+        $query = (new BoostingQuery(
             new TermQuery('status', 'active'),
             new TermQuery('status', 'deleted')
-        );
+        ))->negativeBoost(0.5);
 
         $this->assertSame([
             'boosting' => [
                 'positive' => ['term' => ['status' => ['value' => 'active']]],
                 'negative' => ['term' => ['status' => ['value' => 'deleted']]],
+                'negative_boost' => 0.5,
             ],
         ], $query->toArray());
     }
@@ -31,15 +33,16 @@ final class BoostingQueryTest extends TestCase
     #[Test]
     public function it_builds_boosting_query_with_array_queries(): void
     {
-        $query = new BoostingQuery(
+        $query = (new BoostingQuery(
             ['match' => ['title' => 'search']],
             ['match' => ['body' => 'spam']]
-        );
+        ))->negativeBoost(0.5);
 
         $this->assertSame([
             'boosting' => [
                 'positive' => ['match' => ['title' => 'search']],
                 'negative' => ['match' => ['body' => 'spam']],
+                'negative_boost' => 0.5,
             ],
         ], $query->toArray());
     }
@@ -87,5 +90,14 @@ final class BoostingQueryTest extends TestCase
         );
 
         $this->assertSame($query, $query->negativeBoost(0.5));
+    }
+
+    #[Test]
+    public function it_requires_a_negative_boost(): void
+    {
+        $this->expectException(InvalidQueryException::class);
+        $this->expectExceptionMessage('BoostingQuery requires negativeBoost to be set');
+
+        (new BoostingQuery(['match_all' => []], ['match_all' => []]))->toArray();
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Query\Compound;
 
+use Jackardios\EsScoutDriver\Exceptions\InvalidQueryException;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
 use Jackardios\EsScoutDriver\Query\SubQuery;
 
@@ -25,16 +26,15 @@ final class BoostingQuery implements QueryInterface
     /** @return array<string, mixed> */
     public function toArray(): array
     {
-        $params = [
-            'positive' => SubQuery::toArray($this->positive),
-            'negative' => SubQuery::toArray($this->negative),
-        ];
-
-        if ($this->negativeBoost !== null) {
-            $params['negative_boost'] = $this->negativeBoost;
+        if ($this->negativeBoost === null) {
+            throw new InvalidQueryException('BoostingQuery requires negativeBoost to be set');
         }
 
-        return ['boosting' => $params];
+        return ['boosting' => [
+            'positive' => SubQuery::toArray($this->positive),
+            'negative' => SubQuery::toArray($this->negative),
+            'negative_boost' => $this->negativeBoost,
+        ]];
     }
 
     public function __clone(): void
