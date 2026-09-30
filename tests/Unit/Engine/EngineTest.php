@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
 use Jackardios\EsScoutDriver\Engine\Engine;
 use Laravel\Scout\Builder;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -100,6 +101,41 @@ final class EngineTest extends TestCase
         $builder->callback = static fn(Client $client, ?string $query, array $params) => $client->search($params);
 
         $this->assertSame($result, $engine->search($builder));
+    }
+
+    #[Test]
+    public function paginate_sends_the_offset_of_the_page(): void
+    {
+        $engine = $this->createEngineWithMockTransport();
+        $builder = $this->createScoutBuilder('test');
+        $builder->callback = static fn($client, $query, $params) => $params;
+
+        $params = $engine->paginate($builder, 15, 3);
+
+        $this->assertSame(30, $params['body']['from']);
+        $this->assertSame(15, $params['body']['size']);
+    }
+
+    /** @return iterable<string, array{int, int, string}> */
+    public static function invalidPages(): iterable
+    {
+        yield 'perPage below 1' => [0, 1, 'perPage must be greater than 0.'];
+        yield 'page below 1' => [15, -1, 'page must be greater than or equal to 1.'];
+        yield 'offset overflow' => [15, PHP_INT_MAX, 'page is too large: the offset of its last hit does not fit in an integer.'];
+    }
+
+    #[Test]
+    #[DataProvider('invalidPages')]
+    public function paginate_refuses_an_invalid_page(int $perPage, int $page, string $message): void
+    {
+        $engine = $this->createEngineWithMockTransport();
+        $builder = $this->createScoutBuilder('test');
+        $builder->callback = static fn($client, $query, $params) => $params;
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage($message);
+
+        $engine->paginate($builder, $perPage, $page);
     }
 
     #[Test]

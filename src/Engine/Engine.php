@@ -108,6 +108,21 @@ final class Engine extends ScoutEngine implements EngineInterface
 
     public function paginate(Builder $builder, $perPage, $page): array
     {
+        $perPage = (int) $perPage;
+        $page = (int) $page;
+
+        if ($perPage < 1) {
+            throw new InvalidArgumentException('perPage must be greater than 0.');
+        }
+
+        if ($page < 1) {
+            throw new InvalidArgumentException('page must be greater than or equal to 1.');
+        }
+
+        if ($page > intdiv(PHP_INT_MAX, $perPage)) {
+            throw new InvalidArgumentException('page is too large: the offset of its last hit does not fit in an integer.');
+        }
+
         return $this->performSearch($builder, [
             'from' => ($page - 1) * $perPage,
             'size' => $perPage,
