@@ -651,6 +651,14 @@ Query::sparseVector('ml.tokens')
     ->inferenceId('my-elser-model')
     ->query('What is Elasticsearch?')
 
+// A semantic_text field brings its own inference endpoint
+Query::sparseVector('content')
+    ->query('What is Elasticsearch?')
+
+// A precomputed vector, without query or inferenceId
+Query::sparseVector('ml.tokens')
+    ->queryVector(['elasticsearch' => 1.2, 'search' => 0.8])
+
 // With pruning
 Query::sparseVector('ml.tokens')
     ->inferenceId('my-model')
