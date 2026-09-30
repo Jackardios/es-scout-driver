@@ -102,6 +102,17 @@ final class ServiceProviderTest extends TestCase
     }
 
     #[Test]
+    public function it_reads_the_connection_config_when_a_client_is_first_resolved(): void
+    {
+        $this->app['config']->set('elastic.client.connections.default.hosts', ['http://changed-host:9201']);
+
+        $client = $this->app->make(Client::class);
+
+        $this->assertSame($this->app->make('elastic.client.connection.default'), $client);
+        $this->assertSame('changed-host', $client->getTransport()->getNodePool()->nextNode()->getUri()->getHost());
+    }
+
+    #[Test]
     public function it_publishes_config_files(): void
     {
         $this->artisan('vendor:publish', [

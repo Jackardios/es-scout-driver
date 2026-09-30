@@ -66,19 +66,17 @@ final class ServiceProvider extends AbstractServiceProvider
     {
         /** @var \Illuminate\Config\Repository $config */
         $config = $this->app->make('config');
-        /** @var array<string, array<string, mixed>> $connections */
-        $connections = $config->get('elastic.client.connections', []);
-        $default = $config->get('elastic.client.default', 'default');
 
-        foreach ($connections as $name => $connectionConfig) {
+        foreach (array_keys($config->get('elastic.client.connections', [])) as $name) {
             $this->app->singleton(
                 "elastic.client.connection.$name",
-                fn() => ClientBuilder::fromConfig($connectionConfig)
+                fn() => ClientBuilder::fromConfig($this->app->make('config')->get("elastic.client.connections.$name")),
             );
         }
 
-        $this->app->singleton(Client::class, function () use ($default) {
-            return $this->app->make("elastic.client.connection.$default");
-        });
+        $this->app->singleton(
+            Client::class,
+            fn() => $this->app->make('elastic.client.connection.' . $this->app->make('config')->get('elastic.client.default', 'default')),
+        );
     }
 }
