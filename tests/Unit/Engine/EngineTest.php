@@ -175,7 +175,7 @@ final class EngineTest extends TestCase
     }
 
     #[Test]
-    public function search_filters_soft_deleted_models(): void
+    public function search_filters_soft_deleted_models_and_keeps_documents_without_the_flag(): void
     {
         $engine = $this->createEngineWithMockTransport();
         $search = static function (callable $configure) use ($engine): array {
@@ -191,7 +191,15 @@ final class EngineTest extends TestCase
             return $engine->search($builder)['body']['query']['bool']['filter'] ?? [];
         };
 
-        $this->assertSame([['term' => ['__soft_deleted' => ['value' => 0]]]], $search(static fn() => null));
+        $this->assertSame([[
+            'bool' => [
+                'should' => [
+                    ['term' => ['__soft_deleted' => ['value' => 0]]],
+                    ['bool' => ['must_not' => [['exists' => ['field' => '__soft_deleted']]]]],
+                ],
+                'minimum_should_match' => 1,
+            ],
+        ]], $search(static fn() => null));
         $this->assertSame(
             [['term' => ['__soft_deleted' => ['value' => 1]]]],
             $search(static fn(Builder $builder) => $builder->onlyTrashed()),

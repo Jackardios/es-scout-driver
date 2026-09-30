@@ -447,6 +447,15 @@ final class Engine extends ScoutEngine implements EngineInterface
         $ranges = ['>' => 'gt', '>=' => 'gte', '<' => 'lt', '<=' => 'lte'];
 
         return match (true) {
+            $field === '__soft_deleted' && $operator === '=' && $value === 0 => [
+                'bool' => [
+                    'should' => [
+                        ['term' => ['__soft_deleted' => ['value' => 0]]],
+                        ['bool' => ['must_not' => [['exists' => ['field' => '__soft_deleted']]]]],
+                    ],
+                    'minimum_should_match' => 1,
+                ],
+            ],
             $operator === '=' && $value === null => ['bool' => ['must_not' => [['exists' => ['field' => $field]]]]],
             $operator === '=' => ['term' => [$field => ['value' => $value]]],
             ($operator === '!=' || $operator === '<>') && $value === null => ['exists' => ['field' => $field]],
