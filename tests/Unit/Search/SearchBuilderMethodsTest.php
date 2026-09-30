@@ -1442,7 +1442,6 @@ final class SearchBuilderMethodsTest extends TestCase
     public function count_uses_search_raw_with_track_total_hits_and_clears_search_after(): void
     {
         $engine = $this->createMock(EngineInterface::class);
-        $engine->expects($this->never())->method('countRaw');
         $engine->expects($this->once())
             ->method('searchRaw')
             ->with($this->callback(function (array $params): bool {

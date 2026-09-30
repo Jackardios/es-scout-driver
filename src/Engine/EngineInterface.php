@@ -42,13 +42,6 @@ interface EngineInterface
     public function closePointInTime(string $pointInTimeId): void;
 
     /**
-     * Perform a count query against the engine.
-     *
-     * @param array<string, mixed> $params
-     */
-    public function countRaw(array $params): int;
-
-    /**
      * Delete documents matching a query.
      *
      * @param array<string, mixed> $params

@@ -259,13 +259,6 @@ final class Engine extends ScoutEngine implements EngineInterface
         $this->client->closePointInTime(['body' => ['id' => $pointInTimeId]]);
     }
 
-    public function countRaw(array $params): int
-    {
-        /** @var ElasticsearchResponse $response */
-        $response = $this->client->count($params);
-        return $response->asArray()['count'] ?? 0;
-    }
-
     /** @param array<string, mixed> $params */
     public function deleteByQueryRaw(array $params): array
     {

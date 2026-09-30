@@ -78,11 +78,6 @@ final class NullEngine extends ScoutEngine implements EngineInterface
 
     public function closePointInTime(string $pointInTimeId): void {}
 
-    public function countRaw(array $params): int
-    {
-        return 0;
-    }
-
     public function deleteByQueryRaw(array $params): array
     {
         return [

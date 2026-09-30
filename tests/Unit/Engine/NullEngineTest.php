@@ -107,14 +107,7 @@ final class NullEngineTest extends TestCase
         $this->engine->closePointInTime('pit-id');
 
         $this->assertNull($this->engine->getClient());
-        $this->assertSame(0, $this->engine->countRaw(['index' => 'test']));
         $this->assertSame(0, $this->engine->searchRaw(['index' => 'test'])['hits']['total']['value']);
-    }
-
-    #[Test]
-    public function count_raw_returns_zero(): void
-    {
-        $this->assertSame(0, $this->engine->countRaw(['index' => 'test']));
     }
 
     #[Test]
