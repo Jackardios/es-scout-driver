@@ -62,6 +62,20 @@ final class ExceptionsTest extends TestCase
     }
 
     #[Test]
+    public function bulk_operation_exception_message_names_the_first_failure(): void
+    {
+        $e = new BulkOperationException([
+            ['id' => '1', 'error' => ['type' => 'mapper_parsing_exception', 'reason' => 'failed to parse field [price]']],
+            ['id' => '2', 'error' => ['type' => 'version_conflict_engine_exception', 'reason' => 'version conflict']],
+        ]);
+
+        $this->assertSame(
+            'Bulk operation failed for 2 document(s), the first with mapper_parsing_exception: failed to parse field [price].',
+            $e->getMessage(),
+        );
+    }
+
+    #[Test]
     public function bulk_operation_exception_with_custom_message(): void
     {
         $failedDocs = [['id' => '1', 'error' => 'some error']];
@@ -89,7 +103,7 @@ final class ExceptionsTest extends TestCase
         $e = new BulkOperationException([]);
 
         $this->assertSame([], $e->getFailedDocuments());
-        $this->assertStringContainsString('0 document(s)', $e->getMessage());
+        $this->assertSame('Bulk operation failed for 0 document(s).', $e->getMessage());
     }
 
     #[Test]

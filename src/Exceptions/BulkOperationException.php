@@ -6,27 +6,30 @@ namespace Jackardios\EsScoutDriver\Exceptions;
 
 use RuntimeException;
 
-class BulkOperationException extends RuntimeException
+final class BulkOperationException extends RuntimeException
 {
-    /** @var array<int, array<string, mixed>> */
-    private array $failedDocuments;
-
     /** @param array<int, array<string, mixed>> $failedDocuments */
-    public function __construct(array $failedDocuments, string $message = '')
+    public function __construct(private readonly array $failedDocuments, string $message = '')
     {
-        $this->failedDocuments = $failedDocuments;
-
-        if ($message === '') {
-            $count = count($failedDocuments);
-            $message = sprintf('Bulk operation failed for %d document(s)', $count);
-        }
-
-        parent::__construct($message);
+        parent::__construct($message !== '' ? $message : self::describe($failedDocuments));
     }
 
     /** @return array<int, array<string, mixed>> */
     public function getFailedDocuments(): array
     {
         return $this->failedDocuments;
+    }
+
+    /** @param array<int, array<string, mixed>> $failedDocuments */
+    private static function describe(array $failedDocuments): string
+    {
+        $message = sprintf('Bulk operation failed for %d document(s)', count($failedDocuments));
+        $error = $failedDocuments[0]['error'] ?? null;
+
+        if (is_array($error) && isset($error['type'])) {
+            $message .= sprintf(', the first with %s: %s', $error['type'], $error['reason'] ?? 'no reason given');
+        }
+
+        return rtrim($message, '.') . '.';
     }
 }
