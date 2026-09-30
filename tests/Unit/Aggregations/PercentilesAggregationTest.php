@@ -101,4 +101,39 @@ final class PercentilesAggregationTest extends TestCase
         $this->assertSame($agg, $agg->missing('0'));
         $this->assertSame($agg, $agg->script(['source' => '_score']));
     }
+
+    #[Test]
+    public function it_refuses_empty_percents(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('PercentilesAggregation percents must not be empty.');
+
+        (new PercentilesAggregation('price'))->percents([]);
+    }
+
+    #[Test]
+    public function it_refuses_a_percent_above_100(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('PercentilesAggregation percents must be between 0 and 100.');
+
+        (new PercentilesAggregation('price'))->percents([50, 100.5]);
+    }
+
+    #[Test]
+    public function it_refuses_a_negative_percent(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('PercentilesAggregation percents must be between 0 and 100.');
+
+        (new PercentilesAggregation('price'))->percents([-1]);
+    }
+
+    #[Test]
+    public function it_accepts_percents_of_0_and_100(): void
+    {
+        $agg = (new PercentilesAggregation('price'))->percents([0, 100]);
+
+        $this->assertSame([0, 100], $agg->toArray()['percentiles']['percents']);
+    }
 }

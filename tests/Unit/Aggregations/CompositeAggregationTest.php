@@ -208,4 +208,31 @@ final class CompositeAggregationTest extends TestCase
         $this->assertSame($agg, $agg->after(['product' => 'abc']));
         $this->assertSame($agg, $agg->agg('sum', new SumAggregation('amount')));
     }
+
+    #[Test]
+    public function it_refuses_a_size_below_1(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('CompositeAggregation size must be greater than 0.');
+
+        (new CompositeAggregation())->size(0);
+    }
+
+    #[Test]
+    public function it_refuses_a_duplicate_source_name(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('CompositeAggregation already has a source named [c].');
+
+        (new CompositeAggregation())->termsSource('c', 'category')->histogramSource('c', 'price', 10);
+    }
+
+    #[Test]
+    public function it_refuses_a_histogram_source_interval_of_0(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('CompositeAggregation histogram source interval must be greater than 0.');
+
+        (new CompositeAggregation())->histogramSource('p', 'price', 0);
+    }
 }

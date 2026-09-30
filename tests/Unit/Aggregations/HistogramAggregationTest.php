@@ -193,4 +193,22 @@ final class HistogramAggregationTest extends TestCase
             ],
         ], $agg->toArray());
     }
+
+    #[Test]
+    public function it_refuses_an_interval_of_0(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('HistogramAggregation interval must be greater than 0.');
+
+        new HistogramAggregation('price', 0);
+    }
+
+    #[Test]
+    public function it_refuses_a_negative_interval(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('HistogramAggregation interval must be greater than 0.');
+
+        new HistogramAggregation('price', -0.5);
+    }
 }

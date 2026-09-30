@@ -126,4 +126,13 @@ final class TermsAggregationTest extends TestCase
         $this->assertSame($agg, $agg->orderByKey());
         $this->assertSame($agg, $agg->agg('test', ['avg' => ['field' => 'price']]));
     }
+
+    #[Test]
+    public function it_refuses_a_size_below_1(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('TermsAggregation size must be greater than 0.');
+
+        (new TermsAggregation('category'))->size(0);
+    }
 }

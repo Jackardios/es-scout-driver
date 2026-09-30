@@ -83,4 +83,13 @@ final class CardinalityAggregationTest extends TestCase
         $this->assertSame($agg, $agg->missing('N/A'));
         $this->assertSame($agg, $agg->script(['source' => '_score']));
     }
+
+    #[Test]
+    public function it_refuses_a_negative_precision_threshold(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('CardinalityAggregation precision threshold must not be negative.');
+
+        (new CardinalityAggregation('user'))->precisionThreshold(-1);
+    }
 }

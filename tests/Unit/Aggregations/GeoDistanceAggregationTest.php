@@ -211,4 +211,13 @@ final class GeoDistanceAggregationTest extends TestCase
         $this->assertSame($agg, $agg->keyed());
         $this->assertSame($agg, $agg->agg('test', new AvgAggregation('price')));
     }
+
+    #[Test]
+    public function it_refuses_a_range_without_bounds(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('GeoDistanceAggregation::range() requires from or to.');
+
+        (new GeoDistanceAggregation('location', 52.37, 4.89))->range();
+    }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Aggregations\Bucket;
 
+use InvalidArgumentException;
 use Jackardios\EsScoutDriver\Aggregations\AggregationInterface;
 use Jackardios\EsScoutDriver\Aggregations\Concerns\HasBucketOrder;
 use Jackardios\EsScoutDriver\Aggregations\Concerns\HasMissing;
@@ -29,6 +30,10 @@ final class TermsAggregation implements AggregationInterface
 
     public function size(int $size): self
     {
+        if ($size < 1) {
+            throw new InvalidArgumentException('TermsAggregation size must be greater than 0.');
+        }
+
         $this->size = $size;
         return $this;
     }
@@ -92,7 +97,7 @@ final class TermsAggregation implements AggregationInterface
     public function collectMode(string $mode): self
     {
         if (!in_array($mode, ['breadth_first', 'depth_first'], true)) {
-            throw new \InvalidArgumentException('collect_mode must be "breadth_first" or "depth_first".');
+            throw new InvalidArgumentException('collect_mode must be "breadth_first" or "depth_first".');
         }
         $this->collectMode = $mode;
         return $this;

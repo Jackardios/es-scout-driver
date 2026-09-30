@@ -71,4 +71,13 @@ final class ExtendedStatsAggregationTest extends TestCase
         $this->assertSame($agg, $agg->missing('0'));
         $this->assertSame($agg, $agg->script(['source' => '_score']));
     }
+
+    #[Test]
+    public function it_refuses_a_negative_sigma(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('ExtendedStatsAggregation sigma must not be negative.');
+
+        (new ExtendedStatsAggregation('price'))->sigma(-1);
+    }
 }

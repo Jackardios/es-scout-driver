@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Aggregations\Bucket;
 
+use InvalidArgumentException;
 use Jackardios\EsScoutDriver\Aggregations\AggregationInterface;
 use Jackardios\EsScoutDriver\Aggregations\Concerns\HasSubAggregations;
 
@@ -17,6 +18,12 @@ final class CompositeAggregation implements AggregationInterface
 
     public function addSource(string $name, array $source): self
     {
+        foreach ($this->sources as $existing) {
+            if (array_key_exists($name, $existing)) {
+                throw new InvalidArgumentException(sprintf('CompositeAggregation already has a source named [%s].', $name));
+            }
+        }
+
         $this->sources[] = [$name => $source];
         return $this;
     }
@@ -49,6 +56,10 @@ final class CompositeAggregation implements AggregationInterface
 
     public function histogramSource(string $name, string $field, int|float $interval): self
     {
+        if ($interval <= 0) {
+            throw new InvalidArgumentException('CompositeAggregation histogram source interval must be greater than 0.');
+        }
+
         return $this->addSource($name, ['histogram' => [
             'field' => $field,
             'interval' => $interval,
@@ -57,6 +68,10 @@ final class CompositeAggregation implements AggregationInterface
 
     public function size(int $size): self
     {
+        if ($size < 1) {
+            throw new InvalidArgumentException('CompositeAggregation size must be greater than 0.');
+        }
+
         $this->size = $size;
         return $this;
     }
@@ -71,7 +86,7 @@ final class CompositeAggregation implements AggregationInterface
     public function toArray(): array
     {
         if ($this->sources === []) {
-            throw new \InvalidArgumentException('CompositeAggregation requires at least one source.');
+            throw new InvalidArgumentException('CompositeAggregation requires at least one source.');
         }
 
         $params = ['sources' => $this->sources];

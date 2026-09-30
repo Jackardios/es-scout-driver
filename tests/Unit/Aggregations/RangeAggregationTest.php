@@ -118,4 +118,12 @@ final class RangeAggregationTest extends TestCase
         ], $agg->toArray());
     }
 
+    #[Test]
+    public function it_refuses_a_range_without_bounds(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('RangeAggregation::range() requires from or to.');
+
+        (new RangeAggregation('price'))->range(key: 'all');
+    }
 }

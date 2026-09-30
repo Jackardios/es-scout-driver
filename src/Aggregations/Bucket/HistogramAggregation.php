@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Aggregations\Bucket;
 
+use InvalidArgumentException;
 use Jackardios\EsScoutDriver\Aggregations\AggregationInterface;
 use Jackardios\EsScoutDriver\Aggregations\Concerns\HasBucketOrder;
 use Jackardios\EsScoutDriver\Aggregations\Concerns\HasMissing;
@@ -24,7 +25,11 @@ final class HistogramAggregation implements AggregationInterface
     public function __construct(
         private string $field,
         private int|float $interval,
-    ) {}
+    ) {
+        if ($interval <= 0) {
+            throw new InvalidArgumentException('HistogramAggregation interval must be greater than 0.');
+        }
+    }
 
     public function minDocCount(int $count): self
     {

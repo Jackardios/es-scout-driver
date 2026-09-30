@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Aggregations\Bucket;
 
+use InvalidArgumentException;
 use Jackardios\EsScoutDriver\Aggregations\AggregationInterface;
 use Jackardios\EsScoutDriver\Aggregations\Concerns\HasMissing;
 use Jackardios\EsScoutDriver\Aggregations\Concerns\HasRanges;
@@ -36,7 +37,7 @@ final class RangeAggregation implements AggregationInterface
     public function toArray(): array
     {
         if ($this->ranges === []) {
-            throw new \InvalidArgumentException('RangeAggregation requires at least one range.');
+            throw new InvalidArgumentException('RangeAggregation requires at least one range.');
         }
 
         $params = [
