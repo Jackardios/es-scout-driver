@@ -45,17 +45,31 @@ final class Engine extends ScoutEngine implements EngineInterface
                 }
 
                 if ($softDelete && $this->usesSoftDelete($model)) {
-                    $searchableData['__soft_deleted'] = $model->pushSoftDeleteMetadata()->scoutMetadata()['__soft_deleted'];
+                    $model->pushSoftDeleteMetadata();
                 }
 
                 $body[] = ['index' => $this->buildDocumentMetadata($model)];
-                $body[] = $searchableData;
+                $body[] = array_merge($searchableData, $this->indexableScoutMetadata($model));
             }
 
             if ($body !== []) {
                 $this->sendBulk($this->resolveClientForConnection($connection), $body, $this->refreshDocuments);
             }
         }
+    }
+
+    /**
+     * The scout metadata without the hit metadata (_id, _index, _score...) that a searched model carries.
+     *
+     * @return array<string, mixed>
+     */
+    private function indexableScoutMetadata(Model $model): array
+    {
+        return array_filter(
+            $model->scoutMetadata(),
+            static fn(string $key): bool => preg_match('/^_(?!_)/', $key) !== 1,
+            ARRAY_FILTER_USE_KEY,
+        );
     }
 
     public function delete($models): void

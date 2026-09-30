@@ -248,7 +248,7 @@ final class EngineMapTest extends TestCase
     }
 
     #[Test]
-    public function update_does_not_index_the_hit_metadata_of_a_mapped_model(): void
+    public function update_indexes_the_scout_metadata_but_not_the_hit_metadata_of_a_mapped_model(): void
     {
         FakeMapModel::seedRecords(['1']);
         $http = new FakeHttpClient();
@@ -261,11 +261,12 @@ final class EngineMapTest extends TestCase
                 ],
             ],
         ], new FakeMapModel());
+        $models->first()->withScoutMetadata('tenant', 'acme');
         $engine->update($models);
 
         $this->assertSame([
             ['index' => ['_index' => 'books', '_id' => '1']],
-            ['id' => '1'],
+            ['id' => '1', 'tenant' => 'acme'],
         ], $http->bulkLines());
     }
 
