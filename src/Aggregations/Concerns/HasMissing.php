@@ -6,9 +6,9 @@ namespace Jackardios\EsScoutDriver\Aggregations\Concerns;
 
 trait HasMissing
 {
-    private ?string $missing = null;
+    private string|int|float|bool|null $missing = null;
 
-    public function missing(string $value): static
+    public function missing(string|int|float|bool $value): static
     {
         $this->missing = $value;
         return $this;
