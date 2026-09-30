@@ -505,7 +505,7 @@ final class EngineTest extends TestCase
     }
 
     #[Test]
-    public function build_filters_skips_empty_where_ins(): void
+    public function build_filters_match_nothing_for_empty_where_ins(): void
     {
         $engine = $this->createEngineWithMockTransport();
         $builder = $this->createScoutBuilder('test');
@@ -514,7 +514,7 @@ final class EngineTest extends TestCase
 
         $params = $engine->search($builder);
 
-        $this->assertArrayNotHasKey('filter', $params['body']['query']['bool'] ?? []);
+        $this->assertSame([['terms' => ['status' => []]]], $params['body']['query']['bool']['filter']);
     }
 
     #[Test]

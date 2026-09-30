@@ -396,10 +396,6 @@ final class Engine extends ScoutEngine implements EngineInterface
         }
 
         foreach ($builder->whereIns as $field => $values) {
-            if ($values === []) {
-                continue;
-            }
-
             $filters[] = ['terms' => [$field => array_values($values)]];
         }
 
