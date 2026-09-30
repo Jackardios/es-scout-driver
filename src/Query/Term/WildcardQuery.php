@@ -15,27 +15,15 @@ final class WildcardQuery implements QueryInterface
     use HasCaseInsensitive;
     use HasRewrite;
 
-    private ?string $wildcard = null;
-
     public function __construct(
         private string $field,
         private string $value,
     ) {}
 
-    public function wildcard(string $wildcard): self
-    {
-        $this->wildcard = $wildcard;
-        return $this;
-    }
-
     /** @return array<string, mixed> */
     public function toArray(): array
     {
         $params = ['value' => $this->value];
-
-        if ($this->wildcard !== null) {
-            $params['wildcard'] = $this->wildcard;
-        }
 
         $this->applyBoost($params);
         $this->applyRewrite($params);

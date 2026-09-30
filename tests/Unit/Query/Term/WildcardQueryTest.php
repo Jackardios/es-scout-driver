@@ -39,6 +39,12 @@ final class WildcardQueryTest extends TestCase
     }
 
     #[Test]
+    public function it_has_no_second_pattern_setter(): void
+    {
+        $this->assertFalse(method_exists(WildcardQuery::class, 'wildcard'));
+    }
+
+    #[Test]
     public function it_returns_fluent_interface(): void
     {
         $query = new WildcardQuery('name', 'jo*');
