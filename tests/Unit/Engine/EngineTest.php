@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Tests\Unit\Engine;
 
+use Elastic\Elasticsearch\Client;
 use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
 use Jackardios\EsScoutDriver\Engine\Engine;
@@ -87,6 +88,18 @@ final class EngineTest extends TestCase
         $params = $engine->search($builder);
 
         $this->assertSame('custom_books', $params['index']);
+    }
+
+    #[Test]
+    public function search_accepts_a_callback_returning_the_client_response(): void
+    {
+        $result = ['hits' => ['total' => ['value' => 1], 'hits' => [['_id' => '1']]]];
+        $http = new FakeHttpClient([[200, $result]]);
+        $engine = new Engine($http->client());
+        $builder = $this->createScoutBuilder('test');
+        $builder->callback = static fn(Client $client, ?string $query, array $params) => $client->search($params);
+
+        $this->assertSame($result, $engine->search($builder));
     }
 
     #[Test]

@@ -215,6 +215,21 @@ Controls which Elasticsearch query type is used for Scout's basic search (`Model
 
 **Security note:** `query_string` accepts full Lucene syntax including `field:value` queries. If user input is passed directly to `search()`, users could query unintended fields (e.g., `password:*`). Use `simple_query_string` (the default) when search input comes from untrusted sources.
 
+### Scout Search Callback
+
+The callback of `Model::search($query, $callback)` receives the Elasticsearch client, the query string and the request
+parameters built by the engine. It returns the client's response or its array:
+
+```php
+use Elastic\Elasticsearch\Client;
+
+Book::search('dune', function (Client $client, ?string $query, array $params) {
+    $params['body']['min_score'] = 1.0;
+
+    return $client->search($params);
+})->get();
+```
+
 ### Laravel Scout Config
 
 `config/scout.php`:

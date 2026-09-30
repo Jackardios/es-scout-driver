@@ -374,7 +374,9 @@ final class Engine extends ScoutEngine implements EngineInterface
         }
 
         if ($builder->callback !== null) {
-            return ($builder->callback)($this->client, $builder->query, $params);
+            $result = ($builder->callback)($this->client, $builder->query, $params);
+
+            return $result instanceof ElasticsearchResponse ? $result->asArray() : $result;
         }
 
         /** @var ElasticsearchResponse $response */
