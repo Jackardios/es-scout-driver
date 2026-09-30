@@ -4,18 +4,12 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Aggregations\Metric;
 
-use Jackardios\EsScoutDriver\Aggregations\AggregationInterface;
-
-final class PercentilesAggregation implements AggregationInterface
+final class PercentilesAggregation extends FieldMetricAggregation
 {
     /** @var array<float>|null */
     private ?array $percents = null;
     private ?int $compression = null;
-    private ?string $missing = null;
-    private ?array $script = null;
     private ?bool $keyed = null;
-
-    public function __construct(private string $field) {}
 
     /** @param array<float> $percents */
     public function percents(array $percents): self
@@ -36,43 +30,28 @@ final class PercentilesAggregation implements AggregationInterface
         return $this;
     }
 
-    public function missing(string $value): self
+    protected function type(): string
     {
-        $this->missing = $value;
-        return $this;
-    }
-
-    public function script(array $script): self
-    {
-        $this->script = $script;
-        return $this;
+        return 'percentiles';
     }
 
     /** @return array<string, mixed> */
-    public function toArray(): array
+    protected function options(): array
     {
-        $params = ['field' => $this->field];
+        $options = [];
 
         if ($this->percents !== null) {
-            $params['percents'] = $this->percents;
+            $options['percents'] = $this->percents;
         }
 
         if ($this->compression !== null) {
-            $params['tdigest'] = ['compression' => $this->compression];
+            $options['tdigest'] = ['compression' => $this->compression];
         }
 
         if ($this->keyed !== null) {
-            $params['keyed'] = $this->keyed;
+            $options['keyed'] = $this->keyed;
         }
 
-        if ($this->missing !== null) {
-            $params['missing'] = $this->missing;
-        }
-
-        if ($this->script !== null) {
-            $params['script'] = $this->script;
-        }
-
-        return ['percentiles' => $params];
+        return $options;
     }
 }

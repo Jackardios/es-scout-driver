@@ -5,18 +5,20 @@ declare(strict_types=1);
 namespace Jackardios\EsScoutDriver\Aggregations\Bucket;
 
 use Jackardios\EsScoutDriver\Aggregations\AggregationInterface;
+use Jackardios\EsScoutDriver\Aggregations\Concerns\HasBucketOrder;
+use Jackardios\EsScoutDriver\Aggregations\Concerns\HasMissing;
 use Jackardios\EsScoutDriver\Aggregations\Concerns\HasSubAggregations;
 
 final class TermsAggregation implements AggregationInterface
 {
+    use HasBucketOrder;
+    use HasMissing;
     use HasSubAggregations;
 
     private ?int $size = null;
     private ?int $minDocCount = null;
     private ?int $shardSize = null;
     private ?bool $showTermDocCountError = null;
-    private ?array $order = null;
-    private ?string $missing = null;
     /** @var array<int|string, mixed>|string|null */
     private array|string|null $include = null;
     /** @var array<int|string, mixed>|string|null */
@@ -50,13 +52,6 @@ final class TermsAggregation implements AggregationInterface
     }
 
     /** @param 'asc'|'desc' $direction */
-    public function order(string $key, string $direction = 'asc'): self
-    {
-        $this->order = [$key => $direction];
-        return $this;
-    }
-
-    /** @param 'asc'|'desc' $direction */
     public function orderByCount(string $direction = 'desc'): self
     {
         return $this->order('_count', $direction);
@@ -66,12 +61,6 @@ final class TermsAggregation implements AggregationInterface
     public function orderByKey(string $direction = 'asc'): self
     {
         return $this->order('_key', $direction);
-    }
-
-    public function missing(string $value): self
-    {
-        $this->missing = $value;
-        return $this;
     }
 
     /**
@@ -130,13 +119,8 @@ final class TermsAggregation implements AggregationInterface
             $params['show_term_doc_count_error'] = $this->showTermDocCountError;
         }
 
-        if ($this->order !== null) {
-            $params['order'] = $this->order;
-        }
-
-        if ($this->missing !== null) {
-            $params['missing'] = $this->missing;
-        }
+        $this->applyOrder($params);
+        $this->applyMissing($params);
 
         if ($this->include !== null) {
             $params['include'] = $this->include;

@@ -5,18 +5,20 @@ declare(strict_types=1);
 namespace Jackardios\EsScoutDriver\Aggregations\Bucket;
 
 use Jackardios\EsScoutDriver\Aggregations\AggregationInterface;
+use Jackardios\EsScoutDriver\Aggregations\Concerns\HasBucketOrder;
+use Jackardios\EsScoutDriver\Aggregations\Concerns\HasMissing;
 use Jackardios\EsScoutDriver\Aggregations\Concerns\HasSubAggregations;
 
 final class HistogramAggregation implements AggregationInterface
 {
+    use HasBucketOrder;
+    use HasMissing;
     use HasSubAggregations;
 
     private ?int $minDocCount = null;
     private ?array $extendedBounds = null;
     private ?array $hardBounds = null;
     private ?int $offset = null;
-    private ?array $order = null;
-    private ?string $missing = null;
     private ?bool $keyed = null;
 
     public function __construct(
@@ -45,19 +47,6 @@ final class HistogramAggregation implements AggregationInterface
     public function offset(int $offset): self
     {
         $this->offset = $offset;
-        return $this;
-    }
-
-    /** @param 'asc'|'desc' $direction */
-    public function order(string $key, string $direction = 'asc'): self
-    {
-        $this->order = [$key => $direction];
-        return $this;
-    }
-
-    public function missing(string $value): self
-    {
-        $this->missing = $value;
         return $this;
     }
 
@@ -91,13 +80,8 @@ final class HistogramAggregation implements AggregationInterface
             $params['offset'] = $this->offset;
         }
 
-        if ($this->order !== null) {
-            $params['order'] = $this->order;
-        }
-
-        if ($this->missing !== null) {
-            $params['missing'] = $this->missing;
-        }
+        $this->applyOrder($params);
+        $this->applyMissing($params);
 
         if ($this->keyed !== null) {
             $params['keyed'] = $this->keyed;

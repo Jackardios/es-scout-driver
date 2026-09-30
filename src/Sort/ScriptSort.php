@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Sort;
 
-use Jackardios\EsScoutDriver\Enums\SortOrder;
+use Jackardios\EsScoutDriver\Sort\Concerns\HasOrder;
 
 final class ScriptSort implements SortInterface
 {
-    private string $order = 'asc';
+    use HasOrder;
+
     private ?string $mode = null;
     private ?array $nested = null;
 
@@ -16,24 +17,6 @@ final class ScriptSort implements SortInterface
         private array $script,
         private string $type,
     ) {}
-
-    public function asc(): self
-    {
-        $this->order = 'asc';
-        return $this;
-    }
-
-    public function desc(): self
-    {
-        $this->order = 'desc';
-        return $this;
-    }
-
-    public function order(SortOrder|string $direction): self
-    {
-        $this->order = $direction instanceof SortOrder ? $direction->value : $direction;
-        return $this;
-    }
 
     public function mode(string $mode): self
     {

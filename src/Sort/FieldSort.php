@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Sort;
 
-use Jackardios\EsScoutDriver\Enums\SortOrder;
+use Jackardios\EsScoutDriver\Sort\Concerns\HasOrder;
 
 final class FieldSort implements SortInterface
 {
-    private string $order = 'asc';
+    use HasOrder;
+
     private string|int|float|bool|null $missing = null;
     private ?string $mode = null;
     private ?string $unmappedType = null;
@@ -17,24 +18,6 @@ final class FieldSort implements SortInterface
     private ?string $format = null;
 
     public function __construct(private string $field) {}
-
-    public function asc(): self
-    {
-        $this->order = 'asc';
-        return $this;
-    }
-
-    public function desc(): self
-    {
-        $this->order = 'desc';
-        return $this;
-    }
-
-    public function order(SortOrder|string $direction): self
-    {
-        $this->order = $direction instanceof SortOrder ? $direction->value : $direction;
-        return $this;
-    }
 
     public function missing(string|int|float|bool $value): self
     {

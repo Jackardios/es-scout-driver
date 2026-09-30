@@ -6,15 +6,15 @@ namespace Jackardios\EsScoutDriver\Aggregations\Bucket;
 
 use InvalidArgumentException;
 use Jackardios\EsScoutDriver\Aggregations\AggregationInterface;
+use Jackardios\EsScoutDriver\Aggregations\Concerns\HasRanges;
 use Jackardios\EsScoutDriver\Aggregations\Concerns\HasSubAggregations;
 use Jackardios\EsScoutDriver\Enums\DistanceType;
 
 final class GeoDistanceAggregation implements AggregationInterface
 {
+    use HasRanges;
     use HasSubAggregations;
 
-    /** @var array<int, array{from?: int|float, to?: int|float, key?: string}> */
-    private array $ranges = [];
     private ?string $unit = null;
     private ?string $distanceType = null;
     private ?bool $keyed = null;
@@ -27,25 +27,7 @@ final class GeoDistanceAggregation implements AggregationInterface
 
     public function range(int|float|null $from = null, int|float|null $to = null, ?string $key = null): self
     {
-        $range = [];
-        if ($from !== null) {
-            $range['from'] = $from;
-        }
-        if ($to !== null) {
-            $range['to'] = $to;
-        }
-        if ($key !== null) {
-            $range['key'] = $key;
-        }
-        $this->ranges[] = $range;
-        return $this;
-    }
-
-    /** @param array<int, array{from?: int|float, to?: int|float, key?: string}> $ranges */
-    public function ranges(array $ranges): self
-    {
-        $this->ranges = $ranges;
-        return $this;
+        return $this->addRange($from, $to, $key);
     }
 
     public function unit(string $unit): self

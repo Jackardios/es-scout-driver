@@ -258,7 +258,7 @@ factories and the classes they return, the enums, the exceptions and the configu
   package. New methods are added to them only in a major version.
 - `SearchBuilder` may be extended. Its protected members come from `@internal` traits and are not covered.
 - `Engine` is final: to change engine behaviour, implement `EngineInterface` or wrap the engine.
-- The `Query\Concerns` and `Aggregations\Concerns` traits are not covered: their methods belong to the public API of
+- The `Query\Concerns`, `Aggregations\Concerns` and `Sort\Concerns` traits are not covered: their methods belong to the public API of
   the classes that use them, but using a trait in your own class may break in a minor release.
 - `@internal` code (the engine helpers, model resolution, the `fromRaw()` factories, the `Paginator` and
   `SearchCursor` constructors and every `SearchResult` constructor argument after `$raw`) may change in any release.

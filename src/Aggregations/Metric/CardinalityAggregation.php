@@ -4,15 +4,9 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Aggregations\Metric;
 
-use Jackardios\EsScoutDriver\Aggregations\AggregationInterface;
-
-final class CardinalityAggregation implements AggregationInterface
+final class CardinalityAggregation extends FieldMetricAggregation
 {
     private ?int $precisionThreshold = null;
-    private ?string $missing = null;
-    private ?array $script = null;
-
-    public function __construct(private string $field) {}
 
     public function precisionThreshold(int $threshold): self
     {
@@ -20,35 +14,14 @@ final class CardinalityAggregation implements AggregationInterface
         return $this;
     }
 
-    public function missing(string $value): self
+    protected function type(): string
     {
-        $this->missing = $value;
-        return $this;
-    }
-
-    public function script(array $script): self
-    {
-        $this->script = $script;
-        return $this;
+        return 'cardinality';
     }
 
     /** @return array<string, mixed> */
-    public function toArray(): array
+    protected function options(): array
     {
-        $params = ['field' => $this->field];
-
-        if ($this->precisionThreshold !== null) {
-            $params['precision_threshold'] = $this->precisionThreshold;
-        }
-
-        if ($this->missing !== null) {
-            $params['missing'] = $this->missing;
-        }
-
-        if ($this->script !== null) {
-            $params['script'] = $this->script;
-        }
-
-        return ['cardinality' => $params];
+        return $this->precisionThreshold !== null ? ['precision_threshold' => $this->precisionThreshold] : [];
     }
 }

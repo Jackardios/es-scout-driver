@@ -4,28 +4,15 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Sort;
 
-use Jackardios\EsScoutDriver\Enums\SortOrder;
+use Jackardios\EsScoutDriver\Sort\Concerns\HasOrder;
 
 final class ScoreSort implements SortInterface
 {
-    private string $order = 'desc';
+    use HasOrder;
 
-    public function asc(): self
-    {
-        $this->order = 'asc';
-        return $this;
-    }
-
-    public function desc(): self
+    public function __construct()
     {
         $this->order = 'desc';
-        return $this;
-    }
-
-    public function order(SortOrder|string $direction): self
-    {
-        $this->order = $direction instanceof SortOrder ? $direction->value : $direction;
-        return $this;
     }
 
     /** @return array<string, mixed> */
