@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Jackardios\EsScoutDriver\Tests\Unit\Engine;
 
 use Elastic\Elasticsearch\Client;
+use Illuminate\Config\Repository as ConfigRepository;
+use Illuminate\Container\Container;
 use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
 use Jackardios\EsScoutDriver\Engine\Engine;
@@ -15,6 +17,27 @@ use PHPUnit\Framework\TestCase;
 
 final class EngineTest extends TestCase
 {
+    private Container $previousContainer;
+    private ConfigRepository $config;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->previousContainer = Container::getInstance();
+        $container = new Container();
+        $this->config = new ConfigRepository();
+        $container->instance('config', $this->config);
+        Container::setInstance($container);
+    }
+
+    protected function tearDown(): void
+    {
+        Container::setInstance($this->previousContainer);
+
+        parent::tearDown();
+    }
+
     #[Test]
     public function it_is_subclass_of_scout_engine(): void
     {
@@ -89,6 +112,35 @@ final class EngineTest extends TestCase
         $params = $engine->search($builder);
 
         $this->assertSame('custom_books', $params['index']);
+    }
+
+    #[Test]
+    public function search_uses_the_configured_scout_query_type(): void
+    {
+        $engine = $this->createEngineWithMockTransport();
+        $builder = $this->createScoutBuilder('dune');
+        $builder->callback = static fn($client, $query, $params) => $params;
+
+        $this->assertSame(['simple_query_string' => ['query' => 'dune']], $engine->search($builder)['body']['query']);
+
+        $this->config->set('elastic.scout.scout_query_type', ' Query_String ');
+
+        $this->assertSame(['query_string' => ['query' => 'dune']], $engine->search($builder)['body']['query']);
+    }
+
+    #[Test]
+    public function search_refuses_an_unknown_scout_query_type(): void
+    {
+        $this->config->set('elastic.scout.scout_query_type', 'match');
+        $engine = $this->createEngineWithMockTransport();
+        $builder = $this->createScoutBuilder('dune');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage(
+            'Config [elastic.scout.scout_query_type] must be one of [simple_query_string, query_string], got [match].',
+        );
+
+        $engine->search($builder);
     }
 
     #[Test]
@@ -611,10 +663,6 @@ final class EngineTest extends TestCase
 
     private function createEngineWithMockTransport(): Engine
     {
-        $client = \Elastic\Elasticsearch\ClientBuilder::create()
-            ->setHosts(['http://localhost:9200'])
-            ->build();
-
-        return new Engine($client);
+        return new Engine((new FakeHttpClient())->client());
     }
 }

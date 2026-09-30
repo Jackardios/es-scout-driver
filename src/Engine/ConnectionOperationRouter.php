@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Engine;
 
+use Elastic\Elasticsearch\Client;
+
 /** @internal */
 final class ConnectionOperationRouter
 {
@@ -20,7 +22,7 @@ final class ConnectionOperationRouter
      * @template TItem
      * @param iterable<int, TItem> $items
      * @param callable(TItem): (?string) $connectionResolver
-     * @return array<string, array<int, TItem>>
+     * @return array<string, list<TItem>>
      */
     public function groupByConnection(iterable $items, callable $connectionResolver): array
     {
@@ -34,22 +36,9 @@ final class ConnectionOperationRouter
         return $grouped;
     }
 
-    /**
-     * @template TClient of object
-     * @param TClient $defaultClient
-     * @return TClient
-     */
-    public function resolveClientForConnection(string $connection, object $defaultClient, ?string $defaultConnectionName = null): object
+    public function resolveClientForConnection(string $connection, Client $defaultClient, ?string $defaultConnectionName = null): Client
     {
-        if ($connection === self::DEFAULT_CONNECTION) {
-            return $defaultClient;
-        }
-
-        if (
-            $defaultConnectionName !== null
-            && $defaultConnectionName !== ''
-            && $connection === $defaultConnectionName
-        ) {
+        if ($connection === self::DEFAULT_CONNECTION || $connection === $defaultConnectionName) {
             return $defaultClient;
         }
 

@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Tests\Unit\Jobs;
 
-use Elastic\Elasticsearch\Client;
-use Elastic\Elasticsearch\ClientBuilder;
 use Illuminate\Config\Repository as ConfigRepository;
 use Illuminate\Container\Container;
 use Illuminate\Database\Eloquent\Model;
@@ -13,9 +11,9 @@ use Illuminate\Support\Collection;
 use InvalidArgumentException;
 use Jackardios\EsScoutDriver\Exceptions\BulkOperationException;
 use Jackardios\EsScoutDriver\Jobs\RemoveFromSearch;
+use Jackardios\EsScoutDriver\Tests\Unit\Engine\FakeHttpClient;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-use ReflectionMethod;
 
 final class RemoveFromSearchTest extends TestCase
 {
@@ -156,27 +154,24 @@ final class RemoveFromSearchTest extends TestCase
         $model1 = $this->createModelWithConnection('1', 'books', 'secondary');
         $model2 = $this->createModelWithConnection('2', 'books', 'secondary');
         $model3 = $this->createModelWithConnection('3', 'books', 'archive');
-        $job = new RemoveFromSearch(new Collection([$model1, $model2, $model3]));
+        $model4 = $this->createModelWithScout('4', 'books');
+        $job = new RemoveFromSearch(new Collection([$model1, $model2, $model3, $model4]));
 
-        $secondaryClient = new RemoveFromSearchConnectionSpy();
-        $archiveClient = new RemoveFromSearchConnectionSpy();
-        $this->container->instance('elastic.client.connection.secondary', $secondaryClient);
-        $this->container->instance('elastic.client.connection.archive', $archiveClient);
+        $defaultHttp = new FakeHttpClient();
+        $secondaryHttp = new FakeHttpClient();
+        $archiveHttp = new FakeHttpClient();
+        $this->container->instance('elastic.client.connection.secondary', $secondaryHttp->client());
+        $this->container->instance('elastic.client.connection.archive', $archiveHttp->client());
 
-        $job->handle($this->createClient());
+        $job->handle($defaultHttp->client());
 
-        $this->assertCount(1, $secondaryClient->bulkCalls);
         $this->assertSame([
             ['delete' => ['_index' => 'books', '_id' => '1']],
             ['delete' => ['_index' => 'books', '_id' => '2']],
-        ], $secondaryClient->bulkCalls[0]['body']);
-        $this->assertArrayNotHasKey('refresh', $secondaryClient->bulkCalls[0]);
-
-        $this->assertCount(1, $archiveClient->bulkCalls);
-        $this->assertSame([
-            ['delete' => ['_index' => 'books', '_id' => '3']],
-        ], $archiveClient->bulkCalls[0]['body']);
-        $this->assertArrayNotHasKey('refresh', $archiveClient->bulkCalls[0]);
+        ], $secondaryHttp->bulkLines());
+        $this->assertSame([['delete' => ['_index' => 'books', '_id' => '3']]], $archiveHttp->bulkLines());
+        $this->assertSame([['delete' => ['_index' => 'books', '_id' => '4']]], $defaultHttp->bulkLines());
+        $this->assertSame('', $secondaryHttp->requests[0]->getUri()->getQuery());
     }
 
     #[Test]
@@ -187,153 +182,29 @@ final class RemoveFromSearchTest extends TestCase
         $model = $this->createModelWithRoutingAndConnection('1', 'books', 'tenant-7', 'secondary');
         $job = new RemoveFromSearch(new Collection([$model]));
 
-        $secondaryClient = new RemoveFromSearchConnectionSpy();
-        $this->container->instance('elastic.client.connection.secondary', $secondaryClient);
+        $secondaryHttp = new FakeHttpClient();
+        $this->container->instance('elastic.client.connection.secondary', $secondaryHttp->client());
 
-        $job->handle($this->createClient());
+        $job->handle((new FakeHttpClient())->client());
 
-        $this->assertCount(1, $secondaryClient->bulkCalls);
         $this->assertSame([
             ['delete' => ['_index' => 'books', '_id' => '1', 'routing' => 'tenant-7']],
-        ], $secondaryClient->bulkCalls[0]['body']);
-        $this->assertSame('true', $secondaryClient->bulkCalls[0]['refresh']);
+        ], $secondaryHttp->bulkLines());
+        $this->assertSame('refresh=true', $secondaryHttp->requests[0]->getUri()->getQuery());
     }
 
     #[Test]
-    public function handle_throws_when_operations_payload_is_empty(): void
+    public function handle_throws_when_a_delete_fails(): void
     {
         $job = new RemoveFromSearch(new Collection([$this->createModelWithScout('1', 'books')]));
-        $job->operations = [];
-
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('RemoveFromSearch job payload must contain operations.');
-
-        $job->handle($this->createClient());
-    }
-
-    #[Test]
-    public function handle_bulk_response_does_not_throw_when_no_errors(): void
-    {
-        $model = $this->createModelWithScout('1', 'books');
-        $job = new RemoveFromSearch(new Collection([$model]));
-
-        $response = ['errors' => false];
-
-        $this->invokeHandleBulkResponse($job, $response);
-
-        $this->addToAssertionCount(1);
-    }
-
-    #[Test]
-    public function handle_bulk_response_does_not_throw_when_errors_key_missing(): void
-    {
-        $model = $this->createModelWithScout('1', 'books');
-        $job = new RemoveFromSearch(new Collection([$model]));
-
-        $response = [];
-
-        $this->invokeHandleBulkResponse($job, $response);
-
-        $this->addToAssertionCount(1);
-    }
-
-    #[Test]
-    public function handle_bulk_response_throws_bulk_operation_exception_on_errors(): void
-    {
-        $model = $this->createModelWithScout('1', 'books');
-        $job = new RemoveFromSearch(new Collection([$model]));
-
-        $response = [
+        $http = new FakeHttpClient([[200, [
             'errors' => true,
-            'items' => [
-                [
-                    'delete' => [
-                        '_id' => '1',
-                        '_index' => 'books',
-                        'error' => ['type' => 'not_found', 'reason' => 'Document not found'],
-                    ],
-                ],
-            ],
-        ];
+            'items' => [['delete' => ['_id' => '1', '_index' => 'books', 'error' => ['type' => 'error', 'reason' => 'Failed']]]],
+        ]]]);
 
         $this->expectException(BulkOperationException::class);
 
-        $this->invokeHandleBulkResponse($job, $response);
-    }
-
-    #[Test]
-    public function handle_bulk_response_collects_all_failed_documents(): void
-    {
-        $model1 = $this->createModelWithScout('1', 'books');
-        $model2 = $this->createModelWithScout('2', 'books');
-        $job = new RemoveFromSearch(new Collection([$model1, $model2]));
-
-        $response = [
-            'errors' => true,
-            'items' => [
-                [
-                    'delete' => [
-                        '_id' => '1',
-                        '_index' => 'books',
-                        'error' => ['type' => 'error1', 'reason' => 'Reason 1'],
-                    ],
-                ],
-                [
-                    'delete' => [
-                        '_id' => '2',
-                        '_index' => 'books',
-                        'error' => ['type' => 'error2', 'reason' => 'Reason 2'],
-                    ],
-                ],
-            ],
-        ];
-
-        try {
-            $this->invokeHandleBulkResponse($job, $response);
-            $this->fail('Expected BulkOperationException');
-        } catch (BulkOperationException $e) {
-            $failedDocs = $e->getFailedDocuments();
-            $this->assertCount(2, $failedDocs);
-            $this->assertSame('1', $failedDocs[0]['id']);
-            $this->assertSame('2', $failedDocs[1]['id']);
-        }
-    }
-
-    #[Test]
-    public function handle_bulk_response_ignores_successful_items(): void
-    {
-        $model1 = $this->createModelWithScout('1', 'books');
-        $model2 = $this->createModelWithScout('2', 'books');
-        $job = new RemoveFromSearch(new Collection([$model1, $model2]));
-
-        $response = [
-            'errors' => true,
-            'items' => [
-                [
-                    'delete' => [
-                        '_id' => '1',
-                        '_index' => 'books',
-                        'result' => 'deleted',
-                    ],
-                ],
-                [
-                    'delete' => [
-                        '_id' => '2',
-                        '_index' => 'books',
-                        'error' => ['type' => 'error', 'reason' => 'Failed'],
-                    ],
-                ],
-            ],
-        ];
-
-        try {
-            $this->invokeHandleBulkResponse($job, $response);
-            $this->fail('Expected BulkOperationException');
-        } catch (BulkOperationException $e) {
-            $failedDocs = $e->getFailedDocuments();
-            $this->assertCount(1, $failedDocs);
-            $this->assertSame('2', $failedDocs[0]['id']);
-        }
+        $job->handle($http->client());
     }
 
     #[Test]
@@ -352,24 +223,11 @@ final class RemoveFromSearchTest extends TestCase
         ], $job->operations);
     }
 
-    private function invokeHandleBulkResponse(RemoveFromSearch $job, array $response): void
-    {
-        $method = new ReflectionMethod(RemoveFromSearch::class, 'handleBulkResponse');
-        $method->invoke($job, $response);
-    }
-
     private function setRefreshDocuments(bool $enabled): void
     {
         /** @var ConfigRepository $config */
         $config = $this->container->make('config');
         $config->set('elastic.scout.refresh_documents', $enabled);
-    }
-
-    private function createClient(): Client
-    {
-        return ClientBuilder::create()
-            ->setHosts(['http://localhost:9200'])
-            ->build();
     }
 
     private function createModelWithScout(string $id, string $indexName): Model
@@ -573,27 +431,6 @@ final class RemoveFromSearchTest extends TestCase
             public function searchableConnection(): string
             {
                 return $this->scoutConnection;
-            }
-        };
-    }
-}
-
-final class RemoveFromSearchConnectionSpy
-{
-    /** @var array<int, array<string, mixed>> */
-    public array $bulkCalls = [];
-
-    /**
-     * @param array<string, mixed> $params
-     */
-    public function bulk(array $params): object
-    {
-        $this->bulkCalls[] = $params;
-
-        return new class {
-            public function asArray(): array
-            {
-                return ['errors' => false];
             }
         };
     }

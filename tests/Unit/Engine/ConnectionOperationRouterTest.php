@@ -69,7 +69,7 @@ final class ConnectionOperationRouterTest extends TestCase
     public function resolve_client_for_default_connection_returns_default_client(): void
     {
         $router = new ConnectionOperationRouter();
-        $defaultClient = new \stdClass();
+        $defaultClient = (new FakeHttpClient())->client();
 
         $resolved = $router->resolveClientForConnection(ConnectionOperationRouter::DEFAULT_CONNECTION, $defaultClient);
 
@@ -80,7 +80,7 @@ final class ConnectionOperationRouterTest extends TestCase
     public function resolve_client_for_engine_default_connection_name_returns_default_client(): void
     {
         $router = new ConnectionOperationRouter();
-        $defaultClient = new \stdClass();
+        $defaultClient = (new FakeHttpClient())->client();
 
         $resolved = $router->resolveClientForConnection('secondary', $defaultClient, 'secondary');
 
@@ -91,8 +91,8 @@ final class ConnectionOperationRouterTest extends TestCase
     public function resolve_client_for_named_connection_uses_container_binding(): void
     {
         $router = new ConnectionOperationRouter();
-        $defaultClient = new \stdClass();
-        $analyticsClient = new \stdClass();
+        $defaultClient = (new FakeHttpClient())->client();
+        $analyticsClient = (new FakeHttpClient())->client();
         $this->container->instance('elastic.client.connection.analytics', $analyticsClient);
 
         $resolved = $router->resolveClientForConnection('analytics', $defaultClient);

@@ -5,21 +5,20 @@ declare(strict_types=1);
 namespace Jackardios\EsScoutDriver\Jobs;
 
 use Elastic\Elasticsearch\Client;
-use Elastic\Elasticsearch\Response\Elasticsearch as ElasticsearchResponse;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use InvalidArgumentException;
 use Jackardios\EsScoutDriver\Engine\ConnectionOperationRouter;
-use Jackardios\EsScoutDriver\Engine\HandlesBulkResponse;
+use Jackardios\EsScoutDriver\Engine\SendsBulkRequests;
 use Laravel\Scout\Traits\ConfiguresJobOptions;
 
 final class RemoveFromSearch implements ShouldQueue
 {
     use ConfiguresJobOptions;
     use Queueable;
-    use HandlesBulkResponse;
+    use SendsBulkRequests;
 
     /**
      * @var array<int, array{
@@ -29,7 +28,7 @@ final class RemoveFromSearch implements ShouldQueue
      *     routing: string|null
      * }>
      */
-    public array $operations;
+    public array $operations = [];
 
     public function __construct(Collection $models)
     {
@@ -37,21 +36,15 @@ final class RemoveFromSearch implements ShouldQueue
             throw new InvalidArgumentException('Cannot create RemoveFromSearch job with empty collection.');
         }
 
-        $this->operations = [];
-
         /** @var Model $model */
         foreach ($models as $model) {
-            $documentId = (string) $model->getScoutKey();
-            $resolvedRouting = $model->searchableRouting();
-            $routing = $resolvedRouting !== null ? (string) $resolvedRouting : null;
-
-            $connection = $model->searchableConnection();
+            $routing = $model->searchableRouting();
 
             $this->operations[] = [
-                'connection' => $connection !== null ? (string) $connection : null,
+                'connection' => $model->searchableConnection(),
                 'index' => $model->indexableAs(),
-                'id' => $documentId,
-                'routing' => $routing,
+                'id' => (string) $model->getScoutKey(),
+                'routing' => $routing !== null ? (string) $routing : null,
             ];
         }
 
@@ -60,44 +53,22 @@ final class RemoveFromSearch implements ShouldQueue
 
     public function handle(Client $client): void
     {
+        $router = new ConnectionOperationRouter();
         $refreshDocuments = (bool) config('elastic.scout.refresh_documents', false);
-        if ($this->operations === []) {
-            throw new InvalidArgumentException('RemoveFromSearch job payload must contain operations.');
-        }
-
-        $connectionRouter = new ConnectionOperationRouter();
-        $operationsByConnection = $connectionRouter->groupByConnection(
+        $operationsByConnection = $router->groupByConnection(
             $this->operations,
-            static fn(array $operation): ?string => is_string($operation['connection'] ?? null)
-                ? $operation['connection']
-                : null,
+            static fn(array $operation): ?string => $operation['connection'],
         );
 
-        foreach ($operationsByConnection as $connection => $connectionOperations) {
-            $resolvedClient = $connectionRouter->resolveClientForConnection($connection, $client);
-
-            $body = [];
-            foreach ($connectionOperations as $operation) {
-                $metadata = [
-                    '_index' => $operation['index'],
-                    '_id' => $operation['id'],
-                ];
-
-                if ($operation['routing'] !== null) {
-                    $metadata['routing'] = $operation['routing'];
-                }
-
-                $body[] = ['delete' => $metadata];
-            }
-
-            $params = ['body' => $body];
-            if ($refreshDocuments) {
-                $params['refresh'] = 'true';
-            }
-
-            /** @var ElasticsearchResponse $response */
-            $response = $resolvedClient->bulk($params);
-            $this->handleBulkResponse($response->asArray());
+        foreach ($operationsByConnection as $connection => $operations) {
+            $this->sendBulk(
+                $router->resolveClientForConnection($connection, $client),
+                array_map(static fn(array $operation): array => ['delete' => array_filter(
+                    ['_index' => $operation['index'], '_id' => $operation['id'], 'routing' => $operation['routing']],
+                    static fn(?string $value): bool => $value !== null,
+                )], $operations),
+                $refreshDocuments,
+            );
         }
     }
 }

@@ -13,18 +13,13 @@ use Laravel\Scout\Engines\Engine as ScoutEngine;
 
 final class NullEngine extends ScoutEngine implements EngineInterface
 {
-    private array $emptyResult;
-
-    public function __construct()
-    {
-        $this->emptyResult = [
-            'hits' => [
-                'total' => ['value' => 0],
-                'max_score' => null,
-                'hits' => [],
-            ],
-        ];
-    }
+    private const EMPTY_RESULT = [
+        'hits' => [
+            'total' => ['value' => 0],
+            'max_score' => null,
+            'hits' => [],
+        ],
+    ];
 
     public function update($models): void {}
 
@@ -32,12 +27,12 @@ final class NullEngine extends ScoutEngine implements EngineInterface
 
     public function search(Builder $builder): array
     {
-        return $this->emptyResult;
+        return self::EMPTY_RESULT;
     }
 
     public function paginate(Builder $builder, $perPage, $page): array
     {
-        return $this->emptyResult;
+        return self::EMPTY_RESULT;
     }
 
     public function mapIds($results): Collection
@@ -68,7 +63,7 @@ final class NullEngine extends ScoutEngine implements EngineInterface
 
     public function searchRaw(array $params): array
     {
-        return $this->emptyResult;
+        return self::EMPTY_RESULT;
     }
 
     public function connection(string $connection): static

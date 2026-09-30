@@ -12,13 +12,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
 use Illuminate\Support\LazyCollection;
 use InvalidArgumentException;
+use Jackardios\EsScoutDriver\Support\ConfigOption;
 use Laravel\Scout\Builder;
 use Laravel\Scout\Engines\Engine as ScoutEngine;
 
 final class Engine extends ScoutEngine implements EngineInterface
 {
     use ExtractsHitMetadata;
-    use HandlesBulkResponse;
+    use SendsBulkRequests;
 
     public function __construct(
         private Client $client,
@@ -29,9 +30,7 @@ final class Engine extends ScoutEngine implements EngineInterface
 
     public function update($models): void
     {
-        if ($models->isEmpty()) {
-            return;
-        }
+        $softDelete = (bool) config('scout.soft_delete', false);
 
         foreach ($this->groupModelsByConnection($models) as $connection => $connectionModels) {
             $this->loadSearchableRelations($connectionModels);
@@ -45,59 +44,28 @@ final class Engine extends ScoutEngine implements EngineInterface
                     continue;
                 }
 
-                $metadata = $this->buildDocumentMetadata($model);
-                $body[] = ['index' => $metadata];
-
-                if ($this->usesSoftDelete($model) && config('scout.soft_delete', false)) {
+                if ($softDelete && $this->usesSoftDelete($model)) {
                     $searchableData['__soft_deleted'] = $model->pushSoftDeleteMetadata()->scoutMetadata()['__soft_deleted'];
                 }
 
+                $body[] = ['index' => $this->buildDocumentMetadata($model)];
                 $body[] = $searchableData;
             }
 
-            if ($body === []) {
-                continue;
+            if ($body !== []) {
+                $this->sendBulk($this->resolveClientForConnection($connection), $body, $this->refreshDocuments);
             }
-
-            $params = ['body' => $body];
-
-            if ($this->refreshDocuments) {
-                $params['refresh'] = 'true';
-            }
-
-            /** @var ElasticsearchResponse $response */
-            $response = $this->resolveClientForConnection($connection)->bulk($params);
-            $this->handleBulkResponse($response->asArray());
         }
     }
 
     public function delete($models): void
     {
-        if ($models->isEmpty()) {
-            return;
-        }
-
         foreach ($this->groupModelsByConnection($models) as $connection => $connectionModels) {
-            $body = [];
-
-            foreach ($connectionModels as $model) {
-                $metadata = $this->buildDocumentMetadata($model);
-                $body[] = ['delete' => $metadata];
-            }
-
-            if ($body === []) {
-                continue;
-            }
-
-            $params = ['body' => $body];
-
-            if ($this->refreshDocuments) {
-                $params['refresh'] = 'true';
-            }
-
-            /** @var ElasticsearchResponse $response */
-            $response = $this->resolveClientForConnection($connection)->bulk($params);
-            $this->handleBulkResponse($response->asArray());
+            $this->sendBulk(
+                $this->resolveClientForConnection($connection),
+                array_map(fn(Model $model): array => ['delete' => $this->buildDocumentMetadata($model)], $connectionModels),
+                $this->refreshDocuments,
+            );
         }
     }
 
@@ -236,16 +204,10 @@ final class Engine extends ScoutEngine implements EngineInterface
 
     public function flush($model): void
     {
-        $params = [
+        $this->deleteByQueryRaw([
             'index' => $model->indexableAs(),
             'body' => ['query' => ['match_all' => new \stdClass()]],
-        ];
-
-        if ($this->refreshDocuments) {
-            $params['refresh'] = true;
-        }
-
-        $this->client->deleteByQuery($params);
+        ]);
     }
 
     public function createIndex($name, array $options = []): void
@@ -306,24 +268,16 @@ final class Engine extends ScoutEngine implements EngineInterface
     /** @param array<string, mixed> $params */
     public function deleteByQueryRaw(array $params): array
     {
-        if ($this->refreshDocuments && !isset($params['refresh'])) {
-            $params['refresh'] = true;
-        }
-
         /** @var ElasticsearchResponse $response */
-        $response = $this->client->deleteByQuery($params); // @phpstan-ignore argument.type
+        $response = $this->client->deleteByQuery($this->withRefresh($params)); // @phpstan-ignore argument.type
         return $response->asArray();
     }
 
     /** @param array<string, mixed> $params */
     public function updateByQueryRaw(array $params): array
     {
-        if ($this->refreshDocuments && !isset($params['refresh'])) {
-            $params['refresh'] = true;
-        }
-
         /** @var ElasticsearchResponse $response */
-        $response = $this->client->updateByQuery($params); // @phpstan-ignore argument.type
+        $response = $this->client->updateByQuery($this->withRefresh($params)); // @phpstan-ignore argument.type
         return $response->asArray();
     }
 
@@ -340,7 +294,11 @@ final class Engine extends ScoutEngine implements EngineInterface
         ];
 
         if ($builder->query !== null && $builder->query !== '') {
-            $queryType = $this->getScoutQueryType();
+            $queryType = ConfigOption::oneOf(
+                'elastic.scout.scout_query_type',
+                ['simple_query_string', 'query_string'],
+                'simple_query_string',
+            );
             $params['body']['query'] = [
                 $queryType => ['query' => $builder->query],
             ];
@@ -383,7 +341,6 @@ final class Engine extends ScoutEngine implements EngineInterface
 
         $params = $this->mergeScoutOptions($params, $builder->options);
 
-        // Fallback to match_all if no query was specified
         if (!isset($params['body']['query'])) {
             $params['body']['query'] = ['match_all' => new \stdClass()];
         }
@@ -525,23 +482,29 @@ final class Engine extends ScoutEngine implements EngineInterface
     }
 
     /**
-     * @param iterable<int, mixed> $models
-     * @return array<string, array<int, Model>>
+     * @param iterable<int, Model> $models
+     * @return array<string, list<Model>>
      */
     private function groupModelsByConnection(iterable $models): array
     {
-        $grouped = [];
+        return $this->connectionRouter->groupByConnection($models, function (Model $model): ?string {
+            $connection = $model->searchableConnection();
 
-        foreach ($models as $model) {
-            if (!$model instanceof Model) {
-                throw new InvalidArgumentException('Bulk operations expect an iterable of Eloquent models.');
-            }
+            return $connection !== null && $connection !== '' ? $connection : $this->connectionName;
+        });
+    }
 
-            $connection = $this->connectionRouter->normalize($this->resolveConnectionNameForModel($model));
-            $grouped[$connection][] = $model;
+    /**
+     * @param array<string, mixed> $params
+     * @return array<string, mixed>
+     */
+    private function withRefresh(array $params): array
+    {
+        if ($this->refreshDocuments) {
+            $params['refresh'] ??= true;
         }
 
-        return $grouped;
+        return $params;
     }
 
     /**
@@ -579,22 +542,7 @@ final class Engine extends ScoutEngine implements EngineInterface
         }
     }
 
-    private function resolveConnectionNameForModel(Model $model): ?string
-    {
-        $connection = $model->searchableConnection();
-        if ($connection !== null && $connection !== '') {
-            return $connection;
-        }
-
-        if ($this->connectionName !== null && $this->connectionName !== '') {
-            return $this->connectionName;
-        }
-
-        return null;
-    }
-
-    /** @return Client */
-    private function resolveClientForConnection(string $connection): object
+    private function resolveClientForConnection(string $connection): Client
     {
         return $this->connectionRouter->resolveClientForConnection(
             connection: $connection,
@@ -603,25 +551,12 @@ final class Engine extends ScoutEngine implements EngineInterface
         );
     }
 
-    private function getScoutQueryType(): string
-    {
-        if (!function_exists('app') || !app()->bound('config')) {
-            return 'simple_query_string';
-        }
-
-        return config('elastic.scout.scout_query_type', 'simple_query_string');
-    }
-
     private function usesSoftDelete(Model $model): bool
     {
         return in_array(SoftDeletes::class, class_uses_recursive($model));
     }
 
-    /**
-     * Build document metadata for bulk operations.
-     *
-     * @return array<string, mixed>
-     */
+    /** @return array<string, mixed> */
     private function buildDocumentMetadata(Model $model): array
     {
         $metadata = [

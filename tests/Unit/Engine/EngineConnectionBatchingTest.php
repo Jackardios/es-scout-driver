@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Tests\Unit\Engine;
 
-use Elastic\Elasticsearch\Client;
-use Elastic\Elasticsearch\ClientBuilder;
 use Illuminate\Config\Repository as ConfigRepository;
 use Illuminate\Container\Container;
 use Illuminate\Database\Eloquent\Model;
@@ -48,10 +46,10 @@ final class EngineConnectionBatchingTest extends TestCase
     #[Test]
     public function update_routes_bulk_operations_to_the_matching_connections(): void
     {
-        $secondaryClient = new EngineConnectionSpy();
-        $archiveClient = new EngineConnectionSpy();
-        $this->container->instance('elastic.client.connection.secondary', $secondaryClient);
-        $this->container->instance('elastic.client.connection.archive', $archiveClient);
+        $secondaryClient = new FakeHttpClient();
+        $archiveClient = new FakeHttpClient();
+        $this->container->instance('elastic.client.connection.secondary', $secondaryClient->client());
+        $this->container->instance('elastic.client.connection.archive', $archiveClient->client());
 
         $engine = $this->createEngine();
 
@@ -61,30 +59,30 @@ final class EngineConnectionBatchingTest extends TestCase
 
         $engine->update(new Collection([$model1, $model2, $model3]));
 
-        $this->assertCount(1, $secondaryClient->bulkCalls);
+        $this->assertCount(1, $secondaryClient->requests);
         $this->assertSame([
             ['index' => ['_index' => 'books', '_id' => '1']],
             ['title' => 'Book One'],
             ['index' => ['_index' => 'authors', '_id' => '2']],
             ['name' => 'Author Two'],
-        ], $secondaryClient->bulkCalls[0]['body']);
-        $this->assertArrayNotHasKey('refresh', $secondaryClient->bulkCalls[0]);
+        ], $secondaryClient->bulkLines());
+        $this->assertSame('', $secondaryClient->requests[0]->getUri()->getQuery());
 
-        $this->assertCount(1, $archiveClient->bulkCalls);
+        $this->assertCount(1, $archiveClient->requests);
         $this->assertSame([
             ['index' => ['_index' => 'books', '_id' => '3', 'routing' => 'tenant-a']],
             ['title' => 'Book Three'],
-        ], $archiveClient->bulkCalls[0]['body']);
-        $this->assertArrayNotHasKey('refresh', $archiveClient->bulkCalls[0]);
+        ], $archiveClient->bulkLines());
+        $this->assertSame('', $archiveClient->requests[0]->getUri()->getQuery());
     }
 
     #[Test]
     public function delete_routes_bulk_operations_to_the_matching_connections(): void
     {
-        $secondaryClient = new EngineConnectionSpy();
-        $archiveClient = new EngineConnectionSpy();
-        $this->container->instance('elastic.client.connection.secondary', $secondaryClient);
-        $this->container->instance('elastic.client.connection.archive', $archiveClient);
+        $secondaryClient = new FakeHttpClient();
+        $archiveClient = new FakeHttpClient();
+        $this->container->instance('elastic.client.connection.secondary', $secondaryClient->client());
+        $this->container->instance('elastic.client.connection.archive', $archiveClient->client());
 
         $engine = $this->createEngine();
 
@@ -94,30 +92,23 @@ final class EngineConnectionBatchingTest extends TestCase
 
         $engine->delete(new Collection([$model1, $model2, $model3]));
 
-        $this->assertCount(1, $secondaryClient->bulkCalls);
+        $this->assertCount(1, $secondaryClient->requests);
         $this->assertSame([
             ['delete' => ['_index' => 'books', '_id' => '1', 'routing' => 'tenant-a']],
             ['delete' => ['_index' => 'books', '_id' => '2']],
-        ], $secondaryClient->bulkCalls[0]['body']);
-        $this->assertArrayNotHasKey('refresh', $secondaryClient->bulkCalls[0]);
+        ], $secondaryClient->bulkLines());
+        $this->assertSame('', $secondaryClient->requests[0]->getUri()->getQuery());
 
-        $this->assertCount(1, $archiveClient->bulkCalls);
+        $this->assertCount(1, $archiveClient->requests);
         $this->assertSame([
             ['delete' => ['_index' => 'books', '_id' => '3']],
-        ], $archiveClient->bulkCalls[0]['body']);
-        $this->assertArrayNotHasKey('refresh', $archiveClient->bulkCalls[0]);
+        ], $archiveClient->bulkLines());
+        $this->assertSame('', $archiveClient->requests[0]->getUri()->getQuery());
     }
 
     private function createEngine(): Engine
     {
-        return new Engine($this->createClient());
-    }
-
-    private function createClient(): Client
-    {
-        return ClientBuilder::create()
-            ->setHosts(['http://localhost:9200'])
-            ->build();
+        return new Engine((new FakeHttpClient())->client());
     }
 
     /**
@@ -211,27 +202,6 @@ final class EngineConnectionBatchingTest extends TestCase
                 return [];
             }
 
-        };
-    }
-}
-
-final class EngineConnectionSpy
-{
-    /** @var array<int, array<string, mixed>> */
-    public array $bulkCalls = [];
-
-    /**
-     * @param array<string, mixed> $params
-     */
-    public function bulk(array $params): object
-    {
-        $this->bulkCalls[] = $params;
-
-        return new class {
-            public function asArray(): array
-            {
-                return ['errors' => false];
-            }
         };
     }
 }
