@@ -956,9 +956,7 @@ class SearchBuilder
     {
         $params = [];
 
-        if ($this->pointInTime !== null) {
-            $params['pit'] = $this->pointInTime;
-        } else {
+        if ($this->pointInTime === null) {
             $params['index'] = implode(',', array_values($this->indexNames));
 
             if ($this->preference !== null) {
@@ -1316,6 +1314,10 @@ class SearchBuilder
 
         if ($this->indicesBoost !== []) {
             $body['indices_boost'] = $this->indicesBoost;
+        }
+
+        if ($this->pointInTime !== null) {
+            $body['pit'] = $this->pointInTime;
         }
 
         if ($this->searchAfter !== null) {

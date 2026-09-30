@@ -758,6 +758,19 @@ final class SearchBuilderMethodsTest extends TestCase
     }
 
     #[Test]
+    public function point_in_time_goes_into_the_body_without_an_index(): void
+    {
+        $builder = $this->createBuilder();
+        $builder->pointInTime('pit-id', '1m');
+
+        $params = $builder->buildParams();
+
+        $this->assertSame(['id' => 'pit-id', 'keep_alive' => '1m'], $params['body']['pit']);
+        $this->assertArrayNotHasKey('pit', $params);
+        $this->assertArrayNotHasKey('index', $params);
+    }
+
+    #[Test]
     public function clear_point_in_time(): void
     {
         $builder = $this->createBuilder();
