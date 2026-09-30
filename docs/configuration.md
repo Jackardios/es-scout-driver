@@ -43,6 +43,12 @@ ELASTIC_REFRESH_DOCUMENTS=false
 
 # Optional: Model hydration mismatch strategy: ignore, log, exception
 ELASTIC_MODEL_HYDRATION_MISMATCH=ignore
+
+# Optional: Bulk failure mode: exception, log, ignore
+ELASTIC_BULK_FAILURE_MODE=exception
+
+# Optional: Query type of Scout's search(): simple_query_string, query_string
+ELASTIC_SCOUT_QUERY_TYPE=simple_query_string
 ```
 
 ---
@@ -184,8 +190,17 @@ return [
 
     // Behavior when hits cannot be hydrated into models
     'model_hydration_mismatch' => env('ELASTIC_MODEL_HYDRATION_MISMATCH', 'ignore'),
+
+    // Behavior when some documents of a bulk index or delete request fail
+    'bulk_failure_mode' => env('ELASTIC_BULK_FAILURE_MODE', 'exception'),
+
+    // Query type of Scout's basic search()
+    'scout_query_type' => env('ELASTIC_SCOUT_QUERY_TYPE', 'simple_query_string'),
 ];
 ```
+
+`bulk_failure_mode` and `scout_query_type` are trimmed and case-insensitive; any other value throws an
+`InvalidArgumentException` naming the key.
 
 ### Refresh Documents
 
@@ -204,6 +219,17 @@ Controls behavior when Elasticsearch hits cannot be hydrated into Eloquent model
 'model_hydration_mismatch' => 'ignore',    // default, silently skip missing models
 'model_hydration_mismatch' => 'log',       // log warning and skip
 'model_hydration_mismatch' => 'exception', // throw ModelHydrationMismatchException
+```
+
+### Bulk Failure Mode
+
+Controls what happens when Elasticsearch rejects some documents of a bulk request sent by indexing (`save()`,
+`searchable()`, `scout:import`) or removal (`delete()`, `unsearchable()`, the `RemoveFromSearch` job):
+
+```php
+'bulk_failure_mode' => 'exception', // default, throw BulkOperationException (getFailedDocuments() lists them)
+'bulk_failure_mode' => 'log',       // log an error with the failed documents and continue
+'bulk_failure_mode' => 'ignore',    // silently continue
 ```
 
 ### Scout Query Type
@@ -315,7 +341,9 @@ public function searchableRouting(): ?string
 }
 ```
 
-### Eager Loading for Search Results
+### Eager Loading for Indexing
+
+Relations to load before `toSearchableArray()` runs, once per batch of indexed models:
 
 ```php
 public function searchableWith(): array
@@ -323,6 +351,9 @@ public function searchableWith(): array
     return ['author', 'categories'];
 }
 ```
+
+To eager load relations of search results, use `with()` on the search builder (see
+[Eager Loading](search-builder.md#eager-loading)).
 
 ### Custom Connection
 
@@ -444,7 +475,9 @@ Enable queued indexing in `config/scout.php`:
 ],
 ```
 
-This queues model indexing operations for better performance.
+This queues model indexing operations for better performance. Removals use the package's `RemoveFromSearch` job,
+which stores the index, id, routing and connection of each document so it works after the rows are gone; like Scout's
+jobs it takes `tries`, `backoff` and `max_exceptions` from `scout.jobs`.
 
 ---
 
