@@ -446,9 +446,7 @@ final class Engine extends ScoutEngine implements EngineInterface
     }
 
     /**
-     * Merge Elasticsearch request body safely.
-     *
-     * Arrays with list semantics are replaced to avoid invalid structures.
+     * Merges objects recursively; replaces lists and the query.
      *
      * @param array<string, mixed> $base
      * @param array<string, mixed> $override
