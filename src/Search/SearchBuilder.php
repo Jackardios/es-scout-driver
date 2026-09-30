@@ -1105,6 +1105,12 @@ class SearchBuilder
             ->size(0)
             ->trackTotalHits(true)
             ->clearSearchAfter()
+            ->clearAggregations()
+            ->clearSuggest()
+            ->clearHighlight()
+            ->clearSort()
+            ->clearRescore()
+            ->clearCollapse()
             ->buildParams();
 
         $rawResult = $this->engine->searchRaw($params);

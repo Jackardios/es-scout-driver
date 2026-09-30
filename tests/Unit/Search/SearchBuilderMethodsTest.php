@@ -1647,6 +1647,39 @@ final class SearchBuilderMethodsTest extends TestCase
     }
 
     #[Test]
+    public function count_sends_only_what_the_total_depends_on(): void
+    {
+        $engine = $this->createMock(EngineInterface::class);
+        $engine->expects($this->once())
+            ->method('searchRaw')
+            ->with($this->callback(function (array $params): bool {
+                $this->assertSame(
+                    ['query', 'size', 'post_filter', 'track_total_hits', 'min_score'],
+                    array_keys($params['body']),
+                );
+
+                return true;
+            }))
+            ->willReturn(['hits' => ['total' => ['value' => 3]]]);
+
+        $builder = $this->createBuilder();
+        $this->setPrivateProperty($builder, 'engine', $engine);
+
+        $builder->query(['match_all' => new \stdClass()])
+            ->aggregate('avg_price', ['avg' => ['field' => 'price']])
+            ->suggest('s', ['text' => 'x', 'term' => ['field' => 'title']])
+            ->highlight('title')
+            ->sort('price')
+            ->rescore(['match_all' => new \stdClass()])
+            ->collapse('author')
+            ->postFilter(['term' => ['status' => 'active']])
+            ->minScore(0.5);
+
+        $this->assertSame(3, $builder->count());
+        $this->assertCount(1, $builder->getAggregations());
+    }
+
+    #[Test]
     public function from_zero(): void
     {
         $builder = $this->createBuilder();
