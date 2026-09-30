@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\EsScoutDriver\Aggregations\Metric;
 
 use Jackardios\EsScoutDriver\Aggregations\AggregationInterface;
+use stdClass;
 
 final class TopHitsAggregation implements AggregationInterface
 {
@@ -98,6 +99,6 @@ final class TopHitsAggregation implements AggregationInterface
             $params['version'] = $this->version;
         }
 
-        return ['top_hits' => $params];
+        return ['top_hits' => $params === [] ? new stdClass() : $params];
     }
 }

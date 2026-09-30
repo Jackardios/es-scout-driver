@@ -11,13 +11,12 @@ use PHPUnit\Framework\TestCase;
 final class TopHitsAggregationTest extends TestCase
 {
     #[Test]
-    public function it_builds_basic_top_hits_aggregation(): void
+    public function it_builds_basic_top_hits_aggregation_as_an_empty_json_object(): void
     {
         $agg = new TopHitsAggregation();
 
-        $this->assertSame([
-            'top_hits' => [],
-        ], $agg->toArray());
+        $this->assertEquals(['top_hits' => new \stdClass()], $agg->toArray());
+        $this->assertSame('{"top_hits":{}}', json_encode($agg->toArray()));
     }
 
     #[Test]
