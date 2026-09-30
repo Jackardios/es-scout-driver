@@ -6,7 +6,6 @@ namespace Jackardios\EsScoutDriver\Query\Specialized;
 
 use Jackardios\EsScoutDriver\Exceptions\InvalidQueryException;
 use Jackardios\EsScoutDriver\Query\Concerns\HasBoost;
-use Jackardios\EsScoutDriver\Query\Concerns\HasInnerHits;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
 
 /**
@@ -20,7 +19,6 @@ use Jackardios\EsScoutDriver\Query\QueryInterface;
 final class KnnQuery implements QueryInterface
 {
     use HasBoost;
-    use HasInnerHits;
 
     private ?int $numCandidates = null;
     private ?float $similarity = null;
@@ -87,7 +85,6 @@ final class KnnQuery implements QueryInterface
                 : $this->filter;
         }
 
-        $this->applyInnerHits($params);
         $this->applyBoost($params);
 
         return ['knn' => $params];

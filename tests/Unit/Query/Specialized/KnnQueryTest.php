@@ -102,33 +102,12 @@ final class KnnQueryTest extends TestCase
     }
 
     #[Test]
-    public function it_builds_knn_query_with_inner_hits(): void
-    {
-        $query = (new KnnQuery('embedding', [0.1, 0.2, 0.3], 10))
-            ->innerHits(['name' => 'my_inner_hits', 'size' => 5]);
-
-        $result = $query->toArray();
-        $this->assertSame(['name' => 'my_inner_hits', 'size' => 5], $result['knn']['inner_hits']);
-    }
-
-    #[Test]
-    public function it_builds_knn_query_with_empty_inner_hits(): void
-    {
-        $query = (new KnnQuery('embedding', [0.1, 0.2, 0.3], 10))
-            ->innerHits();
-
-        $result = $query->toArray();
-        $this->assertEquals(new \stdClass(), $result['knn']['inner_hits']);
-    }
-
-    #[Test]
     public function it_builds_knn_query_with_all_options(): void
     {
         $query = (new KnnQuery('embedding', [0.5, 0.5], 20))
             ->numCandidates(150)
             ->similarity(0.9)
             ->filter(new TermQuery('category', 'tech'))
-            ->innerHits(['size' => 3])
             ->boost(1.5);
 
         $this->assertSame([
@@ -139,7 +118,6 @@ final class KnnQueryTest extends TestCase
                 'num_candidates' => 150,
                 'similarity' => 0.9,
                 'filter' => ['term' => ['category' => ['value' => 'tech']]],
-                'inner_hits' => ['size' => 3],
                 'boost' => 1.5,
             ],
         ], $query->toArray());
@@ -153,8 +131,13 @@ final class KnnQueryTest extends TestCase
         $this->assertSame($query, $query->numCandidates(100));
         $this->assertSame($query, $query->similarity(0.8));
         $this->assertSame($query, $query->filter(['term' => ['x' => 'y']]));
-        $this->assertSame($query, $query->innerHits(['size' => 3]));
         $this->assertSame($query, $query->boost(1.0));
+    }
+
+    #[Test]
+    public function it_has_no_inner_hits_setter(): void
+    {
+        $this->assertFalse(method_exists(KnnQuery::class, 'innerHits'));
     }
 
     #[Test]
