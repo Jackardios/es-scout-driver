@@ -115,6 +115,23 @@ final class EngineTest extends TestCase
     }
 
     #[Test]
+    public function create_index_does_not_send_the_scout_primary_key_option(): void
+    {
+        $http = new FakeHttpClient([[200, ['acknowledged' => true]], [200, ['acknowledged' => true]]]);
+        $engine = new Engine($http->client());
+
+        $engine->createIndex('books', ['primaryKey' => 'id']);
+        $engine->createIndex('authors', ['primaryKey' => 'id', 'mappings' => ['properties' => ['name' => ['type' => 'text']]]]);
+
+        $this->assertSame('/books', $http->requests[0]->getUri()->getPath());
+        $this->assertSame('', (string) $http->requests[0]->getBody());
+        $this->assertSame(
+            ['mappings' => ['properties' => ['name' => ['type' => 'text']]]],
+            json_decode((string) $http->requests[1]->getBody(), true),
+        );
+    }
+
+    #[Test]
     public function connection_switches_to_a_configured_client(): void
     {
         $analytics = (new FakeHttpClient())->client();

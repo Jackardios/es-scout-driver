@@ -213,8 +213,9 @@ final class Engine extends ScoutEngine implements EngineInterface
     public function createIndex($name, array $options = []): void
     {
         $params = ['index' => $name];
+        unset($options['primaryKey']);
 
-        if (!empty($options)) {
+        if ($options !== []) {
             $params['body'] = $options;
         }
 
