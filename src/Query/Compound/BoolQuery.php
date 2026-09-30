@@ -31,37 +31,29 @@ final class BoolQuery implements QueryInterface
     /** @var array<int|string, QueryInterface|array> */
     private array $filter = [];
 
-    // ---- Set methods (replace all clauses) ----
-
-    /** @param QueryInterface|array ...$queries */
     public function setMust(QueryInterface|array ...$queries): self
     {
         $this->must = array_values($queries);
         return $this;
     }
 
-    /** @param QueryInterface|array ...$queries */
     public function setMustNot(QueryInterface|array ...$queries): self
     {
         $this->mustNot = array_values($queries);
         return $this;
     }
 
-    /** @param QueryInterface|array ...$queries */
     public function setShould(QueryInterface|array ...$queries): self
     {
         $this->should = array_values($queries);
         return $this;
     }
 
-    /** @param QueryInterface|array ...$queries */
     public function setFilter(QueryInterface|array ...$queries): self
     {
         $this->filter = array_values($queries);
         return $this;
     }
-
-    // ---- Clear methods ----
 
     public function clearMust(): self
     {
@@ -95,8 +87,6 @@ final class BoolQuery implements QueryInterface
         $this->filter = [];
         return $this;
     }
-
-    // ---- Add single clause methods ----
 
     /**
      * @throws DuplicateKeyedClauseException when key exists and ignoreIfKeyExists is false
@@ -146,9 +136,6 @@ final class BoolQuery implements QueryInterface
         return $this;
     }
 
-    // ---- Variadic add methods ----
-
-    /** @param QueryInterface|Closure|array ...$queries */
     public function must(QueryInterface|Closure|array ...$queries): self
     {
         foreach ($queries as $query) {
@@ -157,7 +144,6 @@ final class BoolQuery implements QueryInterface
         return $this;
     }
 
-    /** @param QueryInterface|Closure|array ...$queries */
     public function mustNot(QueryInterface|Closure|array ...$queries): self
     {
         foreach ($queries as $query) {
@@ -166,7 +152,6 @@ final class BoolQuery implements QueryInterface
         return $this;
     }
 
-    /** @param QueryInterface|Closure|array ...$queries */
     public function should(QueryInterface|Closure|array ...$queries): self
     {
         foreach ($queries as $query) {
@@ -175,7 +160,6 @@ final class BoolQuery implements QueryInterface
         return $this;
     }
 
-    /** @param QueryInterface|Closure|array ...$queries */
     public function filter(QueryInterface|Closure|array ...$queries): self
     {
         foreach ($queries as $query) {
@@ -183,8 +167,6 @@ final class BoolQuery implements QueryInterface
         }
         return $this;
     }
-
-    // ---- Remove clause by key ----
 
     public function removeMust(string $key): self
     {
@@ -209,8 +191,6 @@ final class BoolQuery implements QueryInterface
         unset($this->filter[$key]);
         return $this;
     }
-
-    // ---- Introspection methods ----
 
     /**
      * @param string $section must, must_not, should or filter
@@ -271,8 +251,6 @@ final class BoolQuery implements QueryInterface
         return !$this->hasClauses();
     }
 
-    // ---- Serialization ----
-
     /** @return array<string, mixed> */
     public function toArray(): array
     {
@@ -307,8 +285,6 @@ final class BoolQuery implements QueryInterface
         return ['bool' => $bool];
     }
 
-    // ---- Cloning ----
-
     public function __clone(): void
     {
         $this->must = $this->deepCloneClauses($this->must);
@@ -316,8 +292,6 @@ final class BoolQuery implements QueryInterface
         $this->should = $this->deepCloneClauses($this->should);
         $this->filter = $this->deepCloneClauses($this->filter);
     }
-
-    // ---- Private helpers ----
 
     /**
      * @param array<int|string, QueryInterface|array> $clauses
