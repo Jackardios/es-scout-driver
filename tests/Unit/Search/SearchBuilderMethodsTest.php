@@ -1350,6 +1350,16 @@ final class SearchBuilderMethodsTest extends TestCase
     }
 
     #[Test]
+    public function rescore_drops_the_options_of_the_previous_call(): void
+    {
+        $builder = $this->createBuilder();
+        $builder->rescore(['match' => ['title' => 'first']], windowSize: 50, queryWeight: 0.1, rescoreQueryWeight: 2.0);
+        $builder->rescore(['match' => ['title' => 'second']]);
+
+        $this->assertSame(['query' => ['rescore_query' => ['match' => ['title' => 'second']]]], $builder->getRescore());
+    }
+
+    #[Test]
     public function knn_num_candidates_default_calculation(): void
     {
         $builder = $this->createBuilder();

@@ -352,20 +352,21 @@ class SearchBuilder
 
     public function rescore(QueryInterface|Closure|array $query, ?int $windowSize = null, ?float $queryWeight = null, ?float $rescoreQueryWeight = null): static
     {
-        $this->rescore['query']['rescore_query'] = $this->resolveQueryToArray($query);
-
-        if ($windowSize !== null) {
-            $this->rescore['window_size'] = $windowSize;
-        }
+        $rescore = ['query' => ['rescore_query' => $this->resolveQueryToArray($query)]];
 
         if ($queryWeight !== null) {
-            $this->rescore['query']['query_weight'] = $queryWeight;
+            $rescore['query']['query_weight'] = $queryWeight;
         }
 
         if ($rescoreQueryWeight !== null) {
-            $this->rescore['query']['rescore_query_weight'] = $rescoreQueryWeight;
+            $rescore['query']['rescore_query_weight'] = $rescoreQueryWeight;
         }
 
+        if ($windowSize !== null) {
+            $rescore['window_size'] = $windowSize;
+        }
+
+        $this->rescore = $rescore;
         return $this;
     }
 
