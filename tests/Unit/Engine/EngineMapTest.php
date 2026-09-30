@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Tests\Unit\Engine;
 
+use Illuminate\Config\Repository as ConfigRepository;
+use Illuminate\Container\Container;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\LazyCollection;
 use Jackardios\EsScoutDriver\Engine\Engine;
 use Laravel\Scout\Builder;
@@ -14,9 +17,23 @@ use PHPUnit\Framework\TestCase;
 
 final class EngineMapTest extends TestCase
 {
+    private Container $previousContainer;
+
     protected function setUp(): void
     {
         FakeMapModel::resetFakeState();
+
+        $this->previousContainer = Container::getInstance();
+        $container = new Container();
+        $container->instance('config', new ConfigRepository(['scout' => ['soft_delete' => false]]));
+        Container::setInstance($container);
+    }
+
+    protected function tearDown(): void
+    {
+        Container::setInstance($this->previousContainer);
+
+        parent::tearDown();
     }
 
     #[Test]
@@ -230,6 +247,48 @@ final class EngineMapTest extends TestCase
         $this->assertSame(['_id' => '3', '_index' => 'books', '_score' => 1.0], $models[2]->scoutMetadata);
     }
 
+    #[Test]
+    public function update_does_not_index_the_hit_metadata_of_a_mapped_model(): void
+    {
+        FakeMapModel::seedRecords(['1']);
+        $http = new FakeHttpClient();
+        $engine = new Engine($http->client());
+
+        $models = $engine->map($this->createScoutBuilder(), [
+            'hits' => [
+                'hits' => [
+                    ['_id' => '1', '_index' => 'books', '_score' => 1.5, '_routing' => 'tenant-1', '_source' => []],
+                ],
+            ],
+        ], new FakeMapModel());
+        $engine->update($models);
+
+        $this->assertSame([
+            ['index' => ['_index' => 'books', '_id' => '1']],
+            ['id' => '1'],
+        ], $http->bulkLines());
+    }
+
+    #[Test]
+    public function update_indexes_the_soft_delete_flag_of_a_mapped_model(): void
+    {
+        Container::getInstance()->make('config')->set('scout.soft_delete', true);
+        FakeMapModel::seedRecords(['1']);
+        FakeMapModel::$records[0]->deleted_at = '2024-01-01 00:00:00';
+        $http = new FakeHttpClient();
+        $engine = new Engine($http->client());
+
+        $models = $engine->map($this->createScoutBuilder(), [
+            'hits' => ['hits' => [['_id' => '1', '_index' => 'books', '_score' => 1.5]]],
+        ], new FakeMapModel());
+        $engine->update($models);
+
+        $this->assertSame([
+            ['index' => ['_index' => 'books', '_id' => '1']],
+            ['id' => '1', '__soft_deleted' => 1],
+        ], $http->bulkLines());
+    }
+
     private function createScoutBuilder(): Builder
     {
         return new Builder(new FakeMapModel(), 'test');
@@ -247,6 +306,10 @@ final class EngineMapTest extends TestCase
 
 final class FakeMapModel extends Model
 {
+    use SoftDeletes;
+
+    protected $dateFormat = 'Y-m-d H:i:s';
+
     /** @var array<int, self> */
     public static array $records = [];
 
@@ -294,6 +357,43 @@ final class FakeMapModel extends Model
         $this->scoutMetadata[$key] = $value;
 
         return $this;
+    }
+
+    /** @return array<string, mixed> */
+    public function scoutMetadata(): array
+    {
+        return $this->scoutMetadata;
+    }
+
+    public function pushSoftDeleteMetadata(): self
+    {
+        return $this->withScoutMetadata('__soft_deleted', $this->trashed() ? 1 : 0);
+    }
+
+    public function indexableAs(): string
+    {
+        return 'books';
+    }
+
+    /** @return array<string, mixed> */
+    public function toSearchableArray(): array
+    {
+        return ['id' => $this->getScoutKey()];
+    }
+
+    public function searchableRouting(): ?string
+    {
+        return null;
+    }
+
+    public function searchableWith(): ?array
+    {
+        return null;
+    }
+
+    public function searchableConnection(): ?string
+    {
+        return null;
     }
 
     /**

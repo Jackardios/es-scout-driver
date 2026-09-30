@@ -49,10 +49,10 @@ final class Engine extends ScoutEngine implements EngineInterface
                 $body[] = ['index' => $metadata];
 
                 if ($this->usesSoftDelete($model) && config('scout.soft_delete', false)) {
-                    $model->pushSoftDeleteMetadata();
+                    $searchableData['__soft_deleted'] = $model->pushSoftDeleteMetadata()->scoutMetadata()['__soft_deleted'];
                 }
 
-                $body[] = array_merge($searchableData, $model->scoutMetadata());
+                $body[] = $searchableData;
             }
 
             if ($body === []) {
