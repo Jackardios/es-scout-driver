@@ -242,12 +242,24 @@ final class Engine extends ScoutEngine implements EngineInterface
         return $clone;
     }
 
-    public function openPointInTime(string $indexName, ?string $keepAlive = null): string
-    {
+    public function openPointInTime(
+        string $indexName,
+        ?string $keepAlive = null,
+        ?string $routing = null,
+        ?string $preference = null,
+    ): string {
         $params = [
             'index' => $indexName,
             'keep_alive' => $keepAlive ?? '5m',
         ];
+
+        if ($routing !== null) {
+            $params['routing'] = $routing;
+        }
+
+        if ($preference !== null) {
+            $params['preference'] = $preference;
+        }
 
         /** @var ElasticsearchResponse $response */
         $response = $this->client->openPointInTime($params);

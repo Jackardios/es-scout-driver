@@ -71,8 +71,12 @@ final class NullEngine extends ScoutEngine implements EngineInterface
         return $this;
     }
 
-    public function openPointInTime(string $indexName, ?string $keepAlive = null): string
-    {
+    public function openPointInTime(
+        string $indexName,
+        ?string $keepAlive = null,
+        ?string $routing = null,
+        ?string $preference = null,
+    ): string {
         return 'null-pit-' . uniqid('', true);
     }
 

@@ -6,6 +6,7 @@ namespace Jackardios\EsScoutDriver\Tests\Unit\Search;
 
 use Closure;
 use Jackardios\EsScoutDriver\Aggregations\AggregationInterface;
+use Jackardios\EsScoutDriver\Engine\AliasRegistry;
 use Jackardios\EsScoutDriver\Engine\EngineInterface;
 use Jackardios\EsScoutDriver\Enums\SortOrder;
 use Jackardios\EsScoutDriver\Exceptions\InvalidQueryException;
@@ -19,6 +20,7 @@ use Jackardios\EsScoutDriver\Sort\FieldSort;
 use Jackardios\EsScoutDriver\Sort\SortInterface;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use LogicException;
 use ReflectionClass;
 use ReflectionProperty;
 
@@ -768,6 +770,60 @@ final class SearchBuilderMethodsTest extends TestCase
         $this->assertSame(['id' => 'pit-id', 'keep_alive' => '1m'], $params['body']['pit']);
         $this->assertArrayNotHasKey('pit', $params);
         $this->assertArrayNotHasKey('index', $params);
+    }
+
+    #[Test]
+    public function point_in_time_refuses_routing(): void
+    {
+        $builder = $this->createBuilder();
+        $builder->pointInTime('pit-id')->routing('r1');
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('routing() and preference() cannot be combined with pointInTime()');
+
+        $builder->buildParams();
+    }
+
+    #[Test]
+    public function point_in_time_refuses_preference(): void
+    {
+        $builder = $this->createBuilder();
+        $builder->pointInTime('pit-id')->preference('_local');
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('routing() and preference() cannot be combined with pointInTime()');
+
+        $builder->buildParams();
+    }
+
+    #[Test]
+    public function cursor_opens_the_point_in_time_with_routing_and_preference(): void
+    {
+        $engine = $this->createMock(EngineInterface::class);
+        $engine->expects($this->once())
+            ->method('openPointInTime')
+            ->with('test_index', '5m', 'r1,r2', '_local')
+            ->willReturn('pit-1');
+        $engine->expects($this->once())
+            ->method('searchRaw')
+            ->with($this->callback(function (array $params): bool {
+                $this->assertArrayNotHasKey('routing', $params);
+                $this->assertArrayNotHasKey('preference', $params);
+                $this->assertSame(['id' => 'pit-1', 'keep_alive' => '5m'], $params['body']['pit']);
+
+                return true;
+            }))
+            ->willReturn(['hits' => ['total' => ['value' => 0], 'hits' => []]]);
+        $engine->expects($this->once())->method('closePointInTime')->with('pit-1');
+
+        $builder = $this->createBuilder();
+        $this->setPrivateProperty($builder, 'engine', $engine);
+        $this->setPrivateProperty($builder, 'aliasRegistry', new AliasRegistry());
+        $builder->routing(['r1', 'r2'])->preference('_local');
+
+        $this->assertSame([], iterator_to_array($builder->cursor()));
+        $this->assertSame(['r1', 'r2'], $builder->getRouting());
+        $this->assertSame('_local', $builder->getPreference());
     }
 
     #[Test]

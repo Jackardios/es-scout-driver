@@ -27,6 +27,7 @@ use Jackardios\EsScoutDriver\Query\QueryInterface;
 use Jackardios\EsScoutDriver\Query\Specialized\KnnQuery;
 use Jackardios\EsScoutDriver\Query\Term\TermQuery;
 use Jackardios\EsScoutDriver\Sort\SortInterface;
+use LogicException;
 use stdClass;
 use Throwable;
 
@@ -956,6 +957,13 @@ class SearchBuilder
     {
         $params = [];
 
+        if ($this->pointInTime !== null && ($this->routing !== null || $this->preference !== null)) {
+            throw new LogicException(
+                'routing() and preference() cannot be combined with pointInTime(): '
+                . 'Elasticsearch takes them only when the point in time is opened.',
+            );
+        }
+
         if ($this->pointInTime === null) {
             $params['index'] = implode(',', array_values($this->indexNames));
 
@@ -1143,11 +1151,17 @@ class SearchBuilder
 
     public function cursor(int $chunkSize = 1000, string $keepAlive = '5m'): SearchCursor
     {
-        if ($chunkSize < 1) {
-            throw new \InvalidArgumentException('chunkSize must be greater than 0.');
-        }
+        $pageBuilder = clone $this;
+        $pageBuilder->routing = null;
+        $pageBuilder->preference = null;
 
-        return new SearchCursor($this, $chunkSize, $keepAlive);
+        return new SearchCursor(
+            $pageBuilder,
+            $chunkSize,
+            $keepAlive,
+            $this->routing !== null ? implode(',', $this->routing) : null,
+            $this->preference,
+        );
     }
 
     public function chunk(int $chunkSize, callable $callback): void

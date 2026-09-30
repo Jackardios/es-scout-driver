@@ -32,9 +32,14 @@ interface EngineInterface
     public function searchRaw(array $params): array;
 
     /**
-     * Open a Point in Time for the given index.
+     * Open a Point in Time for the given index; routing and preference restrict the shards it covers.
      */
-    public function openPointInTime(string $indexName, ?string $keepAlive = null): string;
+    public function openPointInTime(
+        string $indexName,
+        ?string $keepAlive = null,
+        ?string $routing = null,
+        ?string $preference = null,
+    ): string;
 
     /**
      * Close a Point in Time.

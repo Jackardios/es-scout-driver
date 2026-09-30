@@ -66,7 +66,7 @@ final class SearchCursorTest extends TestCase
         $engine = $this->createMock(EngineInterface::class);
         $engine->expects($this->once())
             ->method('openPointInTime')
-            ->with('books', '1m')
+            ->with('books', '1m', null, null)
             ->willReturn('pit-1');
         $engine->expects($this->once())
             ->method('closePointInTime')
@@ -136,7 +136,7 @@ final class SearchCursorTest extends TestCase
         $engine = $this->createMock(EngineInterface::class);
         $engine->expects($this->once())
             ->method('openPointInTime')
-            ->with('books', '5m')
+            ->with('books', '5m', null, null)
             ->willReturn('pit-2');
         $engine->expects($this->once())
             ->method('closePointInTime')
@@ -178,7 +178,7 @@ final class SearchCursorTest extends TestCase
         $engine = $this->createMock(EngineInterface::class);
         $engine->expects($this->once())
             ->method('openPointInTime')
-            ->with('books', '30s')
+            ->with('books', '30s', null, null)
             ->willReturn('pit-3');
         $engine->expects($this->once())
             ->method('closePointInTime')
@@ -215,7 +215,7 @@ final class SearchCursorTest extends TestCase
         $engine = $this->createMock(EngineInterface::class);
         $engine->expects($this->once())
             ->method('openPointInTime')
-            ->with('books', '1m')
+            ->with('books', '1m', null, null)
             ->willReturn('pit-1');
         $engine->expects($this->once())
             ->method('closePointInTime')
@@ -263,7 +263,7 @@ final class SearchCursorTest extends TestCase
         $engine = $this->createMock(EngineInterface::class);
         $engine->expects($this->once())
             ->method('openPointInTime')
-            ->with('books', '1m')
+            ->with('books', '1m', null, null)
             ->willReturn('pit-1');
         $engine->expects($this->once())
             ->method('closePointInTime')
@@ -296,7 +296,7 @@ final class SearchCursorTest extends TestCase
         $engine = $this->createMock(EngineInterface::class);
         $engine->expects($this->once())
             ->method('openPointInTime')
-            ->with('books', '1m')
+            ->with('books', '1m', null, null)
             ->willReturn('pit-1');
         $engine->expects($this->once())
             ->method('closePointInTime')

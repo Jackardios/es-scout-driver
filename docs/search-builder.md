@@ -111,6 +111,8 @@ foreach ($cursor as $hit) {
 ```
 
 > `chunkSize` must be greater than `0`.
+> `routing()` and `preference()` are applied when the cursor opens its point in time, so the cursor reads only the
+> routed shards.
 
 ### chunk()
 
@@ -619,4 +621,12 @@ $nextResult = Book::searchQuery(Query::matchAll())
 
 // Close PIT when done
 Book::closePointInTime($pitId);
+```
+
+A search with `pointInTime()` cannot also use `routing()` or `preference()` (`LogicException`): Elasticsearch takes them
+only when the point in time is opened. To open a routed one, call the engine:
+
+```php
+$book = new Book();
+$pitId = $book->searchableUsing()->openPointInTime($book->searchableAs(), '5m', routing: 'user_1');
 ```

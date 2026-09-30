@@ -18,10 +18,17 @@ final class SearchCursor implements IteratorAggregate
     private SearchBuilder $builder;
     private int $chunkSize;
     private string $keepAlive;
+    private ?string $routing;
+    private ?string $preference;
 
     /** @internal Obtain cursors from SearchBuilder::cursor(). */
-    public function __construct(SearchBuilder $builder, int $chunkSize = 1000, string $keepAlive = '5m')
-    {
+    public function __construct(
+        SearchBuilder $builder,
+        int $chunkSize = 1000,
+        string $keepAlive = '5m',
+        ?string $routing = null,
+        ?string $preference = null,
+    ) {
         if ($chunkSize < 1) {
             throw new InvalidArgumentException('chunkSize must be greater than 0.');
         }
@@ -29,6 +36,8 @@ final class SearchCursor implements IteratorAggregate
         $this->builder = $builder;
         $this->chunkSize = $chunkSize;
         $this->keepAlive = $keepAlive;
+        $this->routing = $routing;
+        $this->preference = $preference;
     }
 
     public function getIterator(): Traversable
@@ -45,7 +54,7 @@ final class SearchCursor implements IteratorAggregate
         $index = implode(',', array_values($indexNames));
         $engine = $this->builder->getEngine();
 
-        $currentPitId = $engine->openPointInTime($index, $this->keepAlive);
+        $currentPitId = $engine->openPointInTime($index, $this->keepAlive, $this->routing, $this->preference);
         $primaryError = null;
 
         try {

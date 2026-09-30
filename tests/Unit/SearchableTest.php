@@ -160,8 +160,12 @@ final class SearchableTestEngine implements EngineInterface
         return [];
     }
 
-    public function openPointInTime(string $indexName, ?string $keepAlive = null): string
-    {
+    public function openPointInTime(
+        string $indexName,
+        ?string $keepAlive = null,
+        ?string $routing = null,
+        ?string $preference = null,
+    ): string {
         return 'pit-id';
     }
 
