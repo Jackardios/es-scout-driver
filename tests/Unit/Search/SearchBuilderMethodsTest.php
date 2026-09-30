@@ -643,7 +643,7 @@ final class SearchBuilderMethodsTest extends TestCase
         $this->assertSame('embedding', $knn['field']);
         $this->assertSame([0.1, 0.2, 0.3], $knn['query_vector']);
         $this->assertSame(10, $knn['k']);
-        $this->assertSame(100, $knn['num_candidates']);
+        $this->assertArrayNotHasKey('num_candidates', $knn);
     }
 
     #[Test]
@@ -1460,15 +1460,12 @@ final class SearchBuilderMethodsTest extends TestCase
     }
 
     #[Test]
-    public function knn_num_candidates_default_calculation(): void
+    public function knn_leaves_num_candidates_to_elasticsearch_by_default(): void
     {
         $builder = $this->createBuilder();
 
-        $builder->knn('embedding', [0.1, 0.2], k: 5);
-        $this->assertSame(100, $builder->getKnn()['num_candidates']);
-
-        $builder->knn('embedding', [0.1, 0.2], k: 100);
-        $this->assertSame(200, $builder->getKnn()['num_candidates']);
+        $builder->knn('embedding', [0.1, 0.2], k: 6000);
+        $this->assertArrayNotHasKey('num_candidates', $builder->getKnn());
     }
 
     #[Test]

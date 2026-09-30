@@ -632,6 +632,8 @@ Query::knn('embedding', [0.12, -0.34, 0.56, 0.78], k: 10)
     ->boost(5.0)
 ```
 
+`numCandidates()` takes 1 to 10000 and at least `k`. Without it, Elasticsearch picks the number of candidates itself.
+
 ### semantic
 
 Semantic search using ML models (ES 8.14+):

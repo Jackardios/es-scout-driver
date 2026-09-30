@@ -13,7 +13,7 @@ use PHPUnit\Framework\TestCase;
 final class KnnQueryTest extends TestCase
 {
     #[Test]
-    public function it_builds_basic_knn_query(): void
+    public function it_builds_basic_knn_query_without_num_candidates(): void
     {
         $query = new KnnQuery('embedding', [0.1, 0.2, 0.3], 10);
 
@@ -22,27 +22,16 @@ final class KnnQueryTest extends TestCase
                 'field' => 'embedding',
                 'query_vector' => [0.1, 0.2, 0.3],
                 'k' => 10,
-                'num_candidates' => 100,
             ],
         ], $query->toArray());
     }
 
     #[Test]
-    public function it_uses_default_num_candidates_as_k_times_2_when_larger_than_100(): void
+    public function it_leaves_num_candidates_to_elasticsearch_for_a_large_k(): void
     {
-        $query = new KnnQuery('embedding', [0.1, 0.2, 0.3], 60);
+        $query = new KnnQuery('embedding', [0.1, 0.2, 0.3], 6000);
 
-        $result = $query->toArray();
-        $this->assertSame(120, $result['knn']['num_candidates']);
-    }
-
-    #[Test]
-    public function it_uses_default_num_candidates_as_100_when_k_times_2_is_smaller(): void
-    {
-        $query = new KnnQuery('embedding', [0.1, 0.2, 0.3], 10);
-
-        $result = $query->toArray();
-        $this->assertSame(100, $result['knn']['num_candidates']);
+        $this->assertArrayNotHasKey('num_candidates', $query->toArray()['knn']);
     }
 
     #[Test]
@@ -132,6 +121,41 @@ final class KnnQueryTest extends TestCase
         $this->assertSame($query, $query->similarity(0.8));
         $this->assertSame($query, $query->filter(['term' => ['x' => 'y']]));
         $this->assertSame($query, $query->boost(1.0));
+    }
+
+    #[Test]
+    public function it_accepts_num_candidates_of_10000(): void
+    {
+        $query = (new KnnQuery('embedding', [0.1, 0.2, 0.3], 10))->numCandidates(10000);
+
+        $this->assertSame(10000, $query->toArray()['knn']['num_candidates']);
+    }
+
+    #[Test]
+    public function it_throws_exception_for_num_candidates_above_10000(): void
+    {
+        $this->expectException(InvalidQueryException::class);
+        $this->expectExceptionMessage('KnnQuery requires numCandidates to be at most 10000');
+
+        (new KnnQuery('embedding', [0.1, 0.2, 0.3], 10))->numCandidates(10001);
+    }
+
+    #[Test]
+    public function it_throws_exception_for_num_candidates_below_k(): void
+    {
+        $this->expectException(InvalidQueryException::class);
+        $this->expectExceptionMessage('KnnQuery requires numCandidates to be greater than or equal to k');
+
+        (new KnnQuery('embedding', [0.1, 0.2, 0.3], 10))->numCandidates(9);
+    }
+
+    #[Test]
+    public function it_throws_exception_for_num_candidates_of_zero(): void
+    {
+        $this->expectException(InvalidQueryException::class);
+        $this->expectExceptionMessage('KnnQuery requires numCandidates to be greater than 0');
+
+        (new KnnQuery('embedding', [0.1, 0.2, 0.3], 10))->numCandidates(0);
     }
 
     #[Test]

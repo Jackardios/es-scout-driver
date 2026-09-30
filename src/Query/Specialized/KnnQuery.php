@@ -13,7 +13,7 @@ use Jackardios\EsScoutDriver\Query\QueryInterface;
  *
  * Finds the k nearest vectors to a query vector, as measured by a similarity metric.
  *
- * @since Elasticsearch 8.8
+ * @since Elasticsearch 8.12
  * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-knn-query.html
  */
 final class KnnQuery implements QueryInterface
@@ -45,6 +45,10 @@ final class KnnQuery implements QueryInterface
             throw new InvalidQueryException('KnnQuery requires numCandidates to be greater than 0');
         }
 
+        if ($numCandidates > 10000) {
+            throw new InvalidQueryException('KnnQuery requires numCandidates to be at most 10000');
+        }
+
         if ($numCandidates < $this->k) {
             throw new InvalidQueryException('KnnQuery requires numCandidates to be greater than or equal to k');
         }
@@ -72,8 +76,11 @@ final class KnnQuery implements QueryInterface
             'field' => $this->field,
             'query_vector' => $this->queryVector,
             'k' => $this->k,
-            'num_candidates' => $this->numCandidates ?? max($this->k * 2, 100),
         ];
+
+        if ($this->numCandidates !== null) {
+            $params['num_candidates'] = $this->numCandidates;
+        }
 
         if ($this->similarity !== null) {
             $params['similarity'] = $this->similarity;

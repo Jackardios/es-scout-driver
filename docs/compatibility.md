@@ -18,7 +18,7 @@ This document covers version-specific features and compatibility notes for Elast
 
 | Query | Minimum ES Version | Notes |
 |-------|-------------------|-------|
-| `Query::knn()` | 8.8 | Top-level kNN search |
+| `Query::knn()` | 8.12 | `knn` query |
 | `Query::sparseVector()` | 8.11 | Recommended for ELSER models |
 | `Query::semantic()` | 8.14 | Semantic text field search |
 | `Query::textExpansion()` | 8.8 | **Deprecated in 8.15**, use `sparseVector()` |
