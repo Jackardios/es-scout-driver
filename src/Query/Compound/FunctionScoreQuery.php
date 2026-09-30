@@ -6,8 +6,8 @@ namespace Jackardios\EsScoutDriver\Query\Compound;
 
 use Closure;
 use Jackardios\EsScoutDriver\Enums\BoostMode;
+use Jackardios\EsScoutDriver\Enums\FunctionScoreMode;
 use Jackardios\EsScoutDriver\Query\Concerns\HasBoost;
-use Jackardios\EsScoutDriver\Query\Concerns\HasFunctionScoreMode;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
 use Jackardios\EsScoutDriver\Query\SubQuery;
 use stdClass;
@@ -15,10 +15,10 @@ use stdClass;
 final class FunctionScoreQuery implements QueryInterface
 {
     use HasBoost;
-    use HasFunctionScoreMode;
 
     private QueryInterface|array|null $query = null;
     private array $functions = [];
+    private ?string $functionScoreMode = null;
     private ?string $boostMode = null;
     private ?float $maxBoost = null;
     private ?float $minScore = null;
@@ -43,6 +43,12 @@ final class FunctionScoreQuery implements QueryInterface
     public function addFunction(array $function): self
     {
         $this->functions[] = $function;
+        return $this;
+    }
+
+    public function functionScoreMode(FunctionScoreMode|string $functionScoreMode): self
+    {
+        $this->functionScoreMode = $functionScoreMode instanceof FunctionScoreMode ? $functionScoreMode->value : $functionScoreMode;
         return $this;
     }
 
@@ -86,7 +92,9 @@ final class FunctionScoreQuery implements QueryInterface
             );
         }
 
-        $this->applyFunctionScoreMode($params);
+        if ($this->functionScoreMode !== null) {
+            $params['score_mode'] = $this->functionScoreMode;
+        }
 
         if ($this->boostMode !== null) {
             $params['boost_mode'] = $this->boostMode;
