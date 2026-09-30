@@ -26,6 +26,7 @@ use Jackardios\EsScoutDriver\Query\Compound\BoolQuery;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
 use Jackardios\EsScoutDriver\Query\Specialized\KnnQuery;
 use Jackardios\EsScoutDriver\Query\Term\TermQuery;
+use Jackardios\EsScoutDriver\Searchable;
 use Jackardios\EsScoutDriver\Sort\FieldSort;
 use Jackardios\EsScoutDriver\Sort\SortInterface;
 use Jackardios\EsScoutDriver\Support\ConfigOption;
@@ -706,7 +707,7 @@ class SearchBuilder
     {
         if (
             !is_a($modelClass, Model::class, true)
-            || !in_array(\Jackardios\EsScoutDriver\Searchable::class, class_uses_recursive($modelClass), true)
+            || !in_array(Searchable::class, class_uses_recursive($modelClass), true)
         ) {
             throw new NotSearchableModelException($modelClass);
         }
@@ -771,7 +772,7 @@ class SearchBuilder
         return $this;
     }
 
-    // ---- Eloquent callbacks (new concise API) ----
+    // ---- Eloquent callbacks ----
 
     /**
      * Add a callback to modify the Eloquent query before loading models.
@@ -1227,8 +1228,6 @@ class SearchBuilder
 
     public function __clone(): void
     {
-        // AliasRegistry is intentionally shared between clones (singleton-like, caches alias lookups)
-
         if ($this->query !== null) {
             $this->query = $this->deepCloneArray($this->query);
         }
@@ -1237,17 +1236,12 @@ class SearchBuilder
             $this->boolQuery = clone $this->boolQuery;
         }
 
-        // Deep clone arrays containing QueryInterface objects or other mutable structures
         $this->sort = $this->deepCloneArray($this->sort);
         $this->rescore = $this->deepCloneArray($this->rescore);
         $this->highlight = $this->deepCloneArray($this->highlight);
         $this->aggregations = $this->deepCloneArray($this->aggregations);
         $this->collapse = $this->deepCloneArray($this->collapse);
         $this->suggest = $this->deepCloneArray($this->suggest);
-
-        if ($this->pointInTime !== null) {
-            $this->pointInTime = $this->deepCloneArray($this->pointInTime);
-        }
 
         if ($this->postFilter !== null) {
             $this->postFilter = $this->deepCloneArray($this->postFilter);
@@ -1264,29 +1258,15 @@ class SearchBuilder
         if ($this->knn !== null) {
             $this->knn = $this->deepCloneArray($this->knn);
         }
-
-        if ($this->searchAfter !== null) {
-            $this->searchAfter = $this->deepCloneArray($this->searchAfter);
-        }
-
-        if ($this->routing !== null) {
-            $this->routing = $this->deepCloneArray($this->routing);
-        }
-
-        if (is_array($this->source)) {
-            $this->source = $this->deepCloneArray($this->source);
-        }
     }
 
     /** @param array<mixed> $arr */
     private function deepCloneArray(array $arr): array
     {
         return array_map(
-            fn($item) => $item instanceof QueryInterface
+            fn($item) => is_object($item)
                 ? clone $item
-                : (is_object($item)
-                    ? clone $item
-                    : (is_array($item) ? $this->deepCloneArray($item) : $item)),
+                : (is_array($item) ? $this->deepCloneArray($item) : $item),
             $arr,
         );
     }
@@ -1540,8 +1520,7 @@ class SearchBuilder
 
     private function hasWriteQuery(): bool
     {
-        return ($this->query !== null && $this->query !== [])
-            || ($this->boolQuery !== null && $this->boolQuery->hasClauses());
+        return $this->query !== null || ($this->boolQuery?->hasClauses() ?? false);
     }
 
     private function resolveJoinedIndexName(?string $modelClass): string

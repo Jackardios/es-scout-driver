@@ -5,13 +5,10 @@ declare(strict_types=1);
 namespace Jackardios\EsScoutDriver\Search;
 
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Traits\ForwardsCalls;
 use Jackardios\EsScoutDriver\Exceptions\InvalidSearchResultException;
 
 final class Paginator extends LengthAwarePaginator
 {
-    use ForwardsCalls;
-
     private SearchResult $searchResult;
 
     /** @internal Obtain paginators from SearchBuilder::paginate(). */
