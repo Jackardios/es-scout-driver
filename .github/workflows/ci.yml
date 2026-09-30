@@ -11,6 +11,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Laravel 10 and 11 have open security advisories and no fixed release. This line
+  # keeps supporting them, so Composer must not refuse to install them.
+  COMPOSER_POLICY_ADVISORIES_BLOCK: '0'
+
 jobs:
   tests:
     name: PHP ${{ matrix.php }} / Laravel ${{ matrix.laravel }} / Scout ${{ matrix.scout }} / ES ${{ matrix.elasticsearch }}
