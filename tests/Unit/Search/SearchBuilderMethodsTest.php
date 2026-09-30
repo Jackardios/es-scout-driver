@@ -1708,6 +1708,30 @@ final class SearchBuilderMethodsTest extends TestCase
         $builder->chunk(0, static function (): void {});
     }
 
+    #[Test]
+    public function cursor_refuses_rescore(): void
+    {
+        $builder = $this->createBuilder();
+        $builder->rescore(['match_all' => new \stdClass()]);
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('cursor() and chunk() cannot be used with rescore()');
+
+        $builder->cursor();
+    }
+
+    #[Test]
+    public function chunk_refuses_rescore(): void
+    {
+        $builder = $this->createBuilder();
+        $builder->rescore(['match_all' => new \stdClass()]);
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('cursor() and chunk() cannot be used with rescore()');
+
+        $builder->chunk(10, static function (): void {});
+    }
+
     // ---- Macroable trait ----
 
     #[Test]

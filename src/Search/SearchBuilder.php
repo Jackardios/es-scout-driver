@@ -1151,6 +1151,13 @@ class SearchBuilder
 
     public function cursor(int $chunkSize = 1000, string $keepAlive = '5m'): SearchCursor
     {
+        if ($this->rescore !== []) {
+            throw new LogicException(
+                'cursor() and chunk() cannot be used with rescore(): they sort by _shard_doc, '
+                . 'and Elasticsearch does not allow a sort with rescore.',
+            );
+        }
+
         $pageBuilder = clone $this;
         $pageBuilder->routing = null;
         $pageBuilder->preference = null;
@@ -1166,10 +1173,6 @@ class SearchBuilder
 
     public function chunk(int $chunkSize, callable $callback): void
     {
-        if ($chunkSize < 1) {
-            throw new \InvalidArgumentException('chunkSize must be greater than 0.');
-        }
-
         $cursor = $this->cursor($chunkSize);
         $currentChunk = [];
 

@@ -173,6 +173,31 @@ final class SearchCursorTest extends TestCase
     }
 
     #[Test]
+    public function it_does_not_apply_shard_doc_sort_when_present_as_a_string(): void
+    {
+        $engine = $this->createStub(EngineInterface::class);
+        $engine->method('openPointInTime')->willReturn('pit-2');
+
+        $executedRequests = new ArrayObject();
+        $metrics = new SearchCursorTestBuilderMetrics();
+
+        $builder = new SearchCursorTestBuilder(
+            engine: $engine,
+            indexNames: ['Book' => 'books'],
+            sort: ['_shard_doc'],
+            searchAfter: null,
+            executedRequests: $executedRequests,
+            metrics: $metrics,
+            executor: fn() => [$this->rawHit('1', ['done'])],
+        );
+
+        iterator_to_array(new SearchCursor($builder, 2, '5m'));
+
+        $this->assertSame(0, $metrics->sortCalls);
+        $this->assertSame(['_shard_doc'], $executedRequests[0]['sort']);
+    }
+
+    #[Test]
     public function it_closes_point_in_time_when_search_throws(): void
     {
         $engine = $this->createMock(EngineInterface::class);

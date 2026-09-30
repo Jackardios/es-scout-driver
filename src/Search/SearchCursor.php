@@ -66,7 +66,7 @@ final class SearchCursor implements IteratorAggregate
                 $searchBuilder->pointInTime($currentPitId, $this->keepAlive);
                 $searchBuilder->size($this->chunkSize);
 
-                if ($searchBuilder->getSort() === [] || !$this->hasShardDocSort($searchBuilder->getSort())) {
+                if (!$this->hasShardDocSort($searchBuilder->getSort())) {
                     // Ensure deterministic pagination for PIT + search_after
                     $searchBuilder->sort('_shard_doc', 'asc');
                 }
@@ -115,7 +115,7 @@ final class SearchCursor implements IteratorAggregate
     private function hasShardDocSort(array $sort): bool
     {
         foreach ($sort as $sortItem) {
-            if (is_array($sortItem) && array_key_exists('_shard_doc', $sortItem)) {
+            if ($sortItem === '_shard_doc' || (is_array($sortItem) && array_key_exists('_shard_doc', $sortItem))) {
                 return true;
             }
         }

@@ -113,6 +113,8 @@ foreach ($cursor as $hit) {
 > `chunkSize` must be greater than `0`.
 > `routing()` and `preference()` are applied when the cursor opens its point in time, so the cursor reads only the
 > routed shards.
+> The cursor adds a `_shard_doc` tiebreaker sort unless the sort already has one, so it cannot be combined with
+> `rescore()` (`LogicException`): Elasticsearch does not allow a sort with rescore.
 
 ### chunk()
 
