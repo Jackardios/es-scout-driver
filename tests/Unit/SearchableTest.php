@@ -145,11 +145,37 @@ final class SearchableTest extends TestCase
 
         $this->assertNull($model->searchableUsing()->resolvedConnection);
     }
+
+    #[Test]
+    public function open_point_in_time_passes_the_index_keep_alive_routing_and_preference_to_the_engine(): void
+    {
+        $model = new class {
+            use Searchable;
+
+            public function baseSearchableUsing(): EngineInterface
+            {
+                return SearchableTestEngine::$shared ??= new SearchableTestEngine();
+            }
+
+            public function searchableAs(): string
+            {
+                return 'books';
+            }
+        };
+
+        $this->assertSame('pit-id', $model::openPointInTime('5m', routing: 'user_1', preference: '_local'));
+        $this->assertSame(['books', '5m', 'user_1', '_local'], SearchableTestEngine::$shared?->pointInTimeArguments);
+    }
 }
 
 final class SearchableTestEngine implements EngineInterface
 {
+    public static ?self $shared = null;
+
     public ?string $resolvedConnection = null;
+
+    /** @var list<string|null> */
+    public array $pointInTimeArguments = [];
 
     public function update($models): void {}
 
@@ -166,6 +192,8 @@ final class SearchableTestEngine implements EngineInterface
         ?string $routing = null,
         ?string $preference = null,
     ): string {
+        $this->pointInTimeArguments = [$indexName, $keepAlive, $routing, $preference];
+
         return 'pit-id';
     }
 

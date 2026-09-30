@@ -58,13 +58,14 @@ trait Searchable
         return $connection !== null && $connection !== '' ? $engine->connection($connection) : $engine;
     }
 
-    public static function openPointInTime(?string $keepAlive = null): string
-    {
+    public static function openPointInTime(
+        ?string $keepAlive = null,
+        ?string $routing = null,
+        ?string $preference = null,
+    ): string {
         $self = new static();
-        $engine = $self->searchableUsing();
-        $indexName = $self->searchableAs();
 
-        return $engine->openPointInTime($indexName, $keepAlive);
+        return $self->searchableUsing()->openPointInTime($self->searchableAs(), $keepAlive, $routing, $preference);
     }
 
     public static function closePointInTime(string $pointInTimeId): void

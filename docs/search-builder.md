@@ -643,9 +643,8 @@ Sort a point-in-time search by `_shard_doc` (or end a custom sort with it) for a
 to sort on `_id` by default.
 
 A search with `pointInTime()` cannot also use `routing()` or `preference()` (`LogicException`): Elasticsearch takes them
-only when the point in time is opened. To open a routed one, call the engine:
+only when the point in time is opened:
 
 ```php
-$book = new Book();
-$pitId = $book->searchableUsing()->openPointInTime($book->searchableAs(), '5m', routing: 'user_1');
+$pitId = Book::openPointInTime('5m', routing: 'user_1', preference: '_local');
 ```
