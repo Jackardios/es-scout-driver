@@ -1,6 +1,81 @@
 # Changelog
 
-## Unreleased (1.0.0-rc.2)
+## Unreleased
+
+Changes since the `v1.0.0-rc.2` tag.
+
+### Upgrading from 0.x
+
+Everything a move from `^0.1` to `^1.0` has to change, collected from the two release candidates below:
+
+- Requirements: PHP 8.2, Laravel 12 or 13, Scout 10.24 or 11. The `elasticsearch/elasticsearch` client must have the
+  major version of the server: require `elasticsearch/elasticsearch:^8.0` for Elasticsearch 8.
+- `EngineInterface`: `countRaw()` is removed, and `openPointInTime()` takes `$routing` and `$preference`. `Engine` is
+  final with private members; a test engine extends `Engine\NullEngine`.
+- `BoolQuery::addMustMany()`, `addMustNotMany()`, `addShouldMany()` and `addFilterMany()` are removed: call `must()`,
+  `mustNot()`, `should()` and `filter()`.
+- The soft-delete mode moves from `BoolQuery` to `SearchBuilder`: `$builder->withTrashed()` instead of
+  `$builder->boolQuery()->withTrashed()`, and the same for `onlyTrashed()`, `excludeTrashed()`, `softDelete()` and
+  `getSoftDeleteMode()`.
+- A closure given to a bool clause method is called without arguments; it used to receive the bool query.
+- `SearchBuilder::__construct()`, `query()`, `rescore()`, `postFilter()` and `Searchable::searchQuery()` type their
+  query as `QueryInterface|Closure|array`; other values throw a `TypeError`.
+- Removed: `QueryStringQuery::maxExpansions()` and `prefixLength()` (call `fuzzyMaxExpansions()` and
+  `fuzzyPrefixLength()`), `KnnQuery::innerHits()`, `TextExpansionQuery::prune()`, `WildcardQuery::wildcard()`,
+  `Query\Concerns\ResolvesQueries` and `HasFunctionScoreMode`.
+- `BulkOperationException`, `NotSearchableModelException` and `ModelNotJoinedException` are final.
+- Unknown values of `model_hydration_mismatch`, `bulk_failure_mode` and `scout_query_type` throw
+  `InvalidArgumentException`.
+- Invalid queries, aggregations and builder combinations that used to be sent to Elasticsearch now throw when they
+  are built; see "Changed" below and under 1.0.0-rc.2.
+- Classes and methods marked `@internal` are outside the compatibility promise; see "Backward Compatibility" in the
+  README.
+
+### Added
+
+- `NullEngine` and the `RemoveFromSearch` job are no longer final. A test engine built on `NullEngine` keeps working
+  when `EngineInterface` gains a method.
+- `Query::knn()` and `KnnQuery` take `$k` as optional: the `knn` query accepts `k` only from Elasticsearch 8.15, and
+  without it the query works on 8.12–8.14.
+- `MatchPhraseQuery::boost()`, `MatchPhrasePrefixQuery::boost()`, `SimpleQueryStringQuery::boost()` and
+  `MultiMatchQuery::slop()`.
+- `SearchResult::$totalRelation`.
+- `SearchBuilder::clearFrom()`, `clearSize()`, `clearMinScore()`, `clearTerminateAfter()`, `clearRuntimeMappings()`
+  and `clearPreference()`.
+
+### Changed
+
+The first five entries can break code written for 1.0.0-rc.2.
+
+- `deleteByQuery()` and `updateByQuery()` throw a `LogicException` with `postFilter()`, `minScore()` above 0,
+  `knn()`, non-empty `runtimeMappings()`, `terminateAfter()` above 0, `collapse()`, `size()`, `from()` above 0,
+  `searchAfter()`, `pointInTime()` or a `preference()` that selects shards (`_shards:`, `_only_local`,
+  `_only_nodes:`). The builder sends only the indices, the routing and the query, so these were dropped and the write
+  acted on other documents than the search showed. Clear them first, for example with `clearSize()`.
+- `RangeQuery::gt()`, `gte()`, `lt()` and `lte()` take a `DateTimeInterface` and send it as ISO 8601 with
+  milliseconds and the UTC offset of the object (`2024-01-01T10:00:00.123+03:00`); microseconds are cut off. The
+  bounds were typed `string|int|float`, so a Carbon instance passed from a file without `declare(strict_types=1)`
+  was sent as its string cast, `Y-m-d H:i:s`, without an offset. A field with a custom date format now needs
+  `format('strict_date_optional_time')` on the query or a string bound in its own format.
+- `BoolQuery::addMust()`, `addMustNot()`, `addShould()` and `addFilter()` throw `InvalidQueryException` for an empty
+  array, like the `SearchBuilder` clause methods.
+- The `RemoveFromSearch` job throws `NotSearchableModelException` for a model without `searchableRouting()` or
+  `searchableConnection()`, that is, a model of another Scout engine, and names `Scout::removeFromSearchUsing()`. It
+  used to fail with an undefined method.
+- `cursor()` and `chunk()` send `track_total_hits: false` unless the builder sets `trackTotalHits()`.
+- A search of one model resolves the hits of an alias, data stream or pattern without the get settings request; a
+  search of several models or with a point in time still asks once.
+- Scout `flush()` deletes with `conflicts=proceed` instead of failing with 409 on a document indexed meanwhile.
+
+### Fixed
+
+- Scout `cursor()` (`Engine::lazyMap()`) ran the database query twice, the first time before the result was iterated,
+  and returned models without their hit metadata (`_score`, `_index`...).
+- Documentation: the `knn` query with `k`, `sparse_vector` and `semantic` need Elasticsearch 8.15, the top-level knn
+  search 8.4; the client major version must match the server; the top-level knn example of the migration guide
+  filtered nothing, and its configuration section named the wrong environment variable.
+
+## 1.0.0-rc.2 - 2026-09-30
 
 Changes since the `v1.0.0-rc.1` tag.
 
@@ -79,7 +154,7 @@ Changes since the `v1.0.0-rc.1` tag.
 - Hydrating search results qualifies the Scout key column, so a join in `modifyQuery()` is not ambiguous.
 - `scout:index --key` no longer sends `primaryKey` in the create index body.
 
-## Unreleased (1.0.0-rc.1)
+## 1.0.0-rc.1 - 2026-09-30
 
 The 1.x line requires Laravel 12 or 13. Laravel 10 and 11 stay on 0.x.
 
@@ -126,7 +201,7 @@ The 1.x line requires Laravel 12 or 13. Laravel 10 and 11 stay on 0.x.
 - CI covers PHP 8.2–8.5 on Laravel 12 and 13, lowest dependencies, Elasticsearch 8.19.22 and 9.5.3, a weekly run and
   `composer audit`.
 
-## Unreleased (0.1.0)
+## 0.1.0 - 2026-09-29
 
 First tagged release, cut from `bb72a59`. Supports Laravel 10–13 and Scout 10–11.
 

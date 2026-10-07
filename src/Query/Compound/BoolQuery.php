@@ -8,6 +8,7 @@ use Closure;
 use InvalidArgumentException;
 use Illuminate\Support\Traits\Conditionable;
 use Jackardios\EsScoutDriver\Exceptions\DuplicateKeyedClauseException;
+use Jackardios\EsScoutDriver\Exceptions\InvalidQueryException;
 use Jackardios\EsScoutDriver\Query\Concerns\HasBoost;
 use Jackardios\EsScoutDriver\Query\Concerns\HasMinimumShouldMatch;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
@@ -320,6 +321,10 @@ final class BoolQuery implements QueryInterface
         bool $ignoreIfKeyExists,
     ): void {
         $resolved = SubQuery::resolve($query);
+
+        if ($resolved === []) {
+            throw new InvalidQueryException("Bool $section clause cannot be empty");
+        }
 
         if ($key === null) {
             $clauses[] = $resolved;

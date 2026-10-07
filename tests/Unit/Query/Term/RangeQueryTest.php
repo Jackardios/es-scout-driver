@@ -101,4 +101,43 @@ final class RangeQueryTest extends TestCase
         $result = $query->toArray();
         $this->assertSame('within', $result['range']['timestamp']['relation']);
     }
+
+    #[Test]
+    public function it_sends_date_bounds_as_iso_8601(): void
+    {
+        $query = (new RangeQuery('published_at'))
+            ->gte(new \DateTimeImmutable('2024-01-01 10:00:00', new \DateTimeZone('UTC')))
+            ->lt(new \DateTime('2024-02-01 00:00:00', new \DateTimeZone('+03:00')));
+
+        $this->assertSame([
+            'range' => ['published_at' => ['gte' => '2024-01-01T10:00:00.000+00:00', 'lt' => '2024-02-01T00:00:00.000+03:00']],
+        ], $query->toArray());
+    }
+
+    #[Test]
+    public function it_sends_a_date_bound_with_milliseconds_and_cuts_microseconds_off(): void
+    {
+        $zone = new \DateTimeZone('+03:00');
+        $query = (new RangeQuery('published_at'))
+            ->gt(new \DateTimeImmutable('2024-01-01 10:00:00.120000', $zone))
+            ->lte(new \DateTimeImmutable('2024-01-01 10:00:00.123999', $zone));
+
+        $this->assertSame([
+            'range' => ['published_at' => [
+                'gt' => '2024-01-01T10:00:00.120+03:00',
+                'lte' => '2024-01-01T10:00:00.123+03:00',
+            ]],
+        ], $query->toArray());
+    }
+
+    #[Test]
+    public function it_sends_string_and_numeric_bounds_as_given(): void
+    {
+        $query = (new RangeQuery('published_at'))->gte('2024-01-01 10:00:00')->lt(1704103200);
+
+        $this->assertSame(
+            ['range' => ['published_at' => ['gte' => '2024-01-01 10:00:00', 'lt' => 1704103200]]],
+            $query->toArray(),
+        );
+    }
 }

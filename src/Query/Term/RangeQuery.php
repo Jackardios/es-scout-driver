@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Query\Term;
 
+use DateTimeInterface;
 use Jackardios\EsScoutDriver\Enums\RangeRelation;
 use Jackardios\EsScoutDriver\Exceptions\InvalidQueryException;
 use Jackardios\EsScoutDriver\Query\Concerns\HasBoost;
@@ -25,28 +26,39 @@ final class RangeQuery implements QueryInterface
         private string $field,
     ) {}
 
-    public function gt(string|int|float $gt): self
+    public function gt(string|int|float|DateTimeInterface $gt): self
     {
-        $this->gt = $gt;
+        $this->gt = self::bound($gt);
         return $this;
     }
 
-    public function gte(string|int|float $gte): self
+    public function gte(string|int|float|DateTimeInterface $gte): self
     {
-        $this->gte = $gte;
+        $this->gte = self::bound($gte);
         return $this;
     }
 
-    public function lt(string|int|float $lt): self
+    public function lt(string|int|float|DateTimeInterface $lt): self
     {
-        $this->lt = $lt;
+        $this->lt = self::bound($lt);
         return $this;
     }
 
-    public function lte(string|int|float $lte): self
+    public function lte(string|int|float|DateTimeInterface $lte): self
     {
-        $this->lte = $lte;
+        $this->lte = self::bound($lte);
         return $this;
+    }
+
+    /**
+     * A date is sent as ISO 8601 with milliseconds and its UTC offset (2024-01-01T10:00:00.123+03:00): the instant
+     * itself, in the shape the Elasticsearch reference gives for strict_date_optional_time, the default date format.
+     * Microseconds are cut off, as a date field stores milliseconds; for a date_nanos field pass a string. A field
+     * mapped with another format needs format('strict_date_optional_time') on the query, or a string in its format.
+     */
+    private static function bound(string|int|float|DateTimeInterface $bound): string|int|float
+    {
+        return $bound instanceof DateTimeInterface ? $bound->format('Y-m-d\TH:i:s.vP') : $bound;
     }
 
     public function format(string $format): self

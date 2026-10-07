@@ -12,9 +12,17 @@ use Illuminate\Support\Collection;
 use InvalidArgumentException;
 use Jackardios\EsScoutDriver\Engine\ConnectionOperationRouter;
 use Jackardios\EsScoutDriver\Engine\SendsBulkRequests;
+use Jackardios\EsScoutDriver\Exceptions\NotSearchableModelException;
+use Jackardios\EsScoutDriver\Searchable;
 use Laravel\Scout\Traits\ConfiguresJobOptions;
 
-final class RemoveFromSearch implements ShouldQueue
+/**
+ * Deletes the documents with a bulk request to the client of each connection. It carries the index, id, routing and
+ * connection of every model instead of the models, so it does not call Engine::delete(): an engine wrapper or another
+ * EngineInterface implementation does not see queued deletes. To change them, extend this job or write another and
+ * register it with Scout::removeFromSearchUsing().
+ */
+class RemoveFromSearch implements ShouldQueue
 {
     use ConfiguresJobOptions;
     use Queueable;
@@ -38,6 +46,17 @@ final class RemoveFromSearch implements ShouldQueue
 
         /** @var Model $model */
         foreach ($models as $model) {
+            if (!self::hasDriverMethods($model)) {
+                throw new NotSearchableModelException($model::class, sprintf(
+                    '%s cannot remove %s: the model lacks searchableRouting() or searchableConnection(), which '
+                    . '%s provides. For a model of another Scout engine, register a job that handles it with '
+                    . 'Scout::removeFromSearchUsing().',
+                    self::class,
+                    $model::class,
+                    Searchable::class,
+                ));
+            }
+
             $routing = $model->searchableRouting();
 
             $this->operations[] = [
@@ -49,6 +68,15 @@ final class RemoveFromSearch implements ShouldQueue
         }
 
         $this->configureJob();
+    }
+
+    /**
+     * Scout's own Searchable trait, which a model of another Scout engine uses, has neither method. Kept apart from
+     * the loop so that the check does not narrow the type of the model there.
+     */
+    private static function hasDriverMethods(Model $model): bool
+    {
+        return method_exists($model, 'searchableRouting') && method_exists($model, 'searchableConnection');
     }
 
     public function handle(Client $client): void

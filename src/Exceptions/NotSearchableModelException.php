@@ -6,8 +6,11 @@ namespace Jackardios\EsScoutDriver\Exceptions;
 
 final class NotSearchableModelException extends \InvalidArgumentException
 {
-    public function __construct(string $modelClass)
+    public function __construct(string $modelClass, ?string $message = null)
     {
-        parent::__construct(sprintf('Class %s must be an Eloquent model using the Searchable trait.', $modelClass));
+        parent::__construct($message ?? sprintf(
+            'Class %s must be an Eloquent model using the Searchable trait.',
+            $modelClass,
+        ));
     }
 }

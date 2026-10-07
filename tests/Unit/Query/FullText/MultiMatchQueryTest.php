@@ -125,4 +125,12 @@ final class MultiMatchQueryTest extends TestCase
 
         $this->assertSame(['title', 'body'], $query->toArray()['multi_match']['fields']);
     }
+
+    #[Test]
+    public function it_builds_multi_match_query_with_slop(): void
+    {
+        $query = (new MultiMatchQuery(['title', 'body'], 'hello world'))->type('phrase')->slop(2);
+
+        $this->assertSame(2, $query->toArray()['multi_match']['slop']);
+    }
 }

@@ -50,4 +50,13 @@ final class MatchPhrasePrefixQueryTest extends TestCase
         $this->assertSame($query, $query->slop(2));
         $this->assertSame($query, $query->zeroTermsQuery('none'));
     }
+
+    #[Test]
+    public function it_builds_match_phrase_prefix_query_with_boost(): void
+    {
+        $this->assertSame(
+            ['match_phrase_prefix' => ['title' => ['query' => 'hello wor', 'boost' => 2.0]]],
+            (new MatchPhrasePrefixQuery('title', 'hello wor'))->boost(2.0)->toArray(),
+        );
+    }
 }

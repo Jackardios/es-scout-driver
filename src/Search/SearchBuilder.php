@@ -396,6 +396,18 @@ class SearchBuilder
         return $this;
     }
 
+    public function clearFrom(): static
+    {
+        $this->from = null;
+        return $this;
+    }
+
+    public function clearSize(): static
+    {
+        $this->size = null;
+        return $this;
+    }
+
     // ---- Suggest ----
 
     public function suggestRaw(array $suggest): static
@@ -536,6 +548,12 @@ class SearchBuilder
         return $this;
     }
 
+    public function clearMinScore(): static
+    {
+        $this->minScore = null;
+        return $this;
+    }
+
     // ---- Search config ----
 
     public function searchType(string $searchType): static
@@ -547,6 +565,12 @@ class SearchBuilder
     public function preference(string $preference): static
     {
         $this->preference = $preference;
+        return $this;
+    }
+
+    public function clearPreference(): static
+    {
+        $this->preference = null;
         return $this;
     }
 
@@ -607,6 +631,12 @@ class SearchBuilder
         return $this;
     }
 
+    public function clearTerminateAfter(): static
+    {
+        $this->terminateAfter = null;
+        return $this;
+    }
+
     public function requestCache(bool $requestCache): static
     {
         $this->requestCache = $requestCache;
@@ -653,7 +683,13 @@ class SearchBuilder
         return $this;
     }
 
-    // ---- KNN (top-level for ES 8.12+) ----
+    public function clearRuntimeMappings(): static
+    {
+        $this->runtimeMappings = null;
+        return $this;
+    }
+
+    // ---- KNN (top-level knn search, ES 8.4+) ----
 
     /**
      * @param array<int, float> $queryVector
@@ -1128,6 +1164,8 @@ class SearchBuilder
             );
         }
 
+        $this->refuseOptionsAWriteByQueryDrops('deleteByQuery');
+
         $params = ['index' => implode(',', array_values($this->indexNames))];
 
         if ($this->routing !== null) {
@@ -1150,6 +1188,8 @@ class SearchBuilder
                 . 'When scout.soft_delete=true, call withTrashed() to include soft-deleted documents.',
             );
         }
+
+        $this->refuseOptionsAWriteByQueryDrops('updateByQuery');
 
         $params = ['index' => implode(',', array_values($this->indexNames))];
 
@@ -1526,6 +1566,44 @@ class SearchBuilder
         return $this->query !== null || ($this->boolQuery?->hasClauses() ?? false);
     }
 
+    /**
+     * deleteByQuery() and updateByQuery() send the indices, the routing and the query (with the bool clauses and the
+     * soft-delete filter), nothing else. An option that decides which documents a search matches or returns would be
+     * dropped, and the write would act on other documents than execute() shows, so it is refused, unless its value
+     * restricts nothing. Options that only shape the response (sort, highlight, source, aggregations...) are left
+     * out silently.
+     */
+    private function refuseOptionsAWriteByQueryDrops(string $method): void
+    {
+        $dropped = array_keys(array_filter([
+            'postFilter()' => $this->postFilter !== null,
+            // Scores are never negative, so a minimum of 0 or less excludes nothing.
+            'minScore()' => $this->minScore !== null && $this->minScore > 0.0,
+            'knn()/knnRaw()' => $this->knn !== null && $this->knn !== [],
+            'runtimeMappings()' => $this->runtimeMappings !== null && $this->runtimeMappings !== [],
+            // 0 is Elasticsearch's "no limit".
+            'terminateAfter()' => $this->terminateAfter !== null && $this->terminateAfter > 0,
+            'collapse()/collapseRaw()' => $this->collapse !== [],
+            // Any size, 0 included: a search of size 0 returns no document while the write would take them all.
+            'size()' => $this->size !== null,
+            'from()' => $this->from !== null && $this->from > 0,
+            'searchAfter()' => $this->searchAfter !== null && $this->searchAfter !== [],
+            'pointInTime()' => $this->pointInTime !== null,
+            // _shards, _only_local and _only_nodes pick which shards are searched; the rest only pick a shard copy.
+            'preference()' => $this->preference !== null
+                && (str_starts_with($this->preference, '_shards:') || str_starts_with($this->preference, '_only_')),
+        ]));
+
+        if ($dropped !== []) {
+            throw new LogicException(sprintf(
+                '%s() cannot be combined with %s: it sends only the query and the routing, so the write would not '
+                . 'act on the documents the search matches. Express the restriction in the query, or clear it.',
+                $method,
+                implode(', ', $dropped),
+            ));
+        }
+    }
+
     private function resolveJoinedIndexName(?string $modelClass): string
     {
         if ($modelClass !== null) {
@@ -1550,8 +1628,14 @@ class SearchBuilder
     {
         $withTrashed = $this->softDeleteMode !== SoftDeleteMode::ExcludeTrashed;
 
+        // Without a point in time the request names the joined indices, so every hit of a sole index is its own;
+        // a point in time may have been opened on anything.
+        $aliasRegistry = count($this->indexNames) === 1 && $this->pointInTime === null
+            ? AliasRegistry::sole(array_values($this->indexNames)[0])
+            : $this->aliasRegistry;
+
         $resolver = new ModelResolver(
-            $this->aliasRegistry,
+            $aliasRegistry,
             $rawResult['hits']['hits'] ?? [],
             $rawResult['suggest'] ?? [],
             $rawResult,

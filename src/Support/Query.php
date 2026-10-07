@@ -237,8 +237,11 @@ final class Query
         return new ParentIdQuery($type, $id);
     }
 
-    /** @param array<int, float> $queryVector */
-    public static function knn(string $field, array $queryVector, int $k): KnnQuery
+    /**
+     * @param array<int, float> $queryVector
+     * @param int|null $k Elasticsearch 8.15+; before that, leave it out and the size of the search bounds the hits
+     */
+    public static function knn(string $field, array $queryVector, ?int $k = null): KnnQuery
     {
         return new KnnQuery($field, $queryVector, $k);
     }

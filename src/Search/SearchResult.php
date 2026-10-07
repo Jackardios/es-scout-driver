@@ -23,6 +23,8 @@ final class SearchResult implements IteratorAggregate
     public const HYDRATION_MISMATCH_EXCEPTION = 'exception';
 
     public readonly int $total;
+    /** "eq" for an exact total, "gte" for a lower bound, null when the total was not tracked. */
+    public readonly ?string $totalRelation;
     public readonly ?float $maxScore;
 
     private ?Closure $modelResolver;
@@ -49,6 +51,7 @@ final class SearchResult implements IteratorAggregate
         $this->modelResolver = $modelResolver;
         $this->modelHydrationMismatchMode = $modelHydrationMismatchMode;
         $this->total = $raw['hits']['total']['value'] ?? 0;
+        $this->totalRelation = $raw['hits']['total']['relation'] ?? null;
         $this->maxScore = $raw['hits']['max_score'] ?? null;
     }
 

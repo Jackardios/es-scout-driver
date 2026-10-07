@@ -26,6 +26,7 @@ $result = Book::searchQuery(Query::match('title', 'laravel'))->execute();
 
 ```php
 $result->total;      // int - Total number of matching documents
+$result->totalRelation; // ?string - "eq" for an exact total, "gte" for a lower bound, null when not tracked
 $result->maxScore;   // ?float - Highest relevance score
 $result->raw;        // array - Raw Elasticsearch response
 ```
@@ -68,6 +69,11 @@ foreach ($models as $book) {
 ```
 
 Note: Models are lazy-loaded from the database when first accessed.
+
+The models are loaded with one `whereIn` on the model's `getScoutKeyName()` column per index, shaped by `with()`,
+`modifyQuery()` and `modifyModels()`. Scout's `queryScoutModelsByIds()` and `getScoutModelsByIds()` are not called
+here (they are for `Model::search()`), so a model that overrides them, for example for a composite `getScoutKey()`,
+must do the same in `modifyQuery()`.
 
 > **Tip:** If you only need models and don't need document data, use `withoutSource()` to disable `_source` fetching and reduce network traffic:
 > ```php
@@ -255,7 +261,7 @@ $paginator = Book::searchQuery(Query::matchAll())
 
 The total is exact unless the builder sets `trackTotalHits()`. With `trackTotalHits(int)` Elasticsearch stops counting
 at that number: `total()`, `lastPage()` and `hasMorePages()` then use a lower bound, and
-`$paginator->searchResult()->raw['hits']['total']['relation']` is `gte`.
+`$paginator->searchResult()->totalRelation` is `gte`.
 
 ### Basic Usage
 

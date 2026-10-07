@@ -821,4 +821,33 @@ final class BoolQueryTest extends TestCase
 
         (new BoolQuery())->must(fn() => null);
     }
+
+    /** @return iterable<string, array{string}> */
+    public static function clauseMethods(): iterable
+    {
+        yield 'addMust' => ['addMust'];
+        yield 'addMustNot' => ['addMustNot'];
+        yield 'addShould' => ['addShould'];
+        yield 'addFilter' => ['addFilter'];
+        yield 'must' => ['must'];
+        yield 'filter' => ['filter'];
+    }
+
+    #[Test]
+    #[\PHPUnit\Framework\Attributes\DataProvider('clauseMethods')]
+    public function it_refuses_an_empty_clause(string $method): void
+    {
+        $this->expectException(InvalidQueryException::class);
+        $this->expectExceptionMessage('clause cannot be empty');
+
+        (new BoolQuery())->{$method}([]);
+    }
+
+    #[Test]
+    public function it_refuses_a_closure_returning_an_empty_clause(): void
+    {
+        $this->expectException(InvalidQueryException::class);
+
+        (new BoolQuery())->addFilter(fn() => []);
+    }
 }

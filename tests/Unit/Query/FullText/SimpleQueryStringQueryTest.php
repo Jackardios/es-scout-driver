@@ -148,4 +148,13 @@ final class SimpleQueryStringQueryTest extends TestCase
 
         $this->assertSame(['title', 'body'], $query->toArray()['simple_query_string']['fields']);
     }
+
+    #[Test]
+    public function it_builds_simple_query_string_query_with_boost(): void
+    {
+        $this->assertSame(
+            ['simple_query_string' => ['query' => 'hello', 'boost' => 2.0]],
+            (new SimpleQueryStringQuery('hello'))->boost(2.0)->toArray(),
+        );
+    }
 }

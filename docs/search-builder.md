@@ -100,7 +100,10 @@ $paginator = Book::searchQuery(Query::matchAll())
 > `paginate()` automatically resets any previously set `searchAfter()` cursor state.
 > `paginate()` tracks the exact total unless you call `trackTotalHits()`. With `trackTotalHits(int)`, Elasticsearch
 > stops counting at that number, so `total()`, `lastPage()` and `hasMorePages()` are based on a lower bound
-> (`searchResult()->raw['hits']['total']['relation']` is `gte`). `trackTotalHits(false)` throws.
+> (`searchResult()->totalRelation` is `gte`). `trackTotalHits(false)` throws.
+> Elasticsearch answers 400 for a page that ends past `index.max_result_window` (10000 hits by default), while the
+> paginator still links to such pages when the total is larger. Cap the page number yourself, or use `cursor()` to
+> read further.
 
 ### cursor()
 
@@ -120,6 +123,7 @@ foreach ($cursor as $hit) {
 > routed shards.
 > The cursor adds a `_shard_doc` tiebreaker sort unless the sort already has one, so it cannot be combined with
 > `rescore()` (`LogicException`): Elasticsearch does not allow a sort with rescore.
+> The pages do not count the total unless the builder sets `trackTotalHits()`.
 
 ### chunk()
 
@@ -482,6 +486,16 @@ Book::searchQuery(Query::term('status', 'draft'))
 
 > `deleteByQuery()` requires an explicit query. Use `Query::matchAll()` to target all visible documents.
 > When `scout.soft_delete=true`, set mode before execution: `$builder->withTrashed();`.
+> `deleteByQuery()` and `updateByQuery()` send the joined indices, the routing and the query (with the bool clauses
+> and the soft-delete filter), nothing else. An option that decides which documents a search matches or returns
+> would be dropped and the write would act on other documents than `execute()` shows, so with any of these set they
+> throw a `LogicException`: `postFilter()`, `minScore()` above 0, `knn()`, non-empty `runtimeMappings()`,
+> `terminateAfter()` above 0, `collapse()`, `size()` (0 included: such a search returns nothing while the write would
+> take every match), `from()` above 0, `searchAfter()`, `pointInTime()` and a `preference()` that selects shards
+> (`_shards:`, `_only_local`, `_only_nodes:`). Express the restriction in the query, or clear it with the method
+> named after it (`clearSize()`, `clearKnn()`...); not with `clearAll()`, which also removes the query, the routing
+> and the trashed mode. Everything else only shapes the response (sort, highlight, source, aggregations, timeouts,
+> model callbacks...) and is left out silently.
 
 ### updateByQuery()
 

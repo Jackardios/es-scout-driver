@@ -7,6 +7,7 @@ namespace Jackardios\EsScoutDriver\Query\FullText;
 use Jackardios\EsScoutDriver\Query\Concerns\HasAnalyzer;
 use Jackardios\EsScoutDriver\Query\Concerns\HasAnalyzeWildcard;
 use Jackardios\EsScoutDriver\Query\Concerns\HasAutoGenerateSynonymsPhraseQuery;
+use Jackardios\EsScoutDriver\Query\Concerns\HasBoost;
 use Jackardios\EsScoutDriver\Query\Concerns\HasDefaultOperator;
 use Jackardios\EsScoutDriver\Query\Concerns\HasLenient;
 use Jackardios\EsScoutDriver\Query\Concerns\HasMinimumShouldMatch;
@@ -18,6 +19,7 @@ final class SimpleQueryStringQuery implements QueryInterface
     use HasAnalyzer;
     use HasAnalyzeWildcard;
     use HasAutoGenerateSynonymsPhraseQuery;
+    use HasBoost;
     use HasDefaultOperator;
     use HasLenient;
     use HasMinimumShouldMatch;
@@ -76,6 +78,8 @@ final class SimpleQueryStringQuery implements QueryInterface
         if ($this->quoteFieldSuffix !== null) {
             $params['quote_field_suffix'] = $this->quoteFieldSuffix;
         }
+
+        $this->applyBoost($params);
 
         return ['simple_query_string' => $params];
     }

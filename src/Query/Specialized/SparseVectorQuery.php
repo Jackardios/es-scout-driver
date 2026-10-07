@@ -14,7 +14,7 @@ use Jackardios\EsScoutDriver\Query\QueryInterface;
  * Converts query text into a sparse vector using an inference endpoint (inferenceId, or the
  * endpoint of a semantic_text field when it is omitted), or uses a pre-computed sparse vector directly.
  *
- * @since Elasticsearch 8.11 (replaces TextExpansionQuery deprecated in 8.15)
+ * @since Elasticsearch 8.15 (replaces TextExpansionQuery, deprecated in the same release)
  * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-sparse-vector-query.html
  */
 final class SparseVectorQuery implements QueryInterface

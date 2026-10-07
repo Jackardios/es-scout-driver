@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\EsScoutDriver\Query\FullText;
 
 use Jackardios\EsScoutDriver\Query\Concerns\HasAnalyzer;
+use Jackardios\EsScoutDriver\Query\Concerns\HasBoost;
 use Jackardios\EsScoutDriver\Query\Concerns\HasSlop;
 use Jackardios\EsScoutDriver\Query\Concerns\HasZeroTermsQuery;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
@@ -12,6 +13,7 @@ use Jackardios\EsScoutDriver\Query\QueryInterface;
 final class MatchPhraseQuery implements QueryInterface
 {
     use HasAnalyzer;
+    use HasBoost;
     use HasSlop;
     use HasZeroTermsQuery;
 
@@ -28,6 +30,7 @@ final class MatchPhraseQuery implements QueryInterface
         $this->applyAnalyzer($params);
         $this->applySlop($params);
         $this->applyZeroTermsQuery($params);
+        $this->applyBoost($params);
 
         return ['match_phrase' => [$this->field => $params]];
     }

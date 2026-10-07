@@ -13,6 +13,7 @@ use Jackardios\EsScoutDriver\Query\Concerns\HasFuzziness;
 use Jackardios\EsScoutDriver\Query\Concerns\HasLenient;
 use Jackardios\EsScoutDriver\Query\Concerns\HasMinimumShouldMatch;
 use Jackardios\EsScoutDriver\Query\Concerns\HasOperator;
+use Jackardios\EsScoutDriver\Query\Concerns\HasSlop;
 use Jackardios\EsScoutDriver\Query\Concerns\HasTieBreaker;
 use Jackardios\EsScoutDriver\Query\Concerns\HasZeroTermsQuery;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
@@ -26,6 +27,7 @@ final class MultiMatchQuery implements QueryInterface
     use HasLenient;
     use HasMinimumShouldMatch;
     use HasOperator;
+    use HasSlop;
     use HasTieBreaker;
     use HasZeroTermsQuery;
 
@@ -63,6 +65,7 @@ final class MultiMatchQuery implements QueryInterface
         $this->applyOperator($params);
         $this->applyMinimumShouldMatch($params);
         $this->applyTieBreaker($params);
+        $this->applySlop($params);
         $this->applyBoost($params);
         $this->applyFuzziness($params);
         $this->applyLenient($params);

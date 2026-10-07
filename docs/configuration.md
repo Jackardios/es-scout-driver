@@ -312,9 +312,11 @@ public function searchableAs(): string
 }
 ```
 
-The name may also be an alias, a data stream, a wildcard pattern or a comma-separated list. When a hit comes from
-another index name, `searchQuery()` asks Elasticsearch once per search which indices the name covers (the get settings
-API, which needs the `view_index_metadata` privilege) to map the hit to its model.
+The name may also be an alias, a data stream, a wildcard pattern or a comma-separated list. A search of one model
+maps every hit to that model without asking Elasticsearch. A search of several joined models, or one with a
+`pointInTime()` (`cursor()` and `chunk()` included), has to know which indices each name covers when a hit comes
+from another index name: it asks Elasticsearch once per search, or once per cursor (the get settings API, which needs
+the `view_index_metadata` privilege; without it the request fails with 403 and so does the search).
 
 ### Custom Document ID
 

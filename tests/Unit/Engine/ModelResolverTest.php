@@ -8,9 +8,13 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Jackardios\EsScoutDriver\Engine\AliasRegistry;
+use Jackardios\EsScoutDriver\Engine\EngineInterface;
 use Jackardios\EsScoutDriver\Engine\ModelResolver;
+use Jackardios\EsScoutDriver\Search\SearchBuilder;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
+use ReflectionProperty;
 
 final class ModelResolverTest extends TestCase
 {
@@ -202,6 +206,68 @@ final class ModelResolverTest extends TestCase
 
         $this->assertSame(['_index' => 'books', '_id' => '1', '_score' => 1.5, '_routing' => 'tenant-1'], $model1->scoutMetadata);
         $this->assertSame(['_index' => 'books', '_id' => '2', '_score' => 0.8], $model2->scoutMetadata);
+    }
+
+    #[Test]
+    public function a_search_of_one_index_resolves_alias_hits_without_asking_elasticsearch(): void
+    {
+        FakeBookModel::seedRecords(['1']);
+        $http = new FakeHttpClient();
+
+        $result = $this->builderOf(['books'], $http)->execute();
+
+        $this->assertInstanceOf(FakeBookModel::class, $result->hits()->first()->model());
+        $this->assertSame([], $http->requests);
+    }
+
+    #[Test]
+    public function a_search_of_several_indices_or_a_point_in_time_asks_elasticsearch_for_the_concrete_indices(): void
+    {
+        FakeBookModel::seedRecords(['1']);
+        $settings = ['books_v2' => ['settings' => ['index' => ['uuid' => 'uuid']]]];
+
+        $joined = new FakeHttpClient([[200, $settings], [200, []]]);
+        $this->assertInstanceOf(
+            FakeBookModel::class,
+            $this->builderOf(['books', 'authors'], $joined)->execute()->hits()->first()->model(),
+        );
+        $this->assertCount(2, $joined->requests);
+
+        $pointInTime = new FakeHttpClient([[200, $settings]]);
+        $this->assertInstanceOf(
+            FakeBookModel::class,
+            $this->builderOf(['books'], $pointInTime)->pointInTime('pit-1')->execute()->hits()->first()->model(),
+        );
+        $this->assertCount(1, $pointInTime->requests);
+    }
+
+    /**
+     * A builder whose search answers one hit of the concrete index behind the "books" alias.
+     *
+     * @param list<string> $indices
+     */
+    private function builderOf(array $indices, FakeHttpClient $http): SearchBuilder
+    {
+        $engine = $this->createStub(EngineInterface::class);
+        $engine->method('searchRaw')->willReturn([
+            'hits' => ['total' => ['value' => 1], 'hits' => [['_index' => 'books_v2', '_id' => '1']]],
+        ]);
+
+        $builder = (new ReflectionClass(SearchBuilder::class))->newInstanceWithoutConstructor();
+        $properties = [
+            'engine' => $engine,
+            'aliasRegistry' => new AliasRegistry($http->client()),
+            'indexNames' => array_intersect(
+                [FakeBookModel::class => 'books', FakeAuthorModel::class => 'authors'],
+                $indices,
+            ),
+        ];
+
+        foreach ($properties as $name => $value) {
+            (new ReflectionProperty(SearchBuilder::class, $name))->setValue($builder, $value);
+        }
+
+        return $builder;
     }
 }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\EsScoutDriver\Tests\Unit\Jobs;
 
+use Jackardios\EsScoutDriver\Exceptions\NotSearchableModelException;
 use Illuminate\Config\Repository as ConfigRepository;
 use Illuminate\Container\Container;
 use Illuminate\Database\Eloquent\Model;
@@ -12,6 +13,7 @@ use InvalidArgumentException;
 use Jackardios\EsScoutDriver\Exceptions\BulkOperationException;
 use Jackardios\EsScoutDriver\Jobs\RemoveFromSearch;
 use Jackardios\EsScoutDriver\Tests\Unit\Engine\FakeHttpClient;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -433,5 +435,87 @@ final class RemoveFromSearchTest extends TestCase
                 return $this->scoutConnection;
             }
         };
+    }
+
+    /** @return iterable<string, array{Model}> */
+    public static function modelsWithoutTheDriverMethods(): iterable
+    {
+        // What Scout's own Searchable trait gives a model: neither searchableRouting() nor searchableConnection().
+        yield 'neither method' => [new class extends Model {
+            public function getScoutKey(): string
+            {
+                return '1';
+            }
+
+            public function indexableAs(): string
+            {
+                return 'books';
+            }
+        }];
+
+        yield 'no searchableConnection()' => [new class extends Model {
+            public function getScoutKey(): string
+            {
+                return '1';
+            }
+
+            public function indexableAs(): string
+            {
+                return 'books';
+            }
+
+            public function searchableRouting(): ?string
+            {
+                return null;
+            }
+        }];
+
+        yield 'no searchableRouting()' => [new class extends Model {
+            public function getScoutKey(): string
+            {
+                return '1';
+            }
+
+            public function indexableAs(): string
+            {
+                return 'books';
+            }
+
+            public function searchableConnection(): ?string
+            {
+                return null;
+            }
+        }];
+    }
+
+    #[Test]
+    #[DataProvider('modelsWithoutTheDriverMethods')]
+    public function it_refuses_a_model_without_the_methods_of_the_package_trait(Model $model): void
+    {
+        $this->expectException(NotSearchableModelException::class);
+        $this->expectExceptionMessage('register a job that handles it with Scout::removeFromSearchUsing()');
+
+        new RemoveFromSearch(new Collection([$model]));
+    }
+
+    #[Test]
+    public function it_can_be_extended(): void
+    {
+        $job = new class (new Collection([$this->createModelWithScout('1', 'books')])) extends RemoveFromSearch {
+            public bool $handled = false;
+
+            public function handle(\Elastic\Elasticsearch\Client $client): void
+            {
+                parent::handle($client);
+
+                $this->handled = true;
+            }
+        };
+        $http = new FakeHttpClient();
+
+        $job->handle($http->client());
+
+        $this->assertTrue($job->handled);
+        $this->assertSame([['delete' => ['_index' => 'books', '_id' => '1']]], $http->bulkLines());
     }
 }

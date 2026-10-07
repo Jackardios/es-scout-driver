@@ -79,4 +79,35 @@ final class RangeQueryTest extends TestCase
         $this->assertCount(1, $models);
         $this->assertSame($book2->id, $models->first()->id);
     }
+
+    /**
+     * Carbon's now() carries microseconds; the bound is sent with milliseconds and an offset, which the default
+     * format of a date field has to parse.
+     */
+    #[Test]
+    public function test_range_query_with_carbon_bounds_on_a_date_field(): void
+    {
+        $this->createIndex('books', [
+            'mappings' => ['properties' => ['released_at' => ['type' => 'date']]],
+        ]);
+
+        $now = \Illuminate\Support\Carbon::now('Europe/Moscow');
+        $this->client->index([
+            'index' => 'books',
+            'id' => '1',
+            'refresh' => true,
+            'body' => ['released_at' => $now->toIso8601String()],
+        ]);
+
+        $range = static fn(\DateTimeInterface $from, \DateTimeInterface $to): array => Book::searchQuery(
+            Query::range('released_at')->gte($from)->lte($to),
+        )->raw()['hits']['total'];
+
+        $this->assertSame(1, $range($now->copy()->subMinute(), $now->copy()->addMinute())['value']);
+        $this->assertSame(0, $range($now->copy()->addMinute(), $now->copy()->addHour())['value']);
+        $this->assertSame(1, $range(
+            $now->copy()->subMinute()->utc(),
+            new \DateTimeImmutable('+1 minute', new \DateTimeZone('America/New_York')),
+        )['value']);
+    }
 }

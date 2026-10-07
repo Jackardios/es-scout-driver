@@ -47,4 +47,13 @@ final class MatchPhraseQueryTest extends TestCase
         $this->assertSame($query, $query->slop(2));
         $this->assertSame($query, $query->zeroTermsQuery('all'));
     }
+
+    #[Test]
+    public function it_builds_match_phrase_query_with_boost(): void
+    {
+        $this->assertSame(
+            ['match_phrase' => ['title' => ['query' => 'hello world', 'boost' => 2.0]]],
+            (new MatchPhraseQuery('title', 'hello world'))->boost(2.0)->toArray(),
+        );
+    }
 }

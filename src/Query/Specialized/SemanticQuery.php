@@ -8,7 +8,7 @@ use Jackardios\EsScoutDriver\Query\Concerns\HasBoost;
 use Jackardios\EsScoutDriver\Query\QueryInterface;
 
 /**
- * Semantic query for semantic text fields (ES 8.14+).
+ * Semantic query for semantic text fields (ES 8.15+).
  *
  * Uses a natural language processing (NLP) model to convert the query
  * into a list of token-weight pairs, which are then used in a

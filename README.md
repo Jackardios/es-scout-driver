@@ -36,6 +36,10 @@ Advanced Elasticsearch driver for Laravel Scout with full Query DSL support.
 
 Laravel 10 and 11 are supported by the 0.x line: `composer require jackardios/es-scout-driver:^0.1`.
 
+The `elasticsearch/elasticsearch` client must have the same major version as the server. Composer installs the 9.x
+client by default; for an Elasticsearch 8 server add `composer require elasticsearch/elasticsearch:^8.0` to your
+application. See [Compatibility](docs/compatibility.md#php-client-compatibility).
+
 ## Installation
 
 ```bash
@@ -237,6 +241,22 @@ foreach ($result->hits() as $hit) {
 }
 ```
 
+## Scout Integration
+
+- `Model::search('text')->get()` returns 10 models unless `take()` is called: Elasticsearch's default size.
+- Scout 11's `semantic()` and `hybrid()` builder modes are ignored; use `Query::semantic()`, `Query::knn()` or
+  `SearchBuilder::knn()`.
+- A model that uses this package's `Searchable` trait works with the `elastic` and `null` drivers only; with
+  `collection`, `database` or another engine it throws a `SearchException`.
+- The package registers its own `null` driver (`Engine\NullEngine`) in place of Scout's, whichever driver is
+  configured.
+- With `scout.driver=elastic`, Scout's `RemoveFromSearch` job is replaced by `Jobs\RemoveFromSearch`, unless
+  `Scout::removeFromSearchUsing()` already names another job. The job carries the index, id, routing and connection of
+  each model instead of the models and sends the deletes to the client itself, so it does not call the engine: an
+  engine wrapper does not see queued deletes. To change them, extend the job or write your own and register it with
+  `Scout::removeFromSearchUsing()`. The job refuses a model without the package's trait, so an application that also
+  indexes models with another Scout engine must register a job that handles both.
+
 ## Documentation
 
 - [Search Builder](docs/search-builder.md) - Main search API
@@ -258,8 +278,14 @@ factories and the classes they return, the enums, the exceptions and the configu
 
 - `QueryInterface`, `AggregationInterface`, `SortInterface` and `EngineInterface` may be implemented outside the
   package. New methods are added to them only in a major version.
-- `SearchBuilder` may be extended. Its protected members come from `@internal` traits and are not covered.
-- `Engine` is final: to change engine behaviour, implement `EngineInterface` or wrap the engine.
+- `Engine` is final. An engine of your own implements `EngineInterface` and extends `Laravel\Scout\Engines\Engine`,
+  which the interface cannot express; to change the behaviour of `Engine`, hold one and forward to it. For a test
+  engine, extend `Engine\NullEngine` (does nothing) and override what you need: it keeps working when a major version
+  adds a method to `EngineInterface`. Register the engine under the `elastic` driver name with
+  `EngineManager::extend()`: the package swaps the `RemoveFromSearch` job only for that name.
+- `Jobs\RemoveFromSearch` may be extended; its `$operations` and `handle(Client $client)` are covered.
+- `SearchBuilder` may be extended. Its state is private: a subclass works through the public methods.
+- Parameter names are part of the public API: methods may be called with named arguments.
 - The `Query\Concerns`, `Aggregations\Concerns` and `Sort\Concerns` traits are not covered: their methods belong to the public API of
   the classes that use them, but using a trait in your own class may break in a minor release.
 - `@internal` code (the engine helpers, model resolution, the `fromRaw()` factories, the `Paginator` and

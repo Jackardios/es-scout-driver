@@ -23,6 +23,9 @@ jobs:
     name: PHP ${{ matrix.php }} / Laravel ${{ matrix.laravel }} / Scout ${{ matrix.scout }} / ES ${{ matrix.elasticsearch }}${{ matrix.dependencies == 'lowest' && ' (lowest)' || '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # The Elasticsearch 8.12 leg has never run: it reports without failing the workflow.
+    # Drop `experimental` from it once it has been seen green.
+    continue-on-error: ${{ matrix.experimental == true }}
 
     services:
       mysql:
@@ -98,6 +101,18 @@ jobs:
             elasticsearch: '8.19.22'
             es_client: '8'
             dependencies: 'lowest'
+          # The oldest Elasticsearch a known application runs, with the newest 8.x client,
+          # which is that application's combination too. It runs the same integration
+          # suite as the other legs. That suite has no knn, sparse_vector, semantic or
+          # text_expansion test, so the version notes on those queries stay unverified.
+          - php: '8.3'
+            laravel: '12'
+            testbench: '10'
+            scout: '11'
+            elasticsearch: '8.12.2'
+            es_client: '8'
+            dependencies: 'highest'
+            experimental: true
         exclude:
           # Laravel 13 requires PHP 8.3+
           - php: '8.2'

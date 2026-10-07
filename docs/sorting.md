@@ -164,11 +164,14 @@ Sort::geoDistance('location', 52.3676, 4.9041)
 Sort::geoDistance('location', 52.3676, 4.9041)
     ->asc()                         // Nearest first
     ->desc()                        // Farthest first
-    ->unit('km')                    // km, m, mi, yd, ft
+    ->unit('km')                    // km (the default), m, mi, yd, ft
     ->mode('min')                   // min, max, avg, median (for multi-valued)
     ->distanceType('arc')           // arc (accurate) or plane (fast), or DistanceType::Arc/Plane
     ->ignoreUnmapped(true)
 ```
+
+The sort always sends a unit, and its default is `km`, not the metres Elasticsearch uses when no unit is sent: the
+distances in `$hit->sort` are kilometres unless `unit()` says otherwise.
 
 Example:
 

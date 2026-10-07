@@ -11,7 +11,8 @@ use Illuminate\Support\LazyCollection;
 use Laravel\Scout\Builder;
 use Laravel\Scout\Engines\Engine as ScoutEngine;
 
-final class NullEngine extends ScoutEngine implements EngineInterface
+/** Indexes nothing and finds nothing. A test engine can extend it and override what it needs. */
+class NullEngine extends ScoutEngine implements EngineInterface
 {
     private const EMPTY_RESULT = [
         'hits' => [

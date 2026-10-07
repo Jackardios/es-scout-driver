@@ -407,16 +407,16 @@ Query::simpleQueryString('laravel | php')
 // Compound
 Query::functionScore(Query::matchAll())->addFunction(['script_score' => ['script' => [...]]])
 Query::disMax([Query::match('title', 'a'), Query::match('body', 'a')])
-Query::boosting(positive: Query::match('title', 'a'), negative: Query::term('status', 'draft'))
+Query::boosting(positive: Query::match('title', 'a'), negative: Query::term('status', 'draft'))->negativeBoost(0.5)
 Query::constantScore(Query::term('status', 'active'))
 
 // Specialized
 Query::scriptScore(Query::matchAll(), ['source' => '_score * doc["boost"].value'])
 Query::moreLikeThis(['title'], 'Sample text to match')
-Query::knn('vector_field', [0.1, 0.2, ...], k: 10)
-Query::sparseVector('ml_field')->inferenceId('model-id')
-Query::semantic('semantic_field', 'query text')  // ES 8.14+
-Query::textExpansion('ml_field', 'model-id')     // ES 8.8+
+Query::knn('vector_field', [0.1, 0.2, ...], k: 10)  // ES 8.15+; without k: ES 8.12+
+Query::sparseVector('ml_field')->inferenceId('model-id')->query('query text')  // ES 8.15+
+Query::semantic('semantic_field', 'query text')  // ES 8.15+
+Query::textExpansion('ml_field', 'model-id')->modelText('query text')  // ES 8.8+, deprecated in 8.15
 Query::pinned(organic: Query::matchAll())->ids(['1', '2'])
 
 // Geo
@@ -432,21 +432,22 @@ Query::parentId('answer', 'parent_doc_id')
 Query::raw(['custom' => ['query' => 'structure']])
 ```
 
-### Top-Level KNN (ES 8.12+)
+### Top-Level KNN (ES 8.4+)
 
 ```php
 Book::searchQuery()
-    ->knn('embedding', $queryVector, k: 10, numCandidates: 100)
-    ->filter(Query::term('status', 'published'))  // combine with filters
+    ->knn('embedding', $queryVector, k: 10, numCandidates: 100, filter: Query::term('status', 'published'))
     ->execute();
 ```
+
+Pass the filter to `knn()`. Elasticsearch combines a top-level `knn` with the query as a disjunction, so
+`->knn(...)->filter(...)` returns every document the filter matches plus the unfiltered nearest neighbours.
 
 ### Cursor-Based Pagination
 
 ```php
 // Chunk processing (memory efficient)
 Book::searchQuery(Query::matchAll())
-    ->sort('_id')
     ->chunk(1000, function (array $hits) {
         foreach ($hits as $hit) {
             // process
@@ -495,7 +496,9 @@ $params = $builder->toArray();
 
 ### Clear Methods
 
-Every setter has a corresponding clear method:
+These setters have a clear method; `trackTotalHits()`, `trackScores()`, `timeout()`, `explain()`, `searchType()`
+and the other response options are reset only by `clearAll()`, which also removes the query, the routing and the
+trashed mode:
 
 ```php
 ->clearQuery()
@@ -510,6 +513,12 @@ Every setter has a corresponding clear method:
 ->clearPostFilter()
 ->clearPointInTime()
 ->clearSearchAfter()
+->clearFrom()
+->clearSize()
+->clearMinScore()
+->clearTerminateAfter()
+->clearRuntimeMappings()
+->clearPreference()
 ->clearRouting()
 ->clearKnn()
 ->clearIndicesBoost()
@@ -522,28 +531,38 @@ Every setter has a corresponding clear method:
 
 ## Configuration
 
-### New Config Files
+### Config Files
+
+The package merges its defaults, so publishing the files is optional
+(`php artisan vendor:publish --provider="Jackardios\EsScoutDriver\ServiceProvider"`).
 
 **config/elastic.scout.php**:
 ```php
 return [
-    'refresh_documents' => false,
-    'model_hydration_mismatch' => 'ignore', // 'ignore', 'log', 'exception'
-    'bulk_failure_mode' => 'exception',     // 'exception', 'log', 'ignore'
+    'refresh_documents' => env('ELASTIC_REFRESH_DOCUMENTS', false),
+    'model_hydration_mismatch' => env('ELASTIC_MODEL_HYDRATION_MISMATCH', 'ignore'), // 'ignore', 'log', 'exception'
+    'bulk_failure_mode' => env('ELASTIC_BULK_FAILURE_MODE', 'exception'),            // 'exception', 'log', 'ignore'
+    'scout_query_type' => env('ELASTIC_SCOUT_QUERY_TYPE', 'simple_query_string'),    // or 'query_string'
 ];
 ```
 
-**config/elastic.client.php**:
+**config/elastic.client.php** (the structure of `babenkoivan/elastic-client`, so an existing file keeps working):
 ```php
 return [
-    'default' => 'default',
+    'default' => env('ELASTIC_CONNECTION', 'default'),
     'connections' => [
         'default' => [
-            'hosts' => [env('ELASTICSEARCH_HOST', 'http://localhost:9200')],
+            'hosts' => [env('ELASTIC_HOST', 'localhost:9200')],
         ],
     ],
 ];
 ```
+
+### Elasticsearch Client Version
+
+`elasticsearch/elasticsearch` is allowed at `^8.0 || ^9.0`, and its major version must match the server's. For an
+Elasticsearch 8 server require `elasticsearch/elasticsearch:^8.0` in your application; see
+[docs/compatibility.md](docs/compatibility.md#php-client-compatibility).
 
 ---
 
@@ -723,4 +742,4 @@ interface QueryInterface {
 | **Hit access** | Methods (`->document()->id()`) → Properties (`->documentId`) |
 | **SearchResult.total** | Method → Property |
 | **Paginator** | `onlyModels()` (mutates) → `withModels()` (clones) |
-| **Config** | New config files required |
+| **Config** | `elastic.scout` config added (merged by default, publishing optional); `elastic.client` keeps its structure |

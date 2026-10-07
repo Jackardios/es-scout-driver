@@ -14,7 +14,12 @@ use Jackardios\EsScoutDriver\Query\SubQuery;
  *
  * Finds the k nearest vectors to a query vector, as measured by a similarity metric.
  *
- * @since Elasticsearch 8.12
+ * The knn query exists from Elasticsearch 8.12, but takes `k` only from 8.15. On 8.12–8.14 leave `$k` out: the query
+ * collects num_candidates per shard and the size of the search decides how many hits come back; on 8.12 call
+ * numCandidates(), which that version requires. From 8.15 a query without `$k` is still valid: Elasticsearch then
+ * defaults k to num_candidates, and num_candidates to 1.5 times the size of the search.
+ *
+ * @since Elasticsearch 8.12 without k, 8.15 with k
  * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-knn-query.html
  */
 final class KnnQuery implements QueryInterface
@@ -31,9 +36,9 @@ final class KnnQuery implements QueryInterface
     public function __construct(
         private string $field,
         private array $queryVector,
-        private int $k,
+        private ?int $k = null,
     ) {
-        if ($k <= 0) {
+        if ($k !== null && $k <= 0) {
             throw new InvalidQueryException('KnnQuery requires k to be greater than 0');
         }
 
@@ -52,7 +57,7 @@ final class KnnQuery implements QueryInterface
             throw new InvalidQueryException('KnnQuery requires numCandidates to be at most 10000');
         }
 
-        if ($numCandidates < $this->k) {
+        if ($this->k !== null && $numCandidates < $this->k) {
             throw new InvalidQueryException('KnnQuery requires numCandidates to be greater than or equal to k');
         }
 
@@ -78,8 +83,11 @@ final class KnnQuery implements QueryInterface
         $params = [
             'field' => $this->field,
             'query_vector' => array_values($this->queryVector),
-            'k' => $this->k,
         ];
+
+        if ($this->k !== null) {
+            $params['k'] = $this->k;
+        }
 
         $numCandidates = $this->numCandidates ?? $this->defaultNumCandidates();
         if ($numCandidates !== null) {
@@ -99,10 +107,10 @@ final class KnnQuery implements QueryInterface
         return ['knn' => $params];
     }
 
-    /** Twice k and at least 100, within the 10000 Elasticsearch allows; none for a k above that. */
+    /** Twice k and at least 100, within the 10000 Elasticsearch allows; none without a k or for a k above that. */
     private function defaultNumCandidates(): ?int
     {
-        if ($this->k > self::MAX_NUM_CANDIDATES) {
+        if ($this->k === null || $this->k > self::MAX_NUM_CANDIDATES) {
             return null;
         }
 

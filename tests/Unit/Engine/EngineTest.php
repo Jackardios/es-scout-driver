@@ -700,4 +700,21 @@ final class EngineTest extends TestCase
     {
         return new Engine((new FakeHttpClient())->client());
     }
+
+    #[Test]
+    public function flush_proceeds_past_version_conflicts(): void
+    {
+        $http = new FakeHttpClient([[200, ['deleted' => 0]]]);
+        $model = new class extends Model {
+            public function indexableAs(): string
+            {
+                return 'books';
+            }
+        };
+
+        (new Engine($http->client()))->flush($model);
+
+        $this->assertSame('/books/_delete_by_query', $http->requests[0]->getUri()->getPath());
+        $this->assertSame('conflicts=proceed', $http->requests[0]->getUri()->getQuery());
+    }
 }

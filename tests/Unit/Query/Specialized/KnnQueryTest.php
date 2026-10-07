@@ -7,6 +7,7 @@ namespace Jackardios\EsScoutDriver\Tests\Unit\Query\Specialized;
 use Jackardios\EsScoutDriver\Exceptions\InvalidQueryException;
 use Jackardios\EsScoutDriver\Query\Specialized\KnnQuery;
 use Jackardios\EsScoutDriver\Query\Term\TermQuery;
+use Jackardios\EsScoutDriver\Support\Query;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -26,6 +27,25 @@ final class KnnQueryTest extends TestCase
                 'num_candidates' => 100,
             ],
         ], $query->toArray());
+    }
+
+    #[Test]
+    public function it_builds_a_knn_query_without_k_for_elasticsearch_before_8_15(): void
+    {
+        $this->assertSame([
+            'knn' => [
+                'field' => 'embedding',
+                'query_vector' => [0.1, 0.2, 0.3],
+            ],
+        ], (new KnnQuery('embedding', [0.1, 0.2, 0.3]))->toArray());
+
+        $this->assertSame([
+            'knn' => [
+                'field' => 'embedding',
+                'query_vector' => [0.1, 0.2, 0.3],
+                'num_candidates' => 50,
+            ],
+        ], Query::knn('embedding', [0.1, 0.2, 0.3])->numCandidates(50)->toArray());
     }
 
     /** @return iterable<string, array{int, int|null}> */

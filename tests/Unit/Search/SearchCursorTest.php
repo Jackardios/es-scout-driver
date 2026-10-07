@@ -355,6 +355,37 @@ final class SearchCursorTest extends TestCase
             'sort' => $sort,
         ];
     }
+
+    #[Test]
+    public function it_does_not_count_the_total_unless_the_builder_asks_for_it(): void
+    {
+        $trackTotalHitsOf = function (?bool $trackTotalHits): mixed {
+            $engine = $this->createStub(EngineInterface::class);
+            $engine->method('openPointInTime')->willReturn('pit-1');
+            $executedRequests = new ArrayObject();
+
+            $builder = new SearchCursorTestBuilder(
+                engine: $engine,
+                indexNames: ['Book' => 'books'],
+                sort: [],
+                searchAfter: null,
+                executedRequests: $executedRequests,
+                metrics: new SearchCursorTestBuilderMetrics(),
+                executor: fn(): array => [$this->rawHit('1', ['a'])],
+            );
+
+            if ($trackTotalHits !== null) {
+                $builder->trackTotalHits($trackTotalHits);
+            }
+
+            iterator_to_array(new SearchCursor($builder, 2, '1m'));
+
+            return $executedRequests[0]['track_total_hits'];
+        };
+
+        $this->assertFalse($trackTotalHitsOf(null));
+        $this->assertTrue($trackTotalHitsOf(true));
+    }
 }
 
 final class SearchCursorTestBuilderMetrics
@@ -493,6 +524,7 @@ final class SearchCursorTestBuilder extends SearchBuilder
             'from' => $this->from,
             'search_after' => $this->searchAfter,
             'sort' => $this->sort,
+            'track_total_hits' => $this->getTrackTotalHits(),
         ]);
 
         $response = ($this->executor)($this);

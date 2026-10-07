@@ -102,6 +102,15 @@ final class AliasRegistryTest extends TestCase
         $registry->resolve('books_v1');
     }
 
+    #[Test]
+    public function the_registry_of_a_sole_index_resolves_every_index_to_it(): void
+    {
+        $registry = AliasRegistry::sole('books');
+
+        $this->assertSame('books', $registry->resolve('books'));
+        $this->assertSame('books', $registry->resolve('books_v2'));
+    }
+
     /** @return array<string, mixed> */
     private static function settings(): array
     {

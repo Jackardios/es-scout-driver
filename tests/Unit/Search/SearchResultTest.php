@@ -257,4 +257,15 @@ final class SearchResultTest extends TestCase
 
         $this->assertCount(1, $models);
     }
+
+    #[Test]
+    public function it_exposes_the_relation_of_the_total(): void
+    {
+        $lowerBound = new SearchResult(['hits' => ['total' => ['value' => 10000, 'relation' => 'gte'], 'hits' => []]]);
+        $untracked = new SearchResult(['hits' => ['hits' => []]]);
+
+        $this->assertSame('gte', $lowerBound->totalRelation);
+        $this->assertNull($untracked->totalRelation);
+        $this->assertSame(0, $untracked->total);
+    }
 }

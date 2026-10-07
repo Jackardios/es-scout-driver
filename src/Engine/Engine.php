@@ -155,7 +155,7 @@ final class Engine extends ScoutEngine implements EngineInterface
         return $model->queryScoutModelsByIds($builder, $extracted['ids'])
             ->cursor()
             ->filter(fn($m) => isset($extracted['positions'][$m->getScoutKey()]))
-            ->each(function ($m) use ($hitMetadata) {
+            ->tapEach(function ($m) use ($hitMetadata) {
                 $id = (string) $m->getScoutKey();
                 foreach ($hitMetadata[$id] ?? [] as $key => $value) {
                     $m->withScoutMetadata($key, $value);
@@ -220,6 +220,7 @@ final class Engine extends ScoutEngine implements EngineInterface
     {
         $this->deleteByQueryRaw([
             'index' => $model->indexableAs(),
+            'conflicts' => 'proceed',
             'body' => ['query' => ['match_all' => new \stdClass()]],
         ]);
     }

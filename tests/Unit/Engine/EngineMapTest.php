@@ -248,6 +248,29 @@ final class EngineMapTest extends TestCase
     }
 
     #[Test]
+    public function lazy_map_runs_the_model_query_once_and_only_when_iterated(): void
+    {
+        FakeMapModel::seedRecords(['1', '2']);
+
+        $result = $this->createEngine()->lazyMap($this->createScoutBuilder(), [
+            'hits' => [
+                'hits' => [
+                    ['_id' => '2', '_index' => 'books', '_score' => 2.0],
+                    ['_id' => '1', '_index' => 'books', '_score' => 1.5],
+                ],
+            ],
+        ], new FakeMapModel());
+
+        $this->assertSame(0, FakeMapModelQuery::$cursorRuns);
+
+        $models = $result->all();
+
+        $this->assertSame(1, FakeMapModelQuery::$cursorRuns);
+        $this->assertSame(['_id' => '2', '_index' => 'books', '_score' => 2.0], $models[0]->scoutMetadata);
+        $this->assertSame(['_id' => '1', '_index' => 'books', '_score' => 1.5], $models[1]->scoutMetadata);
+    }
+
+    #[Test]
     public function update_indexes_the_scout_metadata_but_not_the_hit_metadata_of_a_mapped_model(): void
     {
         FakeMapModel::seedRecords(['1']);
@@ -323,6 +346,7 @@ final class FakeMapModel extends Model
     public static function resetFakeState(): void
     {
         static::$records = [];
+        FakeMapModelQuery::$cursorRuns = 0;
     }
 
     /**
@@ -421,6 +445,9 @@ final class FakeMapModel extends Model
 
 final class FakeMapModelQuery
 {
+    /** How many times a cursor was enumerated, each of which is a database query for Eloquent. */
+    public static int $cursorRuns = 0;
+
     /**
      * @param array<int, string> $ids
      * @param array<int, FakeMapModel> $records
@@ -439,9 +466,12 @@ final class FakeMapModelQuery
             static fn(FakeMapModel $model): bool => isset($idsLookup[$model->getScoutKey()]),
         ));
 
+        // Like an Eloquent cursor, every enumeration queries again and hydrates new instances.
         return new LazyCollection(function () use ($filtered) {
+            self::$cursorRuns++;
+
             foreach ($filtered as $model) {
-                yield $model;
+                yield clone $model;
             }
         });
     }

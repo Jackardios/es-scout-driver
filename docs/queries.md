@@ -74,6 +74,22 @@ Query::range('field')
     ->relation('intersects') // For range fields: intersects, contains, within
 ```
 
+A bound may be a `DateTimeInterface` (Carbon included):
+
+```php
+Query::range('created_at')->gte(now()->subDay())->lt(now())
+// {"gte": "2024-05-01T09:30:00.123+03:00", "lt": "2024-05-02T09:30:00.123+03:00"}
+```
+
+It is sent as ISO 8601 with milliseconds and the UTC offset of the object, so it names the same instant whatever
+the timezone of the object; `timeZone()` is for bounds without an offset. Strings and numbers are sent as given.
+
+- Microseconds are cut off, as a `date` field stores milliseconds. For a `date_nanos` field pass a string
+  (`$date->format('Y-m-d\TH:i:s.uP')`).
+- The value parses with `strict_date_optional_time`, the default format of a `date` field. For a field mapped with
+  another format (`yyyy-MM-dd HH:mm:ss`, `epoch_second`...) add `->format('strict_date_optional_time')` to the
+  query, or pass a string in the field's own format.
+
 ### exists
 
 Find documents where a field exists:
@@ -635,9 +651,19 @@ Query::knn('embedding', [0.12, -0.34, 0.56, 0.78], k: 10)
 `numCandidates()` takes 1 to 10000 and at least `k`. Without it, the query sends twice `k`, at least 100 and at most
 10000; for a `k` above 10000 it sends none and Elasticsearch picks the number itself.
 
+The `knn` query takes `k` from Elasticsearch 8.15. On 8.12–8.14 leave `k` out: Elasticsearch collects
+`num_candidates` per shard and the size of the search decides how many hits come back. Without `k` the query sends
+`num_candidates` only when `numCandidates()` is called (8.12 requires it; 8.13 and 8.14 default it to 1.5 times the
+size). A query without `k` stays valid on 8.15 and later, where Elasticsearch defaults `k` to `num_candidates` and
+`num_candidates` to 1.5 times the size:
+
+```php
+Book::searchQuery(Query::knn('embedding', $vector)->numCandidates(100))->size(10)->execute();
+```
+
 ### semantic
 
-Semantic search using ML models (ES 8.14+):
+Semantic search on a `semantic_text` field (ES 8.15+):
 
 ```php
 Query::semantic('semantic_field', 'What is machine learning?')

@@ -129,4 +129,22 @@ final class NullEngineTest extends TestCase
         $this->assertSame(0, $result['total']);
         $this->assertSame([], $result['failures']);
     }
+
+    #[Test]
+    public function it_can_be_extended_by_a_test_engine(): void
+    {
+        $engine = new class extends NullEngine {
+            public function searchRaw(array $params): never
+            {
+                throw new \LogicException('No search expected.');
+            }
+        };
+
+        $this->assertSame($engine, $engine->connection('other'));
+        $this->assertSame(0, $engine->deleteByQueryRaw([])['deleted']);
+
+        $this->expectException(\LogicException::class);
+
+        $engine->searchRaw([]);
+    }
 }

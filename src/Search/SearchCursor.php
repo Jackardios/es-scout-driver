@@ -66,6 +66,11 @@ final class SearchCursor implements IteratorAggregate
                 $searchBuilder->pointInTime($currentPitId, $this->keepAlive);
                 $searchBuilder->size($this->chunkSize);
 
+                if ($searchBuilder->getTrackTotalHits() === null) {
+                    // The cursor does not expose the total; counting it on every page is wasted work.
+                    $searchBuilder->trackTotalHits(false);
+                }
+
                 if (!$this->hasShardDocSort($searchBuilder->getSort())) {
                     // Ensure deterministic pagination for PIT + search_after
                     $searchBuilder->sort('_shard_doc', 'asc');

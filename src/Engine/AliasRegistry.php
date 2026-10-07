@@ -10,7 +10,8 @@ use Elastic\Elasticsearch\Response\Elasticsearch as ElasticsearchResponse;
 
 /**
  * Maps the concrete index of a hit to the registered index (an index, alias, data stream, pattern or comma list)
- * it was searched through. Each registered name is resolved by Elasticsearch once per registry.
+ * it was searched through. Each registered name is resolved by Elasticsearch once per registry; a registry of the
+ * sole index of a search asks nothing, since every hit of that search belongs to it.
  *
  * @internal
  */
@@ -22,9 +23,20 @@ final class AliasRegistry
     /** @var array<string, string> concrete index => registered index */
     private array $concreteIndices = [];
 
+    private ?string $soleIndex = null;
+
     public function __construct(
         private readonly ?Client $client = null,
     ) {}
+
+    /** The registry of a search of one registered index: every index resolves to it, without a request. */
+    public static function sole(string $indexName): self
+    {
+        $registry = new self();
+        $registry->soleIndex = $indexName;
+
+        return $registry;
+    }
 
     public function registerIndex(string $indexName): void
     {
@@ -33,6 +45,10 @@ final class AliasRegistry
 
     public function resolve(string $indexName): string
     {
+        if ($this->soleIndex !== null) {
+            return $this->soleIndex;
+        }
+
         if (isset($this->registeredIndices[$indexName])) {
             return $indexName;
         }
