@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.0-rc.3 - 2026-10-08
 
 Changes since the `v1.0.0-rc.2` tag.
 
